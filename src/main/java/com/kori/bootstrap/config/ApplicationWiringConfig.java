@@ -1,7 +1,5 @@
 package com.kori.bootstrap.config;
 
-import com.kori.adapters.out.clock.SystemTimeProviderAdapter;
-import com.kori.adapters.out.idempotency.InMemoryIdempotencyAdapter;
 import com.kori.application.port.in.*;
 import com.kori.application.port.out.*;
 import com.kori.application.security.LedgerAccessPolicy;
@@ -12,21 +10,9 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class ApplicationWiringConfig {
 
-    @Bean
-    public TimeProviderPort timeProviderPort() {
-        return new SystemTimeProviderAdapter();
-    }
-
-    @Bean
-    public IdempotencyPort idempotencyPort() {
-        return new InMemoryIdempotencyAdapter();
-    }
-
-    @Bean
-    public CardSecurityPolicyPort cardSecurityPolicyPort() {
-        // Default value aligned with current behavior; can become admin-configured in Phase 2.
-        return () -> 3;
-    }
+    // -----------------------------
+    // Use-cases
+    // -----------------------------
 
     @Bean
     public EnrollCardUseCase enrollCardUseCase(TimeProviderPort timeProviderPort,
@@ -167,13 +153,13 @@ public class ApplicationWiringConfig {
     }
 
     @Bean
-    public com.kori.application.port.in.AdminUnblockCardUseCase adminUnblockCardUseCase(
+    public AdminUnblockCardUseCase adminUnblockCardUseCase(
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
             CardRepositoryPort cardRepositoryPort,
             AuditPort auditPort
     ) {
-        return new com.kori.application.usecase.AdminUnblockCardService(
+        return new AdminUnblockCardService(
                 timeProviderPort,
                 idempotencyPort,
                 cardRepositoryPort,
@@ -225,6 +211,10 @@ public class ApplicationWiringConfig {
                 auditPort
         );
     }
+
+    // -----------------------------
+    // Read-side (Phase 1 services reused)
+    // -----------------------------
 
     @Bean
     public LedgerAccessPolicy ledgerAccessPolicy() {

@@ -1,0 +1,56 @@
+package com.kori.adapters.out.jpa.adapter;
+
+import com.kori.adapters.out.jpa.entity.ClientEntity;
+import com.kori.adapters.out.jpa.repo.ClientJpaRepository;
+import com.kori.application.port.out.ClientRepositoryPort;
+import com.kori.domain.model.client.Client;
+import com.kori.domain.model.client.ClientId;
+import com.kori.domain.model.common.Status;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.Objects;
+import java.util.Optional;
+import java.util.UUID;
+
+@Component
+public class JpaClientRepositoryAdapter implements ClientRepositoryPort {
+
+    private final ClientJpaRepository repo;
+
+    public JpaClientRepositoryAdapter(ClientJpaRepository repo) {
+        this.repo = Objects.requireNonNull(repo);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Client> findByPhoneNumber(String phoneNumber) {
+        return repo.findByPhoneNumber(phoneNumber).map(this::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Client> findById(ClientId clientId) {
+        return repo.findById(UUID.fromString(clientId.value())).map(this::toDomain);
+    }
+
+    @Override
+    @Transactional
+    public Client save(Client client) {
+        ClientEntity e = new ClientEntity(
+                UUID.fromString(client.id().value()),
+                client.phoneNumber(),
+                client.status().name()
+        );
+        repo.save(e);
+        return client;
+    }
+
+    private Client toDomain(ClientEntity e) {
+        return new Client(
+                ClientId.of(e.getId().toString()),
+                e.getPhoneNumber(),
+                Status.valueOf(e.getStatus())
+        );
+    }
+}

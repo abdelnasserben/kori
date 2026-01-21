@@ -32,9 +32,7 @@ public final class LedgerAccessPolicy {
                     throw new ForbiddenOperationException("Agent can only consult their own ledger");
                 }
             }
-            case ADMIN -> {
-                // Admin can consult any ledger scope.
-            }
+            case ADMIN -> {} // Admin can consult any ledger scope.
             default -> throw new ForbiddenOperationException("Actor type cannot consult ledger");
         }
     }
