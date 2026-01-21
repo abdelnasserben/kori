@@ -47,7 +47,7 @@ public final class AdminUpdateAccountStatusService implements AdminUpdateAccount
         Status target = switch (command.action()) {
             case ACTIVE -> Status.ACTIVE;
             case SUSPENDED -> Status.SUSPENDED;
-            case INACTIVE -> Status.INACTIVE;
+            case CLOSED -> Status.CLOSED;
         };
 
         Account updated = new Account(account.id(), account.clientId(), target);

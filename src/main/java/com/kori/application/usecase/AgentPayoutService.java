@@ -9,6 +9,8 @@ import com.kori.application.security.ActorType;
 import com.kori.domain.ledger.LedgerAccount;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.common.Money;
+import com.kori.domain.model.payout.Payout;
+import com.kori.domain.model.payout.PayoutStatus;
 import com.kori.domain.model.transaction.Transaction;
 
 import java.time.Instant;
@@ -25,6 +27,7 @@ public final class AgentPayoutService implements AgentPayoutUseCase {
     private final LedgerQueryPort ledgerQueryPort;
     private final LedgerAppendPort ledgerAppendPort;
     private final TransactionRepositoryPort transactionRepositoryPort;
+    private final PayoutRepositoryPort payoutRepositoryPort;
     private final AuditPort auditPort;
 
     public AgentPayoutService(TimeProviderPort timeProviderPort,
@@ -33,6 +36,7 @@ public final class AgentPayoutService implements AgentPayoutUseCase {
                               LedgerQueryPort ledgerQueryPort,
                               LedgerAppendPort ledgerAppendPort,
                               TransactionRepositoryPort transactionRepositoryPort,
+                              PayoutRepositoryPort payoutRepositoryPort,
                               AuditPort auditPort) {
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
@@ -40,6 +44,7 @@ public final class AgentPayoutService implements AgentPayoutUseCase {
         this.ledgerQueryPort = ledgerQueryPort;
         this.ledgerAppendPort = ledgerAppendPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
+        this.payoutRepositoryPort = payoutRepositoryPort;
         this.auditPort = auditPort;
     }
 
@@ -59,26 +64,31 @@ public final class AgentPayoutService implements AgentPayoutUseCase {
             throw new ForbiddenOperationException("Agent not found");
         }
 
-        Money requested = Money.of(command.amount());
-        Money available = ledgerQueryPort.agentAvailableBalance(command.agentId());
-
-        if (requested.isGreaterThan(available)) {
-            throw new ForbiddenOperationException("Payout amount exceeds agent balance");
+        // Spec: payout must compensate exactly what is due to the agent.
+        Money due = ledgerQueryPort.agentAvailableBalance(command.agentId());
+        if (due.isZero()) {
+            throw new ForbiddenOperationException("No payout due for agent");
         }
 
         Instant now = timeProviderPort.now();
 
-        Transaction tx = Transaction.agentPayout(requested, now);
+        Transaction tx = Transaction.agentPayout(due, now);
         tx = transactionRepositoryPort.save(tx);
 
+        Payout payout = Payout.requested(command.agentId(), tx.id(), due, now);
+        payout = payoutRepositoryPort.save(payout);
+
         ledgerAppendPort.append(List.of(
-                LedgerEntry.debit(tx.id(), LedgerAccount.AGENT, requested, command.agentId()),
-                LedgerEntry.credit(tx.id(), LedgerAccount.PLATFORM_CLEARING, requested, null)
+                LedgerEntry.debit(tx.id(), LedgerAccount.AGENT, due, command.agentId()),
+                LedgerEntry.credit(tx.id(), LedgerAccount.PLATFORM_CLEARING, due, null)
         ));
+
+        payout = payoutRepositoryPort.save(payout.complete(now));
 
         Map<String, String> metadata = new HashMap<>();
         metadata.put("agentId", command.agentId());
         metadata.put("transactionId", tx.id().value());
+        metadata.put("payoutId", payout.id().value().toString());
 
         auditPort.publish(new AuditEvent(
                 "AGENT_PAYOUT",
@@ -90,8 +100,10 @@ public final class AgentPayoutService implements AgentPayoutUseCase {
 
         AgentPayoutResult result = new AgentPayoutResult(
                 tx.id().value(),
+                payout.id().value().toString(),
                 command.agentId(),
-                requested.asBigDecimal()
+                due.asBigDecimal(),
+                PayoutStatus.COMPLETED
         );
 
         idempotencyPort.save(command.idempotencyKey(), result);

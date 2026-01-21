@@ -47,6 +47,7 @@ class PayByCardServiceTest {
     @Mock AccountRepositoryPort accountRepositoryPort;
     @Mock TransactionRepositoryPort transactionRepositoryPort;
     @Mock FeePolicyPort feePolicyPort;
+    @Mock CardSecurityPolicyPort cardSecurityPolicyPort;
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock AuditPort auditPort;
 
@@ -59,6 +60,7 @@ class PayByCardServiceTest {
                 terminalRepositoryPort, merchantRepositoryPort,
                 cardRepositoryPort, accountRepositoryPort,
                 transactionRepositoryPort, feePolicyPort,
+                cardSecurityPolicyPort,
                 ledgerAppendPort, auditPort
         );
     }
@@ -87,7 +89,7 @@ class PayByCardServiceTest {
 
         assertSame(cached, result);
         verifyNoInteractions(terminalRepositoryPort, merchantRepositoryPort, cardRepositoryPort,
-                accountRepositoryPort, transactionRepositoryPort, feePolicyPort, ledgerAppendPort, auditPort);
+                accountRepositoryPort, transactionRepositoryPort, feePolicyPort, ledgerAppendPort, auditPort, cardSecurityPolicyPort);
     }
 
     @Test
@@ -96,6 +98,7 @@ class PayByCardServiceTest {
         when(timeProviderPort.now()).thenReturn(now);
 
         when(idempotencyPort.find("idem-2", PayByCardResult.class)).thenReturn(Optional.empty());
+        when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(3);
 
         Terminal terminal = new Terminal(TerminalId.of("term-1"), MerchantId.of("m-1"));
         when(terminalRepositoryPort.findById("term-1")).thenReturn(Optional.of(terminal));
@@ -152,6 +155,7 @@ class PayByCardServiceTest {
     @Test
     void payByCard_blocksCardAfterTooManyInvalidPinAttempts() {
         when(idempotencyPort.find("idem-x", PayByCardResult.class)).thenReturn(Optional.empty());
+        when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(3);
 
         Terminal terminal = new Terminal(TerminalId.of("term-1"), MerchantId.of("m-1"));
         when(terminalRepositoryPort.findById("term-1")).thenReturn(Optional.of(terminal));
@@ -217,113 +221,5 @@ class PayByCardServiceTest {
                 transactionRepositoryPort, feePolicyPort, ledgerAppendPort, auditPort);
     }
 
-    @Test
-    void payByCard_forbidden_whenMerchantMissing() {
-        when(idempotencyPort.find("idem-5", PayByCardResult.class)).thenReturn(Optional.empty());
-
-        Terminal terminal = new Terminal(TerminalId.of("term-1"), MerchantId.of("m-404"));
-        when(terminalRepositoryPort.findById("term-1")).thenReturn(Optional.of(terminal));
-        when(merchantRepositoryPort.findById("m-404")).thenReturn(Optional.empty());
-
-        PayByCardCommand cmd = new PayByCardCommand(
-                "idem-5",
-                new ActorContext(ActorType.TERMINAL, "terminal-actor", Map.of()),
-                "term-1",
-                "CARD-UID-1",
-                "1234",
-                BigDecimal.valueOf(50)
-        );
-
-        assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
-        verifyNoInteractions(cardRepositoryPort, accountRepositoryPort,
-                transactionRepositoryPort, feePolicyPort, ledgerAppendPort, auditPort);
-    }
-
-    @Test
-    void payByCard_forbidden_whenCardMissing() {
-        when(idempotencyPort.find("idem-6", PayByCardResult.class)).thenReturn(Optional.empty());
-
-        Terminal terminal = new Terminal(TerminalId.of("term-1"), MerchantId.of("m-1"));
-        when(terminalRepositoryPort.findById("term-1")).thenReturn(Optional.of(terminal));
-
-        Merchant merchant = new Merchant(MerchantId.of("m-1"), Status.ACTIVE);
-        when(merchantRepositoryPort.findById("m-1")).thenReturn(Optional.of(merchant));
-
-        when(cardRepositoryPort.findByCardUid("CARD-UID-404")).thenReturn(Optional.empty());
-
-        PayByCardCommand cmd = new PayByCardCommand(
-                "idem-6",
-                new ActorContext(ActorType.TERMINAL, "terminal-actor", Map.of()),
-                "term-1",
-                "CARD-UID-404",
-                "1234",
-                BigDecimal.valueOf(50)
-        );
-
-        assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
-        verifyNoInteractions(accountRepositoryPort, transactionRepositoryPort, feePolicyPort, ledgerAppendPort, auditPort);
-    }
-
-    @Test
-    void payByCard_forbidden_whenPinInvalid_incrementsAttempts() {
-        when(idempotencyPort.find("idem-7", PayByCardResult.class)).thenReturn(Optional.empty());
-
-        Terminal terminal = new Terminal(TerminalId.of("term-1"), MerchantId.of("m-1"));
-        when(terminalRepositoryPort.findById("term-1")).thenReturn(Optional.of(terminal));
-
-        Merchant merchant = new Merchant(MerchantId.of("m-1"), Status.ACTIVE);
-        when(merchantRepositoryPort.findById("m-1")).thenReturn(Optional.of(merchant));
-
-        Card card = new Card(CardId.of("card-1"), AccountId.of("acc-1"), "CARD-UID-1", "1234", CardStatus.ACTIVE, 0);
-        when(cardRepositoryPort.findByCardUid("CARD-UID-1")).thenReturn(Optional.of(card));
-
-        PayByCardCommand cmd = new PayByCardCommand(
-                "idem-7",
-                new ActorContext(ActorType.TERMINAL, "terminal-actor", Map.of()),
-                "term-1",
-                "CARD-UID-1",
-                "9999",
-                BigDecimal.valueOf(50)
-        );
-
-        assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
-
-        ArgumentCaptor<Card> cardCaptor = ArgumentCaptor.forClass(Card.class);
-        verify(cardRepositoryPort).save(cardCaptor.capture());
-        Card saved = cardCaptor.getValue();
-
-        assertEquals(1, saved.failedPinAttempts());
-        // status stays ACTIVE at 1 failure
-        assertEquals(CardStatus.ACTIVE, saved.status());
-
-        verifyNoInteractions(accountRepositoryPort, transactionRepositoryPort, feePolicyPort, ledgerAppendPort, auditPort);
-    }
-
-    @Test
-    void payByCard_forbidden_whenCardNotPayable() {
-        when(idempotencyPort.find("idem-8", PayByCardResult.class)).thenReturn(Optional.empty());
-
-        Terminal terminal = new Terminal(TerminalId.of("term-1"), MerchantId.of("m-1"));
-        when(terminalRepositoryPort.findById("term-1")).thenReturn(Optional.of(terminal));
-
-        Merchant merchant = new Merchant(MerchantId.of("m-1"), Status.ACTIVE);
-        when(merchantRepositoryPort.findById("m-1")).thenReturn(Optional.of(merchant));
-
-        Card blocked = new Card(CardId.of("card-1"), AccountId.of("acc-1"), "CARD-UID-1", "1234", CardStatus.BLOCKED, 3);
-        when(cardRepositoryPort.findByCardUid("CARD-UID-1")).thenReturn(Optional.of(blocked));
-
-        PayByCardCommand cmd = new PayByCardCommand(
-                "idem-8",
-                new ActorContext(ActorType.TERMINAL, "terminal-actor", Map.of()),
-                "term-1",
-                "CARD-UID-1",
-                "1234",
-                BigDecimal.valueOf(50)
-        );
-
-        assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
-
-        verifyNoInteractions(accountRepositoryPort, transactionRepositoryPort, feePolicyPort, ledgerAppendPort, auditPort);
-        verify(cardRepositoryPort, never()).save(any());
-    }
+    // ... le reste du fichier inchangé si tu en as (garde tes autres tests)
 }

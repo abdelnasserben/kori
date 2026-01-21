@@ -36,6 +36,10 @@ public final class Money {
         return amount.compareTo(BigDecimal.ZERO) < 0;
     }
 
+    public boolean isZero() {
+        return this.amount.compareTo(BigDecimal.ZERO) == 0;
+    }
+
     public boolean isGreaterThan(Money other) {
         Objects.requireNonNull(other, "other must not be null");
         return this.amount.compareTo(other.amount) > 0;

@@ -22,8 +22,6 @@ import java.util.Map;
 
 public final class PayByCardService implements PayByCardUseCase {
 
-    private static final int MAX_FAILED_PIN_ATTEMPTS = 3;
-
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
 
@@ -36,6 +34,8 @@ public final class PayByCardService implements PayByCardUseCase {
     private final TransactionRepositoryPort transactionRepositoryPort;
     private final FeePolicyPort feePolicyPort;
 
+    private final CardSecurityPolicyPort cardSecurityPolicyPort;
+
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
 
@@ -46,7 +46,7 @@ public final class PayByCardService implements PayByCardUseCase {
                             CardRepositoryPort cardRepositoryPort,
                             AccountRepositoryPort accountRepositoryPort,
                             TransactionRepositoryPort transactionRepositoryPort,
-                            FeePolicyPort feePolicyPort,
+                            FeePolicyPort feePolicyPort, CardSecurityPolicyPort cardSecurityPolicyPort,
                             LedgerAppendPort ledgerAppendPort,
                             AuditPort auditPort) {
         this.timeProviderPort = timeProviderPort;
@@ -57,6 +57,7 @@ public final class PayByCardService implements PayByCardUseCase {
         this.accountRepositoryPort = accountRepositoryPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.feePolicyPort = feePolicyPort;
+        this.cardSecurityPolicyPort = cardSecurityPolicyPort;
         this.ledgerAppendPort = ledgerAppendPort;
         this.auditPort = auditPort;
     }
@@ -86,9 +87,14 @@ public final class PayByCardService implements PayByCardUseCase {
             throw new ForbiddenOperationException("Card not payable");
         }
 
+        int maxAttempts = cardSecurityPolicyPort.maxFailedPinAttempts();
+        if (maxAttempts <= 0) {
+            throw new IllegalStateException("Invalid maxFailedPinAttempts policy value");
+        }
+
         // PIN check -> increment attempts and possibly block
         if (!card.pin().equals(command.pin())) {
-            Card updated = card.onPinFailure(MAX_FAILED_PIN_ATTEMPTS);
+            Card updated = card.onPinFailure(maxAttempts);
             cardRepositoryPort.save(updated);
             throw new ForbiddenOperationException("Invalid PIN");
         }

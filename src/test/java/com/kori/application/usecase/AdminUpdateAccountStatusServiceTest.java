@@ -110,7 +110,7 @@ class AdminUpdateAccountStatusServiceTest {
                 "idem-3",
                 new ActorContext(ActorType.AGENT, "agent-actor", Map.of()),
                 "acc-1",
-                AdminAccountStatusAction.INACTIVE,
+                AdminAccountStatusAction.CLOSED,
                 "reason"
         );
 

@@ -7,6 +7,7 @@ import com.kori.application.result.AgentPayoutResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.model.common.Money;
+import com.kori.domain.model.payout.Payout;
 import com.kori.domain.model.transaction.Transaction;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -22,8 +23,7 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class AgentPayoutServiceTest {
@@ -34,6 +34,7 @@ class AgentPayoutServiceTest {
     @Mock LedgerQueryPort ledgerQueryPort;
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock TransactionRepositoryPort transactionRepositoryPort;
+    @Mock PayoutRepositoryPort payoutRepositoryPort;
     @Mock AuditPort auditPort;
 
     private AgentPayoutService service;
@@ -44,6 +45,7 @@ class AgentPayoutServiceTest {
                 timeProviderPort, idempotencyPort,
                 agentRepositoryPort, ledgerQueryPort,
                 ledgerAppendPort, transactionRepositoryPort,
+                payoutRepositoryPort,
                 auditPort
         );
     }
@@ -57,36 +59,40 @@ class AgentPayoutServiceTest {
         when(ledgerQueryPort.agentAvailableBalance("agent-1"))
                 .thenReturn(Money.of(BigDecimal.valueOf(100)));
 
+        when(payoutRepositoryPort.save(any(Payout.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+
         when(transactionRepositoryPort.save(any(Transaction.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
 
         AgentPayoutCommand cmd = new AgentPayoutCommand(
                 "idem-1",
                 new ActorContext(ActorType.ADMIN, "admin-actor", Map.of()),
-                "agent-1",
-                BigDecimal.valueOf(50)
+                "agent-1"
         );
 
         AgentPayoutResult result = service.execute(cmd);
 
-        assertEquals(BigDecimal.valueOf(50).setScale(2), result.amount());
+        // Spec: must pay exactly what is due (available balance)
+        assertEquals(BigDecimal.valueOf(100).setScale(2), result.amount());
+        assertEquals("agent-1", result.agentId());
         verify(ledgerAppendPort).append(any());
         verify(auditPort).publish(any());
+        verify(payoutRepositoryPort, times(2)).save(any());
         verify(idempotencyPort).save("idem-1", result);
     }
 
     @Test
-    void payout_forbidden_whenAmountExceedsBalance() {
+    void payout_forbidden_whenNoPayoutDue() {
         when(idempotencyPort.find("idem-2", AgentPayoutResult.class)).thenReturn(Optional.empty());
         when(agentRepositoryPort.existsById("agent-1")).thenReturn(true);
         when(ledgerQueryPort.agentAvailableBalance("agent-1"))
-                .thenReturn(Money.of(BigDecimal.valueOf(10)));
+                .thenReturn(Money.zero());
 
         AgentPayoutCommand cmd = new AgentPayoutCommand(
                 "idem-2",
                 new ActorContext(ActorType.ADMIN, "admin-actor", Map.of()),
-                "agent-1",
-                BigDecimal.valueOf(50)
+                "agent-1"
         );
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));

@@ -23,6 +23,12 @@ public class ApplicationWiringConfig {
     }
 
     @Bean
+    public CardSecurityPolicyPort cardSecurityPolicyPort() {
+        // Default value aligned with current behavior; can become admin-configured in Phase 2.
+        return () -> 3;
+    }
+
+    @Bean
     public EnrollCardUseCase enrollCardUseCase(TimeProviderPort timeProviderPort,
                                                IdempotencyPort idempotencyPort,
                                                ClientRepositoryPort clientRepositoryPort,
@@ -58,6 +64,7 @@ public class ApplicationWiringConfig {
                                              AccountRepositoryPort accountRepositoryPort,
                                              TransactionRepositoryPort transactionRepositoryPort,
                                              FeePolicyPort feePolicyPort,
+                                             CardSecurityPolicyPort cardSecurityPolicyPort,
                                              LedgerAppendPort ledgerAppendPort,
                                              AuditPort auditPort) {
         return new PayByCardService(
@@ -69,6 +76,7 @@ public class ApplicationWiringConfig {
                 accountRepositoryPort,
                 transactionRepositoryPort,
                 feePolicyPort,
+                cardSecurityPolicyPort,
                 ledgerAppendPort,
                 auditPort
         );
@@ -107,6 +115,7 @@ public class ApplicationWiringConfig {
             LedgerQueryPort ledgerQueryPort,
             LedgerAppendPort ledgerAppendPort,
             TransactionRepositoryPort transactionRepositoryPort,
+            PayoutRepositoryPort payoutRepositoryPort,
             AuditPort auditPort
     ) {
         return new AgentPayoutService(
@@ -116,6 +125,7 @@ public class ApplicationWiringConfig {
                 ledgerQueryPort,
                 ledgerAppendPort,
                 transactionRepositoryPort,
+                payoutRepositoryPort,
                 auditPort
         );
     }
