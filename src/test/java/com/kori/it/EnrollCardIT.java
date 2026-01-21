@@ -11,8 +11,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.RecordComponent;
 import java.util.Map;
 import java.util.UUID;
 
@@ -43,7 +41,7 @@ class EnrollCardIT {
                 Map.of() // metadata optionnelle
         );
 
-        EnrollCardCommand command = newEnrollCardCommand(
+        EnrollCardCommand command = new EnrollCardCommand(
                 idempotencyKey,
                 actorContext,
                 agentId,
@@ -130,58 +128,5 @@ class EnrollCardIT {
                 id
         );
         return c == null ? 0 : c;
-    }
-
-    /**
-     * Construit EnrollCardCommand sans dépendre de l’ordre exact du constructeur.
-     * Hypothèse raisonnable: EnrollCardCommand est un record (canonique) avec des composants
-     * nommés: idempotencyKey, actorContext, agentId, phoneNumber, cardUid, pin
-     * (ce sont exactement les getters utilisés dans EnrollCardService)【:contentReference[oaicite:2]{index=2}
-     */
-    private EnrollCardCommand newEnrollCardCommand(
-            String idempotencyKey,
-            ActorContext actorContext,
-            String agentId,
-            String phoneNumber,
-            String cardUid,
-            String pin
-    ) {
-        Class<EnrollCardCommand> clazz = EnrollCardCommand.class;
-
-        if (!clazz.isRecord()) {
-            throw new IllegalStateException("EnrollCardCommand is expected to be a record for this IT helper.");
-        }
-
-        Map<String, Object> values = Map.of(
-                "idempotencyKey", idempotencyKey,
-                "actorContext", actorContext,
-                "agentId", agentId,
-                "phoneNumber", phoneNumber,
-                "cardUid", cardUid,
-                "pin", pin
-        );
-
-        RecordComponent[] components = clazz.getRecordComponents();
-        Object[] args = new Object[components.length];
-        Class<?>[] paramTypes = new Class<?>[components.length];
-
-        for (int i = 0; i < components.length; i++) {
-            RecordComponent rc = components[i];
-            String name = rc.getName();
-            Object v = values.get(name);
-            if (v == null) {
-                throw new IllegalStateException("Missing value for EnrollCardCommand component: " + name);
-            }
-            args[i] = v;
-            paramTypes[i] = rc.getType();
-        }
-
-        try {
-            Constructor<EnrollCardCommand> ctor = clazz.getDeclaredConstructor(paramTypes);
-            ctor.setAccessible(true);
-            return ctor.newInstance(args);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to build EnrollCardCommand via record canonical constructor", e);
-        }
     }
 }
