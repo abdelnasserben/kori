@@ -4,6 +4,7 @@ import com.kori.adapters.out.clock.SystemTimeProviderAdapter;
 import com.kori.adapters.out.idempotency.InMemoryIdempotencyAdapter;
 import com.kori.application.port.in.*;
 import com.kori.application.port.out.*;
+import com.kori.application.security.LedgerAccessPolicy;
 import com.kori.application.usecase.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -197,6 +198,47 @@ public class ApplicationWiringConfig {
                 idempotencyPort,
                 accountRepositoryPort,
                 auditPort
+        );
+    }
+
+    @Bean
+    public AdminUpdateClientStatusUseCase adminUpdateClientStatusUseCase(
+            TimeProviderPort timeProviderPort,
+            IdempotencyPort idempotencyPort,
+            ClientRepositoryPort clientRepositoryPort,
+            AuditPort auditPort
+    ) {
+        return new AdminUpdateClientStatusService(
+                timeProviderPort,
+                idempotencyPort,
+                clientRepositoryPort,
+                auditPort
+        );
+    }
+
+    @Bean
+    public LedgerAccessPolicy ledgerAccessPolicy() {
+        return new LedgerAccessPolicy();
+    }
+
+    @Bean
+    public GetBalanceUseCase getBalanceUseCase(
+            LedgerQueryPort ledgerQueryPort,
+            LedgerAccessPolicy ledgerAccessPolicy
+    ) {
+        return new GetBalanceService(ledgerQueryPort, ledgerAccessPolicy);
+    }
+
+    @Bean
+    public SearchTransactionHistoryUseCase searchTransactionHistoryUseCase(
+            LedgerQueryPort ledgerQueryPort,
+            TransactionRepositoryPort transactionRepositoryPort,
+            LedgerAccessPolicy ledgerAccessPolicy
+    ) {
+        return new SearchTransactionHistoryService(
+                ledgerQueryPort,
+                transactionRepositoryPort,
+                ledgerAccessPolicy
         );
     }
 
