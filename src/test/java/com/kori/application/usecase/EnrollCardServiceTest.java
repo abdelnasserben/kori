@@ -8,6 +8,7 @@ import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.account.Account;
+import com.kori.domain.model.card.HashedPin;
 import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.common.Money;
@@ -42,6 +43,7 @@ class EnrollCardServiceTest {
     @Mock CommissionPolicyPort commissionPolicyPort;
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock AuditPort auditPort;
+    @Mock PinHasherPort pinHasherPort;
 
     private EnrollCardService service;
 
@@ -52,7 +54,7 @@ class EnrollCardServiceTest {
                 clientRepositoryPort, accountRepositoryPort, cardRepositoryPort,
                 agentRepositoryPort, transactionRepositoryPort,
                 feePolicyPort, commissionPolicyPort,
-                ledgerAppendPort, auditPort
+                ledgerAppendPort, auditPort, pinHasherPort
         );
     }
 
@@ -115,6 +117,8 @@ class EnrollCardServiceTest {
                 "1234",
                 "agent-1"
         );
+
+        when(pinHasherPort.hash("1234")).thenReturn(new HashedPin("$2a$12$fakehash"));
 
         EnrollCardResult result = service.execute(cmd);
 

@@ -7,10 +7,7 @@ import com.kori.application.result.AgentUpdateCardStatusResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.model.account.AccountId;
-import com.kori.domain.model.card.AgentCardAction;
-import com.kori.domain.model.card.Card;
-import com.kori.domain.model.card.CardId;
-import com.kori.domain.model.card.CardStatus;
+import com.kori.domain.model.card.*;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -77,7 +74,7 @@ class AgentUpdateCardStatusServiceTest {
                 CardId.of("card-1"),
                 AccountId.of("acc-1"),
                 "CARD-UID-1",
-                "1234",
+                new HashedPin("1234"),
                 CardStatus.ACTIVE,
                 0
         );
@@ -125,7 +122,7 @@ class AgentUpdateCardStatusServiceTest {
                 CardId.of("card-1"),
                 AccountId.of("acc-1"),
                 "CARD-UID-1",
-                "1234",
+                new HashedPin("1234"),
                 CardStatus.ACTIVE,
                 0
         );

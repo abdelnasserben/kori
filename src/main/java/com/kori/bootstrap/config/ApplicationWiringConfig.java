@@ -25,7 +25,8 @@ public class ApplicationWiringConfig {
                                                FeePolicyPort feePolicyPort,
                                                CommissionPolicyPort commissionPolicyPort,
                                                LedgerAppendPort ledgerAppendPort,
-                                               AuditPort auditPort) {
+                                               AuditPort auditPort,
+                                               PinHasherPort pinHasherPort) {
         return new EnrollCardService(
                 timeProviderPort,
                 idempotencyPort,
@@ -37,7 +38,8 @@ public class ApplicationWiringConfig {
                 feePolicyPort,
                 commissionPolicyPort,
                 ledgerAppendPort,
-                auditPort
+                auditPort,
+                pinHasherPort
         );
     }
 
@@ -52,7 +54,8 @@ public class ApplicationWiringConfig {
                                              FeePolicyPort feePolicyPort,
                                              CardSecurityPolicyPort cardSecurityPolicyPort,
                                              LedgerAppendPort ledgerAppendPort,
-                                             AuditPort auditPort) {
+                                             AuditPort auditPort,
+                                             PinHasherPort pinHasherPort) {
         return new PayByCardService(
                 timeProviderPort,
                 idempotencyPort,
@@ -64,7 +67,8 @@ public class ApplicationWiringConfig {
                 feePolicyPort,
                 cardSecurityPolicyPort,
                 ledgerAppendPort,
-                auditPort
+                auditPort,
+                pinHasherPort
         );
     }
 

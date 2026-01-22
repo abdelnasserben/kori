@@ -52,7 +52,7 @@ public final class AdminUpdateCardStatusService implements AdminUpdateCardStatus
                 card.id(),
                 card.accountId(),
                 card.cardUid(),
-                card.pin(),
+                card.hashedPin(),
                 target,
                 card.failedPinAttempts()
         );

@@ -7,6 +7,7 @@ import com.kori.domain.model.account.AccountId;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.CardId;
 import com.kori.domain.model.card.CardStatus;
+import com.kori.domain.model.card.HashedPin;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -39,7 +40,7 @@ public class JpaCardRepositoryAdapter implements CardRepositoryPort {
                 UUID.fromString(card.id().value()),
                 UUID.fromString(card.accountId().value()),
                 card.cardUid(),
-                card.pin(),
+                card.hashedPin().value(),
                 card.status().name(),
                 card.failedPinAttempts()
         );
@@ -53,7 +54,7 @@ public class JpaCardRepositoryAdapter implements CardRepositoryPort {
                 CardId.of(e.getId().toString()),
                 AccountId.of(e.getAccountId().toString()),
                 e.getCardUid(),
-                e.getPin(),
+                new HashedPin(e.getPin()),
                 CardStatus.valueOf(e.getStatus()),
                 e.getFailedPinAttempts()
         );

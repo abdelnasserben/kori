@@ -13,6 +13,7 @@ import com.kori.domain.model.account.AccountId;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.CardId;
 import com.kori.domain.model.card.CardStatus;
+import com.kori.domain.model.card.HashedPin;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -74,7 +75,7 @@ class AdminUnblockCardServiceTest {
                 CardId.of("card-1"),
                 AccountId.of("acc-1"),
                 "CARD-UID-1",
-                "1234",
+                new HashedPin("1234"),
                 CardStatus.BLOCKED,
                 3
         );

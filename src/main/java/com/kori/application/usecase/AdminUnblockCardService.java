@@ -46,7 +46,7 @@ public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
                 card.id(),
                 card.accountId(),
                 card.cardUid(),
-                card.pin(),
+                card.hashedPin(),
                 CardStatus.ACTIVE,
                 0
         );

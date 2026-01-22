@@ -6,6 +6,7 @@ import com.kori.application.port.in.EnrollCardUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.EnrollCardResult;
 import com.kori.application.security.ActorType;
+import com.kori.application.security.PinFormatValidator;
 import com.kori.domain.ledger.LedgerAccount;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.account.Account;
@@ -36,6 +37,8 @@ public final class EnrollCardService implements EnrollCardUseCase {
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
 
+    private final PinHasherPort pinHasherPort;
+
     public EnrollCardService(TimeProviderPort timeProviderPort,
                              IdempotencyPort idempotencyPort,
                              ClientRepositoryPort clientRepositoryPort,
@@ -46,7 +49,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
                              FeePolicyPort feePolicyPort,
                              CommissionPolicyPort commissionPolicyPort,
                              LedgerAppendPort ledgerAppendPort,
-                             AuditPort auditPort) {
+                             AuditPort auditPort, PinHasherPort pinHasherPort) {
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
         this.clientRepositoryPort = clientRepositoryPort;
@@ -58,6 +61,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
         this.commissionPolicyPort = commissionPolicyPort;
         this.ledgerAppendPort = ledgerAppendPort;
         this.auditPort = auditPort;
+        this.pinHasherPort = pinHasherPort;
     }
 
     @Override
@@ -106,7 +110,9 @@ public final class EnrollCardService implements EnrollCardUseCase {
         }
 
         // 3) ajout carte (active)
-        Card card = Card.activeNew(account.id(), command.cardUid(), command.pin());
+        PinFormatValidator.validate(command.pin());
+        var hashed = pinHasherPort.hash(command.pin());
+        Card card = Card.activeNew(account.id(), command.cardUid(), hashed);
         card = cardRepositoryPort.save(card);
 
         // 4) frais d’enrôlement + 5) commission agent (policies)

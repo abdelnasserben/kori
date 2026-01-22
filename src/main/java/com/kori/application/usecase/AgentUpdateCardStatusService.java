@@ -59,7 +59,7 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
                 card.id(),
                 card.accountId(),
                 card.cardUid(),
-                card.pin(),
+                card.hashedPin(),
                 targetStatus,
                 card.failedPinAttempts()
         );

@@ -8,20 +8,20 @@ public final class Card {
     private final CardId id;
     private final AccountId accountId;
     private final String cardUid;
-    private final String pin;
+    private final HashedPin hashedPin;
     private final CardStatus status;
     private final int failedPinAttempts;
 
     public Card(CardId id,
                 AccountId accountId,
                 String cardUid,
-                String pin,
+                HashedPin hashedPin,
                 CardStatus status,
                 int failedPinAttempts) {
         this.id = Objects.requireNonNull(id);
         this.accountId = Objects.requireNonNull(accountId);
         this.cardUid = Objects.requireNonNull(cardUid);
-        this.pin = Objects.requireNonNull(pin);
+        this.hashedPin = Objects.requireNonNull(hashedPin);
         this.status = Objects.requireNonNull(status);
         if (failedPinAttempts < 0) {
             throw new IllegalArgumentException("failedPinAttempts must be >= 0");
@@ -29,7 +29,7 @@ public final class Card {
         this.failedPinAttempts = failedPinAttempts;
     }
 
-    public static Card activeNew(AccountId accountId, String cardUid, String pin) {
+    public static Card activeNew(AccountId accountId, String cardUid, HashedPin pin) {
         return new Card(CardId.newId(), accountId, cardUid, pin, CardStatus.ACTIVE, 0);
     }
 
@@ -45,8 +45,8 @@ public final class Card {
         return cardUid;
     }
 
-    public String pin() {
-        return pin;
+    public HashedPin hashedPin() {
+        return hashedPin;
     }
 
     public CardStatus status() {
@@ -57,6 +57,10 @@ public final class Card {
         return failedPinAttempts;
     }
 
+    public boolean hasFailedPinAttempts() {
+        return failedPinAttempts > 0;
+    }
+
     public boolean isPayable() {
         return status == CardStatus.ACTIVE;
     }
@@ -64,11 +68,11 @@ public final class Card {
     public Card onPinFailure(int maxAttempts) {
         int next = this.failedPinAttempts + 1;
         CardStatus nextStatus = (next >= maxAttempts) ? CardStatus.BLOCKED : this.status;
-        return new Card(this.id, this.accountId, this.cardUid, this.pin, nextStatus, next);
+        return new Card(this.id, this.accountId, this.cardUid, this.hashedPin, nextStatus, next);
     }
 
     public Card onPinSuccess() {
         if (this.failedPinAttempts == 0) return this;
-        return new Card(this.id, this.accountId, this.cardUid, this.pin, this.status, 0);
+        return new Card(this.id, this.accountId, this.cardUid, this.hashedPin, this.status, 0);
     }
 }

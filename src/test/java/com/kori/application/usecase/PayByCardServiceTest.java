@@ -12,6 +12,7 @@ import com.kori.domain.model.account.AccountId;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.CardId;
 import com.kori.domain.model.card.CardStatus;
+import com.kori.domain.model.card.HashedPin;
 import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
@@ -50,6 +51,7 @@ class PayByCardServiceTest {
     @Mock CardSecurityPolicyPort cardSecurityPolicyPort;
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock AuditPort auditPort;
+    @Mock PinHasherPort pinHasherPort;
 
     private PayByCardService service;
 
@@ -61,7 +63,7 @@ class PayByCardServiceTest {
                 cardRepositoryPort, accountRepositoryPort,
                 transactionRepositoryPort, feePolicyPort,
                 cardSecurityPolicyPort,
-                ledgerAppendPort, auditPort
+                ledgerAppendPort, auditPort, pinHasherPort
         );
     }
 
@@ -106,8 +108,10 @@ class PayByCardServiceTest {
         Merchant merchant = new Merchant(MerchantId.of("m-1"), Status.ACTIVE);
         when(merchantRepositoryPort.findById("m-1")).thenReturn(Optional.of(merchant));
 
-        Card card = new Card(CardId.of("card-1"), AccountId.of("acc-1"), "CARD-UID-1", "1234", CardStatus.ACTIVE, 0);
+        Card card = new Card(CardId.of("card-1"), AccountId.of("acc-1"), "CARD-UID-1", new HashedPin("$2a$12$fakehash"), CardStatus.ACTIVE, 0);
         when(cardRepositoryPort.findByCardUid("CARD-UID-1")).thenReturn(Optional.of(card));
+
+        when(pinHasherPort.matches(eq("1234"), any(HashedPin.class))).thenReturn(true);
 
         Account account = new Account(AccountId.of("acc-1"), ClientId.of("c-1"), Status.ACTIVE);
         when(accountRepositoryPort.findById(AccountId.of("acc-1"))).thenReturn(Optional.of(account));
@@ -164,7 +168,7 @@ class PayByCardServiceTest {
         when(merchantRepositoryPort.findById("m-1")).thenReturn(Optional.of(merchant));
 
         // Start at 2 failures already -> next invalid should block (threshold 3)
-        Card card = new Card(CardId.of("card-1"), AccountId.of("acc-1"), "CARD-UID-1", "1234", CardStatus.ACTIVE, 2);
+        Card card = new Card(CardId.of("card-1"), AccountId.of("acc-1"), "CARD-UID-1", new HashedPin("1234"), CardStatus.ACTIVE, 2);
         when(cardRepositoryPort.findByCardUid("CARD-UID-1")).thenReturn(Optional.of(card));
 
         PayByCardCommand cmd = new PayByCardCommand(
