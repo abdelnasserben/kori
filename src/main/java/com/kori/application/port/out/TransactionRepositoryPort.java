@@ -9,4 +9,7 @@ public interface TransactionRepositoryPort {
     Transaction save(Transaction transaction);
 
     Optional<Transaction> findById(TransactionId transactionId);
+
+    boolean existsReversalFor(String originalTransactionId);
+
 }

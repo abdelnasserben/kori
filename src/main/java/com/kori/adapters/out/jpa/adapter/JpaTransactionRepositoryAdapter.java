@@ -55,4 +55,12 @@ public class JpaTransactionRepositoryAdapter implements TransactionRepositoryPor
                 )
         );
     }
+
+    @Override
+    public boolean existsReversalFor(String originalTransactionId) {
+        return repo.existsByTypeAndOriginalTransactionId(
+                "REVERSAL",
+                UUID.fromString(originalTransactionId)
+        );
+    }
 }

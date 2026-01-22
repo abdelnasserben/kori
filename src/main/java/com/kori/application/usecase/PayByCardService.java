@@ -115,7 +115,7 @@ public final class PayByCardService implements PayByCardUseCase {
 
         Instant now = timeProviderPort.now();
 
-        Money amount = Money.of(command.amount());
+        Money amount = Money.positive(command.amount());
         Money fee = feePolicyPort.cardPaymentFee(amount);
         Money totalDebited = amount.plus(fee);
 

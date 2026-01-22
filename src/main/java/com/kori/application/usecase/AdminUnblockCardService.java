@@ -42,6 +42,14 @@ public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
         Card card = cardRepositoryPort.findByCardUid(command.cardUid())
                 .orElseThrow(() -> new ForbiddenOperationException("Card not found"));
 
+        if ("LOST".equals(card.status().name())) {
+            throw new ForbiddenOperationException("Cannot unblock a LOST card");
+        }
+
+        if (!"BLOCKED".equals(card.status().name())) {
+            throw new ForbiddenOperationException("Card is not blocked");
+        }
+
         Card updated = new Card(
                 card.id(),
                 card.accountId(),

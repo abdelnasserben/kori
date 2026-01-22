@@ -32,8 +32,14 @@ public final class Money {
         return new Money(this.amount.subtract(other.amount));
     }
 
-    public boolean isNegative() {
-        return amount.compareTo(BigDecimal.ZERO) < 0;
+    public static Money positive(BigDecimal amount) {
+        if (amount == null) {
+            throw new IllegalArgumentException("amount must not be null");
+        }
+        if (amount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException("amount must be > 0");
+        }
+        return new Money(amount);
     }
 
     public boolean isZero() {

@@ -57,6 +57,10 @@ public final class ReversalService implements ReversalUseCase {
         Transaction originalTx = transactionRepositoryPort.findById(originalTxId)
                 .orElseThrow(() -> new ForbiddenOperationException("Original transaction not found"));
 
+        if (transactionRepositoryPort.existsReversalFor(command.originalTransactionId())) {
+            throw new ForbiddenOperationException("Transaction already reversed");
+        }
+
         List<LedgerEntry> originalEntries = ledgerQueryPort.findByTransactionId(originalTxId.value());
         if (originalEntries.isEmpty()) {
             throw new ForbiddenOperationException("Original transaction has no ledger entries");

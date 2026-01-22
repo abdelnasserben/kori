@@ -72,7 +72,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
 
         Instant now = timeProviderPort.now();
 
-        Money amount = Money.of(command.amount());
+        Money amount = Money.positive(command.amount());
         Money fee = feePolicyPort.merchantWithdrawFee(amount);
         Money commission = commissionPolicyPort.merchantWithdrawAgentCommission(fee);
 
