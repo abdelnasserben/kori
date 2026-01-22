@@ -1,17 +1,14 @@
 package com.kori.integration.usecase;
 
-import com.kori.adapters.out.jpa.repo.AuditEventJpaRepository;
-import com.kori.adapters.out.jpa.repo.IdempotencyJpaRepository;
 import com.kori.application.command.AdminUpdateAccountStatusCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.port.in.AdminUpdateAccountStatusUseCase;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.model.account.AdminAccountStatusAction;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.UUID;
@@ -19,14 +16,9 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@SpringBootTest
-@Transactional
-class AdminUpdateAccountStatusForbiddenWhenAccountNotFoundIT {
+class AdminUpdateAccountStatusForbiddenWhenAccountNotFoundIT extends AbstractIntegrationTest {
 
     @Autowired AdminUpdateAccountStatusUseCase adminUpdateAccountStatusUseCase;
-
-    @Autowired AuditEventJpaRepository auditEventJpaRepository;
-    @Autowired IdempotencyJpaRepository idempotencyJpaRepository;
 
     @Test
     void adminUpdateAccountStatus_isForbidden_whenAccountDoesNotExist() {
@@ -39,7 +31,7 @@ class AdminUpdateAccountStatusForbiddenWhenAccountNotFoundIT {
         // When / Then
         assertThrows(ForbiddenOperationException.class, () ->
                 adminUpdateAccountStatusUseCase.execute(new AdminUpdateAccountStatusCommand(
-                        "it-admin-account-status-not-found-" + UUID.randomUUID(),
+                        idemKey("it-admin-account-status-not-found"),
                         new ActorContext(ActorType.ADMIN, "admin-actor-it", Map.of()),
                         nonExistingAccountId,
                         AdminAccountStatusAction.SUSPENDED,

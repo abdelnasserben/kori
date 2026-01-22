@@ -6,11 +6,11 @@ import com.kori.application.result.BalanceResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.ledger.LedgerAccount;
+import com.kori.integration.AbstractIntegrationTest;
+import com.kori.integration.fixture.LedgerSqlFixture;
+import com.kori.integration.fixture.TransactionFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -20,58 +20,37 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@SpringBootTest
-@Transactional
-class GetBalanceIT {
+class GetBalanceIT extends AbstractIntegrationTest {
 
     @Autowired GetBalanceUseCase getBalanceUseCase;
-    @Autowired JdbcTemplate jdbcTemplate;
 
     @Test
     void getBalance_returnsSelfClientBalance_fromLedgerEntries() {
         // Given
-        String clientId = UUID.randomUUID().toString();
-        String otherClientId = UUID.randomUUID().toString();
+        String clientId = uuid().toString();
+        String otherClientId = uuid().toString();
 
-        UUID tx1 = UUID.randomUUID();
-        UUID tx2 = UUID.randomUUID();
-        UUID txOther = UUID.randomUUID();
+        UUID tx1 = uuid();
+        UUID tx2 = uuid();
+        UUID txOther = uuid();
 
         OffsetDateTime now = OffsetDateTime.now();
 
+        TransactionFixture txFixture = new TransactionFixture(transactionJpaRepository);
+        LedgerSqlFixture ledgerFixture = new LedgerSqlFixture(jdbcTemplate);
+
         // transactions
-        jdbcTemplate.update(
-                "insert into transactions (id, type, amount, created_at, original_transaction_id) values (?, ?, ?, ?, ?)",
-                tx1, "TEST_TX", new BigDecimal("0.00"), now, null
-        );
-        jdbcTemplate.update(
-                "insert into transactions (id, type, amount, created_at, original_transaction_id) values (?, ?, ?, ?, ?)",
-                tx2, "TEST_TX", new BigDecimal("0.00"), now.plusSeconds(1), null
-        );
-        jdbcTemplate.update(
-                "insert into transactions (id, type, amount, created_at, original_transaction_id) values (?, ?, ?, ?, ?)",
-                txOther, "TEST_TX", new BigDecimal("0.00"), now.plusSeconds(2), null
-        );
+        txFixture.create(tx1, "TEST_TX", new BigDecimal("0.00"), now, null);
+        txFixture.create(tx2, "TEST_TX", new BigDecimal("0.00"), now.plusSeconds(1), null);
+        txFixture.create(txOther, "TEST_TX", new BigDecimal("0.00"), now.plusSeconds(2), null);
 
         // ledger entries for our client (CLIENT scope)
         // credits: 100.00 ; debits: 30.00 => expected 70.00
-        jdbcTemplate.update(
-                "insert into ledger_entries (id, transaction_id, account, entry_type, amount, reference_id, created_at) " +
-                        "values (?, ?, ?, ?, ?, ?, ?)",
-                UUID.randomUUID(), tx1, "CLIENT", "CREDIT", new BigDecimal("100.00"), clientId, now
-        );
-        jdbcTemplate.update(
-                "insert into ledger_entries (id, transaction_id, account, entry_type, amount, reference_id, created_at) " +
-                        "values (?, ?, ?, ?, ?, ?, ?)",
-                UUID.randomUUID(), tx2, "CLIENT", "DEBIT", new BigDecimal("30.00"), clientId, now.plusSeconds(1)
-        );
+        ledgerFixture.insertEntry(uuid(), tx1, "CLIENT", "CREDIT", new BigDecimal("100.00"), clientId, now);
+        ledgerFixture.insertEntry(uuid(), tx2, "CLIENT", "DEBIT", new BigDecimal("30.00"), clientId, now.plusSeconds(1));
 
         // noise: other client entries (must NOT be counted)
-        jdbcTemplate.update(
-                "insert into ledger_entries (id, transaction_id, account, entry_type, amount, reference_id, created_at) " +
-                        "values (?, ?, ?, ?, ?, ?, ?)",
-                UUID.randomUUID(), txOther, "CLIENT", "CREDIT", new BigDecimal("999.00"), otherClientId, now.plusSeconds(2)
-        );
+        ledgerFixture.insertEntry(uuid(), txOther, "CLIENT", "CREDIT", new BigDecimal("999.00"), otherClientId, now.plusSeconds(2));
 
         // When
         BalanceResult result = getBalanceUseCase.execute(

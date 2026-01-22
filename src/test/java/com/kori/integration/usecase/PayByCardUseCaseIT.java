@@ -4,10 +4,6 @@ import com.kori.adapters.out.jpa.entity.AuditEventEntity;
 import com.kori.adapters.out.jpa.entity.IdempotencyRecordEntity;
 import com.kori.adapters.out.jpa.entity.LedgerEntryEntity;
 import com.kori.adapters.out.jpa.entity.TransactionEntity;
-import com.kori.adapters.out.jpa.repo.AuditEventJpaRepository;
-import com.kori.adapters.out.jpa.repo.IdempotencyJpaRepository;
-import com.kori.adapters.out.jpa.repo.LedgerEntryJpaRepository;
-import com.kori.adapters.out.jpa.repo.TransactionJpaRepository;
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.command.PayByCardCommand;
 import com.kori.application.port.in.EnrollCardUseCase;
@@ -16,10 +12,9 @@ import com.kori.application.result.EnrollCardResult;
 import com.kori.application.result.PayByCardResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -29,17 +24,10 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@Transactional // rollback automatique après CHAQUE test
-class PayByCardUseCaseIT {
+class PayByCardUseCaseIT extends AbstractIntegrationTest {
 
     @Autowired EnrollCardUseCase enrollCardUseCase;
     @Autowired PayByCardUseCase payByCardUseCase;
-
-    @Autowired TransactionJpaRepository transactionJpaRepository;
-    @Autowired LedgerEntryJpaRepository ledgerEntryJpaRepository;
-    @Autowired AuditEventJpaRepository auditEventJpaRepository;
-    @Autowired IdempotencyJpaRepository idempotencyJpaRepository;
 
     @Test
     void happyPath_terminalPaysByCard_createsTx_ledger_audit_and_idempotency() {
@@ -48,13 +36,13 @@ class PayByCardUseCaseIT {
         String terminalId = "TERMINAL_001";   // seed Flyway
         String merchantId = "MERCHANT_001";   // seed Flyway
 
-        String phoneNumber = "+269700" + (100000 + (int) (Math.random() * 899999));
-        String cardUid = "CARD-UID-" + UUID.randomUUID();
+        String phoneNumber = randomPhone269();
+        String cardUid = randomCardUid();
         String pin = "1234";
 
         EnrollCardResult enrolled = enrollCardUseCase.execute(
                 new EnrollCardCommand(
-                        "it-enroll-for-pay-" + UUID.randomUUID(),
+                        idemKey("it-enroll-for-pay"),
                         new ActorContext(ActorType.AGENT, "agent-actor-it", Map.of()),
                         phoneNumber,
                         cardUid,
@@ -73,7 +61,7 @@ class PayByCardUseCaseIT {
         BigDecimal expectedTotalDebited = new BigDecimal("1020.00");
 
         // --- When
-        String payIdempotencyKey = "it-pay-" + UUID.randomUUID();
+        String payIdempotencyKey = idemKey("it-pay");
 
         PayByCardResult result = payByCardUseCase.execute(
                 new PayByCardCommand(
@@ -137,11 +125,13 @@ class PayByCardUseCaseIT {
         // En bonus: vérifie le netBalance (credit - debit) par compte/ref
         assertEquals(
                 0,
-                ledgerEntryJpaRepository.netBalance("CLIENT", enrolled.clientId()).compareTo(new BigDecimal("-1020.00"))
+                ledgerEntryJpaRepository.netBalance("CLIENT", enrolled.clientId())
+                        .compareTo(new BigDecimal("-1020.00"))
         );
         assertEquals(
                 0,
-                ledgerEntryJpaRepository.netBalance("MERCHANT", merchantId).compareTo(new BigDecimal("1000.00"))
+                ledgerEntryJpaRepository.netBalance("MERCHANT", merchantId)
+                        .compareTo(new BigDecimal("1000.00"))
         );
         // netBalance("PLATFORM", null) n'est pas possible via la query (referenceId = null),
         // donc on valide PLATFORM via hasPlatformCredit20 ci-dessus.

@@ -8,19 +8,16 @@ import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.ledger.LedgerAccount;
 import com.kori.domain.model.transaction.TransactionType;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@SpringBootTest
-@Transactional
-class SearchTransactionHistoryForbiddenWhenNonAdminOverridesScopeIT {
+class SearchTransactionHistoryForbiddenWhenNonAdminOverridesScopeIT extends AbstractIntegrationTest {
 
     @Autowired
     SearchTransactionHistoryUseCase searchTransactionHistoryUseCase;

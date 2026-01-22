@@ -1,17 +1,14 @@
 package com.kori.integration.usecase;
 
-import com.kori.adapters.out.jpa.repo.AuditEventJpaRepository;
-import com.kori.adapters.out.jpa.repo.IdempotencyJpaRepository;
 import com.kori.application.command.AdminUpdateClientStatusCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.port.in.AdminUpdateClientStatusUseCase;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.model.client.AdminClientStatusAction;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.UUID;
@@ -19,14 +16,9 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@SpringBootTest
-@Transactional
-class AdminUpdateClientStatusForbiddenWhenClientNotFoundIT {
+class AdminUpdateClientStatusForbiddenWhenClientNotFoundIT extends AbstractIntegrationTest {
 
     @Autowired AdminUpdateClientStatusUseCase adminUpdateClientStatusUseCase;
-
-    @Autowired AuditEventJpaRepository auditEventJpaRepository;
-    @Autowired IdempotencyJpaRepository idempotencyJpaRepository;
 
     @Test
     void adminUpdateClientStatus_isForbidden_whenClientDoesNotExist() {
@@ -39,7 +31,7 @@ class AdminUpdateClientStatusForbiddenWhenClientNotFoundIT {
         // When / Then
         assertThrows(ForbiddenOperationException.class, () ->
                 adminUpdateClientStatusUseCase.execute(new AdminUpdateClientStatusCommand(
-                        "it-admin-client-status-not-found-" + UUID.randomUUID(),
+                        idemKey("it-admin-client-status-not-found"),
                         new ActorContext(ActorType.ADMIN, "admin-actor-it", Map.of()),
                         nonExistingClientId,
                         AdminClientStatusAction.SUSPENDED,

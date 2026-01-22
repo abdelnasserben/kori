@@ -3,19 +3,14 @@ package com.kori.integration.usecase;
 import com.kori.adapters.out.jpa.entity.AuditEventEntity;
 import com.kori.adapters.out.jpa.entity.IdempotencyRecordEntity;
 import com.kori.adapters.out.jpa.entity.LedgerEntryEntity;
-import com.kori.adapters.out.jpa.repo.AuditEventJpaRepository;
-import com.kori.adapters.out.jpa.repo.IdempotencyJpaRepository;
-import com.kori.adapters.out.jpa.repo.LedgerEntryJpaRepository;
-import com.kori.adapters.out.jpa.repo.TransactionJpaRepository;
 import com.kori.application.command.MerchantWithdrawAtAgentCommand;
 import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
 import com.kori.application.result.MerchantWithdrawAtAgentResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -25,16 +20,9 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@Transactional // rollback automatique après CHAQUE test
-class MerchantWithdrawAtAgentUseCaseIT {
+class MerchantWithdrawAtAgentUseCaseIT extends AbstractIntegrationTest {
 
     @Autowired MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase;
-
-    @Autowired TransactionJpaRepository transactionJpaRepository;
-    @Autowired LedgerEntryJpaRepository ledgerEntryJpaRepository;
-    @Autowired AuditEventJpaRepository auditEventJpaRepository;
-    @Autowired IdempotencyJpaRepository idempotencyJpaRepository;
 
     @Test
     void happyPath_agentInitiatesMerchantWithdraw_createsTx_ledger_audit_and_idempotency() {
@@ -53,7 +41,7 @@ class MerchantWithdrawAtAgentUseCaseIT {
         BigDecimal merchantBalanceBefore = ledgerEntryJpaRepository.netBalance("MERCHANT", merchantId);
 
         long auditBefore = auditEventJpaRepository.count();
-        String idempotencyKey = "it-mw-" + UUID.randomUUID();
+        String idempotencyKey = idemKey("it-mw");
 
         MerchantWithdrawAtAgentCommand cmd = new MerchantWithdrawAtAgentCommand(
                 idempotencyKey,
@@ -123,7 +111,8 @@ class MerchantWithdrawAtAgentUseCaseIT {
         assertEquals(0, agentBalanceAfter.subtract(agentBalanceBefore).compareTo(expectedCommission),
                 "Agent balance should increase by commission for this transaction");
 
-        assertEquals(0, merchantBalanceAfter.subtract(merchantBalanceBefore).compareTo(expectedTotalDebitedMerchant.negate()),
+        assertEquals(0, merchantBalanceAfter.subtract(merchantBalanceBefore)
+                        .compareTo(expectedTotalDebitedMerchant.negate()),
                 "Merchant balance should decrease by (amount + fee) for this transaction");
 
         // Audit
@@ -149,5 +138,4 @@ class MerchantWithdrawAtAgentUseCaseIT {
         assertNotNull(idem.getResultJson());
         assertFalse(idem.getResultJson().isBlank());
     }
-
 }

@@ -1,16 +1,14 @@
 package com.kori.integration.usecase;
 
 import com.kori.adapters.out.jpa.entity.*;
-import com.kori.adapters.out.jpa.repo.*;
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.port.in.EnrollCardUseCase;
 import com.kori.application.result.EnrollCardResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -20,30 +18,19 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@Transactional // <-- rollback automatique après CHAQUE test
-class EnrollCardUseCaseIT {
+class EnrollCardUseCaseIT extends AbstractIntegrationTest {
 
     @Autowired EnrollCardUseCase enrollCardUseCase;
-
-    // DB assertions (Spring Data JPA repos)
-    @Autowired ClientJpaRepository clientJpaRepository;
-    @Autowired AccountJpaRepository accountJpaRepository;
-    @Autowired CardJpaRepository cardJpaRepository;
-    @Autowired TransactionJpaRepository transactionJpaRepository;
-    @Autowired LedgerEntryJpaRepository ledgerEntryJpaRepository;
-    @Autowired AuditEventJpaRepository auditEventJpaRepository;
-    @Autowired IdempotencyJpaRepository idempotencyJpaRepository;
 
     @Test
     void happyPath_createsClientAccountCard_tx_ledger_audit_and_idempotency() {
         // Given
-        String idempotencyKey = "it-enroll-" + UUID.randomUUID();
-        String phoneNumber = "+2696123" + (100000 + (int) (Math.random() * 899999));
-        String cardUid = "CARD-UID-" + UUID.randomUUID();
+        String idempotencyKey = idemKey("it-enroll");
+        String phoneNumber = randomPhone269();
+        String cardUid = randomCardUid();
         String pin = "1234";
 
-        // Seeded by Flyway V3__seed_minimal_references.sql in your project
+        // Seeded by Flyway V3__seed_minimal_references.sql
         String agentId = "AGENT_001";
 
         long auditBefore = auditEventJpaRepository.count();
@@ -109,10 +96,7 @@ class EnrollCardUseCaseIT {
         List<LedgerEntryEntity> ledger = ledgerEntryJpaRepository.findByTransactionIdOrderByCreatedAtAscIdAsc(txId);
         assertEquals(2, ledger.size(), "EnrollCard should append 2 ledger entries");
 
-        LedgerEntryEntity e1 = ledger.get(0);
-        LedgerEntryEntity e2 = ledger.get(1);
-
-        // We don't rely on ordering strictly by account, so validate as a set:
+        // Validate as a set (no ordering assumption)
         boolean hasPlatformCredit300 = ledger.stream().anyMatch(e ->
                 "PLATFORM".equals(e.getAccount())
                         && "CREDIT".equals(e.getEntryType())
@@ -133,7 +117,6 @@ class EnrollCardUseCaseIT {
         long auditAfter = auditEventJpaRepository.count();
         assertEquals(auditBefore + 1, auditAfter, "One audit event should be written");
 
-        // Optionally check last event content (no strict time assertion)
         List<AuditEventEntity> audits = auditEventJpaRepository.findAll();
         assertTrue(audits.stream().anyMatch(a ->
                 "ENROLL_CARD".equals(a.getAction())

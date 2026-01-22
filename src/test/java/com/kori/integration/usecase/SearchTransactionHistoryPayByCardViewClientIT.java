@@ -1,7 +1,5 @@
 package com.kori.integration.usecase;
 
-import com.kori.adapters.out.jpa.entity.TransactionEntity;
-import com.kori.adapters.out.jpa.repo.TransactionJpaRepository;
 import com.kori.application.command.SearchTransactionHistoryCommand;
 import com.kori.application.command.TransactionHistoryView;
 import com.kori.application.port.in.SearchTransactionHistoryUseCase;
@@ -9,11 +7,11 @@ import com.kori.application.result.TransactionHistoryResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.model.transaction.TransactionType;
+import com.kori.integration.AbstractIntegrationTest;
+import com.kori.integration.fixture.LedgerSqlFixture;
+import com.kori.integration.fixture.TransactionFixture;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -22,13 +20,9 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-@SpringBootTest
-@Transactional
-class SearchTransactionHistoryPayByCardViewClientHappyPathIT {
+class SearchTransactionHistoryPayByCardViewClientIT extends AbstractIntegrationTest {
 
     @Autowired SearchTransactionHistoryUseCase searchTransactionHistoryUseCase;
-    @Autowired TransactionJpaRepository transactionJpaRepository;
-    @Autowired JdbcTemplate jdbcTemplate;
 
     @Test
     void clientSeesOwnPayByCardTransactions_sortedNewestFirst_withCorrectProjection() {
@@ -45,44 +39,28 @@ class SearchTransactionHistoryPayByCardViewClientHappyPathIT {
         UUID tx2 = UUID.randomUUID();
         UUID txOther = UUID.randomUUID();
 
-        // Create transactions via JPA (avoid fragile SQL)
-        transactionJpaRepository.save(new TransactionEntity(
-                tx1,
-                TransactionType.PAY_BY_CARD.name(),
-                new BigDecimal("100.00"),
-                t1,
-                null
-        ));
-        transactionJpaRepository.save(new TransactionEntity(
-                tx2,
-                TransactionType.PAY_BY_CARD.name(),
-                new BigDecimal("50.00"),
-                t2,
-                null
-        ));
-        transactionJpaRepository.save(new TransactionEntity(
-                txOther,
-                TransactionType.PAY_BY_CARD.name(),
-                new BigDecimal("999.00"),
-                t2,
-                null
-        ));
-        transactionJpaRepository.flush();
+        TransactionFixture txFixture = new TransactionFixture(transactionJpaRepository);
+        LedgerSqlFixture ledgerFixture = new LedgerSqlFixture(jdbcTemplate);
+
+        // Create transactions via JPA (avoid fragile SQL) - identical to original
+        txFixture.create(tx1, TransactionType.PAY_BY_CARD.name(), new BigDecimal("100.00"), t1, null);
+        txFixture.create(tx2, TransactionType.PAY_BY_CARD.name(), new BigDecimal("50.00"), t2, null);
+        txFixture.create(txOther, TransactionType.PAY_BY_CARD.name(), new BigDecimal("999.00"), t2, null);
 
         // Ledger for tx1: client debited 102.00, merchant credited 100.00, platform credited 2.00
-        insertLedger(tx1, "CLIENT", "DEBIT", "102.00", clientId, t1);
-        insertLedger(tx1, "MERCHANT", "CREDIT", "100.00", merchantId, t1);
-        insertLedger(tx1, "PLATFORM", "CREDIT", "2.00", null, t1);
+        ledgerFixture.insertEntry(UUID.randomUUID(), tx1, "CLIENT", "DEBIT", new BigDecimal("102.00"), clientId, t1);
+        ledgerFixture.insertEntry(UUID.randomUUID(), tx1, "MERCHANT", "CREDIT", new BigDecimal("100.00"), merchantId, t1);
+        ledgerFixture.insertEntry(UUID.randomUUID(), tx1, "PLATFORM", "CREDIT", new BigDecimal("2.00"), null, t1);
 
         // Ledger for tx2: client debited 51.00, merchant credited 50.00, platform credited 1.00
-        insertLedger(tx2, "CLIENT", "DEBIT", "51.00", clientId, t2);
-        insertLedger(tx2, "MERCHANT", "CREDIT", "50.00", merchantId, t2);
-        insertLedger(tx2, "PLATFORM", "CREDIT", "1.00", null, t2);
+        ledgerFixture.insertEntry(UUID.randomUUID(), tx2, "CLIENT", "DEBIT", new BigDecimal("51.00"), clientId, t2);
+        ledgerFixture.insertEntry(UUID.randomUUID(), tx2, "MERCHANT", "CREDIT", new BigDecimal("50.00"), merchantId, t2);
+        ledgerFixture.insertEntry(UUID.randomUUID(), tx2, "PLATFORM", "CREDIT", new BigDecimal("1.00"), null, t2);
 
         // Noise: another client's tx should NOT be visible
-        insertLedger(txOther, "CLIENT", "DEBIT", "999.00", otherClientId, t2);
-        insertLedger(txOther, "MERCHANT", "CREDIT", "990.00", merchantId, t2);
-        insertLedger(txOther, "PLATFORM", "CREDIT", "9.00", null, t2);
+        ledgerFixture.insertEntry(UUID.randomUUID(), txOther, "CLIENT", "DEBIT", new BigDecimal("999.00"), otherClientId, t2);
+        ledgerFixture.insertEntry(UUID.randomUUID(), txOther, "MERCHANT", "CREDIT", new BigDecimal("990.00"), merchantId, t2);
+        ledgerFixture.insertEntry(UUID.randomUUID(), txOther, "PLATFORM", "CREDIT", new BigDecimal("9.00"), null, t2);
 
         // When
         TransactionHistoryResult result = searchTransactionHistoryUseCase.execute(
@@ -136,24 +114,5 @@ class SearchTransactionHistoryPayByCardViewClientHappyPathIT {
         // Cursor should point to the last item (stable pagination)
         assertEquals(i1.createdAt(), result.nextBeforeCreatedAt());
         assertEquals(i1.transactionId(), result.nextBeforeTransactionId());
-    }
-
-    private void insertLedger(UUID txId,
-                              String account,
-                              String entryType,
-                              String amount,
-                              String referenceId,
-                              OffsetDateTime createdAt) {
-        jdbcTemplate.update(
-                "insert into ledger_entries (id, transaction_id, account, entry_type, amount, reference_id, created_at) " +
-                        "values (?, ?, ?, ?, ?, ?, ?)",
-                UUID.randomUUID(),
-                txId,
-                account,
-                entryType,
-                new BigDecimal(amount),
-                referenceId,
-                createdAt
-        );
     }
 }

@@ -1,18 +1,13 @@
 package com.kori.integration.usecase;
 
-import com.kori.adapters.out.jpa.repo.AuditEventJpaRepository;
-import com.kori.adapters.out.jpa.repo.IdempotencyJpaRepository;
-import com.kori.adapters.out.jpa.repo.LedgerEntryJpaRepository;
-import com.kori.adapters.out.jpa.repo.TransactionJpaRepository;
 import com.kori.application.command.ReversalCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.port.in.ReversalUseCase;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.UUID;
@@ -20,16 +15,9 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-@SpringBootTest
-@Transactional
-class ReversalForbiddenWhenOriginalTransactionNotFoundIT {
+class ReversalForbiddenWhenOriginalTransactionNotFoundIT extends AbstractIntegrationTest {
 
     @Autowired ReversalUseCase reversalUseCase;
-
-    @Autowired TransactionJpaRepository transactionJpaRepository;
-    @Autowired LedgerEntryJpaRepository ledgerEntryJpaRepository;
-    @Autowired AuditEventJpaRepository auditEventJpaRepository;
-    @Autowired IdempotencyJpaRepository idempotencyJpaRepository;
 
     @Test
     void reversal_isForbidden_whenOriginalTransactionDoesNotExist() {
@@ -44,7 +32,7 @@ class ReversalForbiddenWhenOriginalTransactionNotFoundIT {
         // When / Then
         assertThrows(ForbiddenOperationException.class, () ->
                 reversalUseCase.execute(new ReversalCommand(
-                        "it-reversal-original-not-found-" + UUID.randomUUID(),
+                        idemKey("it-reversal-original-not-found"),
                         new ActorContext(ActorType.ADMIN, "admin-actor-it", Map.of()),
                         nonExistingOriginalTxId
                 ))

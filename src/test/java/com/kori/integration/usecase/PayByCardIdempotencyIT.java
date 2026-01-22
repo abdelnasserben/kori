@@ -2,9 +2,6 @@ package com.kori.integration.usecase;
 
 import com.kori.adapters.out.jpa.entity.IdempotencyRecordEntity;
 import com.kori.adapters.out.jpa.entity.LedgerEntryEntity;
-import com.kori.adapters.out.jpa.repo.IdempotencyJpaRepository;
-import com.kori.adapters.out.jpa.repo.LedgerEntryJpaRepository;
-import com.kori.adapters.out.jpa.repo.TransactionJpaRepository;
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.command.PayByCardCommand;
 import com.kori.application.port.in.EnrollCardUseCase;
@@ -12,10 +9,9 @@ import com.kori.application.port.in.PayByCardUseCase;
 import com.kori.application.result.PayByCardResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -25,16 +21,10 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@Transactional // rollback automatique après CHAQUE test
-class PayByCardIdempotencyIT {
+class PayByCardIdempotencyIT extends AbstractIntegrationTest {
 
     @Autowired EnrollCardUseCase enrollCardUseCase;
     @Autowired PayByCardUseCase payByCardUseCase;
-
-    @Autowired TransactionJpaRepository transactionJpaRepository;
-    @Autowired LedgerEntryJpaRepository ledgerEntryJpaRepository;
-    @Autowired IdempotencyJpaRepository idempotencyJpaRepository;
 
     @Test
     void idempotency_sameKey_twice_returnsSameResult_andDoesNotDuplicateTxOrLedger() {
@@ -43,12 +33,12 @@ class PayByCardIdempotencyIT {
         String terminalId = "TERMINAL_001";
 
         // Setup a card via real use case
-        String phoneNumber = "+269910" + (100000 + (int) (Math.random() * 899999));
-        String cardUid = "CARD-" + UUID.randomUUID();
+        String phoneNumber = randomPhone269();
+        String cardUid = randomCardUid();
         String pin = "1234";
 
         enrollCardUseCase.execute(new EnrollCardCommand(
-                "it-enroll-for-idem-pay-" + UUID.randomUUID(),
+                idemKey("it-enroll-for-idem-pay"),
                 new ActorContext(ActorType.AGENT, "agent-actor-it", Map.of()),
                 phoneNumber,
                 cardUid,
@@ -57,7 +47,7 @@ class PayByCardIdempotencyIT {
         ));
 
         BigDecimal amount = new BigDecimal("1000.00"); // fee = 20.00 (2%)
-        String sameIdempotencyKey = "it-pay-idem-" + UUID.randomUUID();
+        String sameIdempotencyKey = idemKey("it-pay-idem");
 
         PayByCardCommand cmd = new PayByCardCommand(
                 sameIdempotencyKey,

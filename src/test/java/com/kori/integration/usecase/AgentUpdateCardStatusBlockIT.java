@@ -2,9 +2,6 @@ package com.kori.integration.usecase;
 
 import com.kori.adapters.out.jpa.entity.CardEntity;
 import com.kori.adapters.out.jpa.entity.IdempotencyRecordEntity;
-import com.kori.adapters.out.jpa.repo.AuditEventJpaRepository;
-import com.kori.adapters.out.jpa.repo.CardJpaRepository;
-import com.kori.adapters.out.jpa.repo.IdempotencyJpaRepository;
 import com.kori.application.command.AgentUpdateCardStatusCommand;
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.port.in.AgentUpdateCardStatusUseCase;
@@ -12,37 +9,29 @@ import com.kori.application.port.in.EnrollCardUseCase;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.model.card.AgentCardAction;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@Transactional
-class AgentUpdateCardStatusBlockIT {
+class AgentUpdateCardStatusBlockIT extends AbstractIntegrationTest {
 
     @Autowired EnrollCardUseCase enrollCardUseCase;
     @Autowired AgentUpdateCardStatusUseCase agentUpdateCardStatusUseCase;
-
-    @Autowired CardJpaRepository cardJpaRepository;
-    @Autowired AuditEventJpaRepository auditEventJpaRepository;
-    @Autowired IdempotencyJpaRepository idempotencyJpaRepository;
 
     @Test
     void happyPath_agentBlocksCard_updatesStatus_writesAudit_andIdempotency() {
         // Given: active card exists
         String agentId = "AGENT_001";
-        String phoneNumber = "+269880" + (100000 + (int) (Math.random() * 899999));
-        String cardUid = "CARD-" + UUID.randomUUID();
+        String phoneNumber = randomPhone269();
+        String cardUid = randomCardUid();
 
         enrollCardUseCase.execute(new EnrollCardCommand(
-                "it-enroll-for-block-happy-" + UUID.randomUUID(),
+                idemKey("it-enroll-for-block-happy"),
                 new ActorContext(ActorType.AGENT, "agent-actor-it", Map.of()),
                 phoneNumber,
                 cardUid,
@@ -55,7 +44,7 @@ class AgentUpdateCardStatusBlockIT {
         assertEquals("ACTIVE", before.getStatus(), "Precondition: card should be ACTIVE");
 
         long auditBefore = auditEventJpaRepository.count();
-        String idemKey = "it-agent-block-" + UUID.randomUUID();
+        String idemKey = idemKey("it-agent-block");
 
         // When: agent blocks card
         agentUpdateCardStatusUseCase.execute(new AgentUpdateCardStatusCommand(

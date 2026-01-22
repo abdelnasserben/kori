@@ -2,46 +2,35 @@ package com.kori.integration.usecase;
 
 import com.kori.adapters.out.jpa.entity.CardEntity;
 import com.kori.adapters.out.jpa.entity.IdempotencyRecordEntity;
-import com.kori.adapters.out.jpa.repo.AuditEventJpaRepository;
-import com.kori.adapters.out.jpa.repo.CardJpaRepository;
-import com.kori.adapters.out.jpa.repo.IdempotencyJpaRepository;
 import com.kori.application.command.AdminUnblockCardCommand;
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.port.in.AdminUnblockCardUseCase;
 import com.kori.application.port.in.EnrollCardUseCase;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@Transactional
-class AdminUnblockCardIT {
+class AdminUnblockCardIT extends AbstractIntegrationTest {
 
     @Autowired EnrollCardUseCase enrollCardUseCase;
     @Autowired AdminUnblockCardUseCase adminUnblockCardUseCase;
-
-    @Autowired CardJpaRepository cardJpaRepository;
-    @Autowired AuditEventJpaRepository auditEventJpaRepository;
-    @Autowired IdempotencyJpaRepository idempotencyJpaRepository;
 
     @Test
     void happyPath_adminUnblocksCard_updatesStatus_writesAudit_andIdempotency() {
         // Given: card exists and is BLOCKED
         String agentId = "AGENT_001";
-        String phoneNumber = "+269900" + (100000 + (int) (Math.random() * 899999));
-        String cardUid = "CARD-" + UUID.randomUUID();
+        String phoneNumber = randomPhone269();
+        String cardUid = randomCardUid();
 
         enrollCardUseCase.execute(new EnrollCardCommand(
-                "it-enroll-for-admin-unblock-" + UUID.randomUUID(),
+                idemKey("it-enroll-for-admin-unblock"),
                 new ActorContext(ActorType.AGENT, "agent-actor-it", Map.of()),
                 phoneNumber,
                 cardUid,
@@ -55,7 +44,7 @@ class AdminUnblockCardIT {
         cardJpaRepository.saveAndFlush(card);
 
         long auditBefore = auditEventJpaRepository.count();
-        String idemKey = "it-admin-unblock-" + UUID.randomUUID();
+        String idemKey = idemKey("it-admin-unblock");
 
         // When: ADMIN unblocks
         adminUnblockCardUseCase.execute(new AdminUnblockCardCommand(

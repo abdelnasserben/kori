@@ -4,10 +4,6 @@ import com.kori.adapters.out.jpa.entity.AuditEventEntity;
 import com.kori.adapters.out.jpa.entity.IdempotencyRecordEntity;
 import com.kori.adapters.out.jpa.entity.LedgerEntryEntity;
 import com.kori.adapters.out.jpa.entity.TransactionEntity;
-import com.kori.adapters.out.jpa.repo.AuditEventJpaRepository;
-import com.kori.adapters.out.jpa.repo.IdempotencyJpaRepository;
-import com.kori.adapters.out.jpa.repo.LedgerEntryJpaRepository;
-import com.kori.adapters.out.jpa.repo.TransactionJpaRepository;
 import com.kori.application.command.AgentPayoutCommand;
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.port.in.AgentPayoutUseCase;
@@ -15,10 +11,9 @@ import com.kori.application.port.in.EnrollCardUseCase;
 import com.kori.application.result.AgentPayoutResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -28,17 +23,10 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@Transactional // rollback automatique après CHAQUE test
-class AgentPayoutUseCaseIT {
+class AgentPayoutUseCaseIT extends AbstractIntegrationTest {
 
     @Autowired AgentPayoutUseCase agentPayoutUseCase;
     @Autowired EnrollCardUseCase enrollCardUseCase;
-
-    @Autowired TransactionJpaRepository transactionJpaRepository;
-    @Autowired LedgerEntryJpaRepository ledgerEntryJpaRepository;
-    @Autowired AuditEventJpaRepository auditEventJpaRepository;
-    @Autowired IdempotencyJpaRepository idempotencyJpaRepository;
 
     @Test
     void happyPath_adminInitiatesAgentPayout_paysExactDue_and_bringsAgentBalanceToZero() {
@@ -54,10 +42,10 @@ class AgentPayoutUseCaseIT {
         // Ensure due > 0, otherwise create commission via EnrollCard
         if (computedDue.compareTo(BigDecimal.ZERO) == 0) {
             enrollCardUseCase.execute(new EnrollCardCommand(
-                    "it-enroll-for-payout-" + UUID.randomUUID(),
+                    idemKey("it-enroll-for-payout"),
                     new ActorContext(ActorType.AGENT, "agent-actor-it", Map.of()),
-                    "+269790" + (100000 + (int) (Math.random() * 899999)),
-                    "CARD-" + UUID.randomUUID(),
+                    randomPhone269(),
+                    randomCardUid(),
                     "1234",
                     agentId
             ));
@@ -75,7 +63,7 @@ class AgentPayoutUseCaseIT {
         final BigDecimal dueBefore = computedDue;
 
         long auditBeforeCount = auditEventJpaRepository.count();
-        String idempotencyKey = "it-agent-payout-" + UUID.randomUUID();
+        String idempotencyKey = idemKey("it-agent-payout");
 
         // NOTE: command.amount is ignored by the use case
         AgentPayoutCommand cmd = new AgentPayoutCommand(

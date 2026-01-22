@@ -1,9 +1,5 @@
 package com.kori.integration.usecase;
 
-import com.kori.adapters.out.jpa.repo.AuditEventJpaRepository;
-import com.kori.adapters.out.jpa.repo.IdempotencyJpaRepository;
-import com.kori.adapters.out.jpa.repo.LedgerEntryJpaRepository;
-import com.kori.adapters.out.jpa.repo.TransactionJpaRepository;
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.command.PayByCardCommand;
 import com.kori.application.command.ReversalCommand;
@@ -15,29 +11,20 @@ import com.kori.application.result.PayByCardResult;
 import com.kori.application.result.ReversalResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.Map;
-import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@Transactional
-class ReversalForbiddenWhenAlreadyReversedIT {
+class ReversalForbiddenWhenAlreadyReversedIT extends AbstractIntegrationTest {
 
     @Autowired EnrollCardUseCase enrollCardUseCase;
     @Autowired PayByCardUseCase payByCardUseCase;
     @Autowired ReversalUseCase reversalUseCase;
-
-    @Autowired TransactionJpaRepository transactionJpaRepository;
-    @Autowired LedgerEntryJpaRepository ledgerEntryJpaRepository;
-    @Autowired AuditEventJpaRepository auditEventJpaRepository;
-    @Autowired IdempotencyJpaRepository idempotencyJpaRepository;
 
     @Test
     void reversal_isForbidden_whenOriginalTransactionAlreadyReversed() {
@@ -45,12 +32,12 @@ class ReversalForbiddenWhenAlreadyReversedIT {
         String agentId = "AGENT_001";
         String terminalId = "TERMINAL_001";
 
-        String phoneNumber = "+269860" + (100000 + (int) (Math.random() * 899999));
-        String cardUid = "CARD-" + UUID.randomUUID();
+        String phoneNumber = randomPhone269();
+        String cardUid = randomCardUid();
         String pin = "1234";
 
         enrollCardUseCase.execute(new EnrollCardCommand(
-                "it-enroll-for-already-reversed-" + UUID.randomUUID(),
+                idemKey("it-enroll-for-already-reversed"),
                 new ActorContext(ActorType.AGENT, "agent-actor-it", Map.of()),
                 phoneNumber,
                 cardUid,
@@ -59,7 +46,7 @@ class ReversalForbiddenWhenAlreadyReversedIT {
         ));
 
         PayByCardResult pay = payByCardUseCase.execute(new PayByCardCommand(
-                "it-pay-for-already-reversed-" + UUID.randomUUID(),
+                idemKey("it-pay-for-already-reversed"),
                 new ActorContext(ActorType.TERMINAL, "terminal-actor-it", Map.of()),
                 terminalId,
                 cardUid,
@@ -72,7 +59,7 @@ class ReversalForbiddenWhenAlreadyReversedIT {
 
         // First reversal -> OK
         ReversalResult first = reversalUseCase.execute(new ReversalCommand(
-                "it-reversal-first-" + UUID.randomUUID(),
+                idemKey("it-reversal-first"),
                 new ActorContext(ActorType.ADMIN, "admin-actor-it", Map.of()),
                 originalTxId
         ));
@@ -88,7 +75,7 @@ class ReversalForbiddenWhenAlreadyReversedIT {
         // Second reversal (different idempotency key) should be forbidden
         assertThrows(ForbiddenOperationException.class, () ->
                 reversalUseCase.execute(new ReversalCommand(
-                        "it-reversal-second-" + UUID.randomUUID(),
+                        idemKey("it-reversal-second"),
                         new ActorContext(ActorType.ADMIN, "admin-actor-it", Map.of()),
                         originalTxId
                 ))

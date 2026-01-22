@@ -4,10 +4,6 @@ import com.kori.adapters.out.jpa.entity.AuditEventEntity;
 import com.kori.adapters.out.jpa.entity.IdempotencyRecordEntity;
 import com.kori.adapters.out.jpa.entity.LedgerEntryEntity;
 import com.kori.adapters.out.jpa.entity.TransactionEntity;
-import com.kori.adapters.out.jpa.repo.AuditEventJpaRepository;
-import com.kori.adapters.out.jpa.repo.IdempotencyJpaRepository;
-import com.kori.adapters.out.jpa.repo.LedgerEntryJpaRepository;
-import com.kori.adapters.out.jpa.repo.TransactionJpaRepository;
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.command.PayByCardCommand;
 import com.kori.application.command.ReversalCommand;
@@ -18,10 +14,9 @@ import com.kori.application.result.PayByCardResult;
 import com.kori.application.result.ReversalResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -31,18 +26,11 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@Transactional // rollback automatique après CHAQUE test
-class ReversalUseCaseIT {
+class ReversalUseCaseIT extends AbstractIntegrationTest {
 
     @Autowired EnrollCardUseCase enrollCardUseCase;
     @Autowired PayByCardUseCase payByCardUseCase;
     @Autowired ReversalUseCase reversalUseCase;
-
-    @Autowired TransactionJpaRepository transactionJpaRepository;
-    @Autowired LedgerEntryJpaRepository ledgerEntryJpaRepository;
-    @Autowired AuditEventJpaRepository auditEventJpaRepository;
-    @Autowired IdempotencyJpaRepository idempotencyJpaRepository;
 
     @Test
     void happyPath_adminReversesPayByCard_createsReverseTx_ledger_audit_and_idempotency() {
@@ -51,12 +39,12 @@ class ReversalUseCaseIT {
         String terminalId = "TERMINAL_001";
         String merchantId = "MERCHANT_001";
 
-        String phoneNumber = "+269800" + (100000 + (int) (Math.random() * 899999));
-        String cardUid = "CARD-" + UUID.randomUUID();
+        String phoneNumber = randomPhone269();
+        String cardUid = randomCardUid();
         String pin = "1234";
 
         enrollCardUseCase.execute(new EnrollCardCommand(
-                "it-enroll-for-reversal-" + UUID.randomUUID(),
+                idemKey("it-enroll-for-reversal"),
                 new ActorContext(ActorType.AGENT, "agent-actor-it", Map.of()),
                 phoneNumber,
                 cardUid,
@@ -70,7 +58,7 @@ class ReversalUseCaseIT {
         BigDecimal expectedTotalDebited = new BigDecimal("1020.00");
 
         PayByCardResult payResult = payByCardUseCase.execute(new PayByCardCommand(
-                "it-pay-for-reversal-" + UUID.randomUUID(),
+                idemKey("it-pay-for-reversal"),
                 new ActorContext(ActorType.TERMINAL, "terminal-actor-it", Map.of()),
                 terminalId,
                 cardUid,
@@ -89,7 +77,7 @@ class ReversalUseCaseIT {
         long auditBefore = auditEventJpaRepository.count();
 
         // --- When: ADMIN reverses the transaction
-        String reversalIdempotencyKey = "it-reversal-" + UUID.randomUUID();
+        String reversalIdempotencyKey = idemKey("it-reversal");
 
         ReversalResult reversalResult = reversalUseCase.execute(new ReversalCommand(
                 reversalIdempotencyKey,

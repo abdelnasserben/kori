@@ -2,9 +2,6 @@ package com.kori.integration.usecase;
 
 import com.kori.adapters.out.jpa.entity.IdempotencyRecordEntity;
 import com.kori.adapters.out.jpa.entity.LedgerEntryEntity;
-import com.kori.adapters.out.jpa.repo.IdempotencyJpaRepository;
-import com.kori.adapters.out.jpa.repo.LedgerEntryJpaRepository;
-import com.kori.adapters.out.jpa.repo.TransactionJpaRepository;
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.command.PayByCardCommand;
 import com.kori.application.command.ReversalCommand;
@@ -15,10 +12,9 @@ import com.kori.application.result.PayByCardResult;
 import com.kori.application.result.ReversalResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.integration.AbstractIntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -28,17 +24,11 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
-@Transactional // rollback automatique après CHAQUE test
-class ReversalIdempotencyIT {
+class ReversalIdempotencyIT extends AbstractIntegrationTest {
 
     @Autowired EnrollCardUseCase enrollCardUseCase;
     @Autowired PayByCardUseCase payByCardUseCase;
     @Autowired ReversalUseCase reversalUseCase;
-
-    @Autowired TransactionJpaRepository transactionJpaRepository;
-    @Autowired LedgerEntryJpaRepository ledgerEntryJpaRepository;
-    @Autowired IdempotencyJpaRepository idempotencyJpaRepository;
 
     @Test
     void idempotency_sameKey_twice_returnsSameReversal_andDoesNotDuplicateTxOrLedger() {
@@ -46,12 +36,12 @@ class ReversalIdempotencyIT {
         String agentId = "AGENT_001";
         String terminalId = "TERMINAL_001";
 
-        String phoneNumber = "+269820" + (100000 + (int) (Math.random() * 899999));
-        String cardUid = "CARD-" + UUID.randomUUID();
+        String phoneNumber = randomPhone269();
+        String cardUid = randomCardUid();
         String pin = "1234";
 
         enrollCardUseCase.execute(new EnrollCardCommand(
-                "it-enroll-for-reversal-idem-" + UUID.randomUUID(),
+                idemKey("it-enroll-for-reversal-idem"),
                 new ActorContext(ActorType.AGENT, "agent-actor-it", Map.of()),
                 phoneNumber,
                 cardUid,
@@ -60,7 +50,7 @@ class ReversalIdempotencyIT {
         ));
 
         PayByCardResult pay = payByCardUseCase.execute(new PayByCardCommand(
-                "it-pay-for-reversal-idem-" + UUID.randomUUID(),
+                idemKey("it-pay-for-reversal-idem"),
                 new ActorContext(ActorType.TERMINAL, "terminal-actor-it", Map.of()),
                 terminalId,
                 cardUid,
@@ -71,7 +61,7 @@ class ReversalIdempotencyIT {
         String originalTxId = pay.transactionId();
         assertNotNull(originalTxId);
 
-        String sameIdempotencyKey = "it-reversal-idem-" + UUID.randomUUID();
+        String sameIdempotencyKey = idemKey("it-reversal-idem");
 
         ReversalCommand cmd = new ReversalCommand(
                 sameIdempotencyKey,
