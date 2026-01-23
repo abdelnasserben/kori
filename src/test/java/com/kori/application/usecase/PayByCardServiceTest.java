@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.PayByCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.port.out.*;
 import com.kori.application.result.PayByCardResult;
 import com.kori.application.security.ActorContext;
@@ -50,6 +51,7 @@ class PayByCardServiceTest {
     @Mock FeePolicyPort feePolicyPort;
     @Mock CardSecurityPolicyPort cardSecurityPolicyPort;
     @Mock LedgerAppendPort ledgerAppendPort;
+    @Mock LedgerQueryPort ledgerQueryPort;
     @Mock AuditPort auditPort;
     @Mock PinHasherPort pinHasherPort;
 
@@ -63,7 +65,7 @@ class PayByCardServiceTest {
                 cardRepositoryPort, accountRepositoryPort,
                 transactionRepositoryPort, feePolicyPort,
                 cardSecurityPolicyPort,
-                ledgerAppendPort, auditPort, pinHasherPort
+                ledgerAppendPort, ledgerQueryPort, auditPort, pinHasherPort
         );
     }
 
@@ -115,6 +117,10 @@ class PayByCardServiceTest {
 
         Account account = new Account(AccountId.of("acc-1"), ClientId.of("c-1"), Status.ACTIVE);
         when(accountRepositoryPort.findById(AccountId.of("acc-1"))).thenReturn(Optional.of(account));
+
+        // client balance sufficient
+        when(ledgerQueryPort.netBalance(com.kori.domain.ledger.LedgerAccount.CLIENT, "c-1"))
+                .thenReturn(Money.of(new BigDecimal("1000.00")));
 
         Money fee = Money.of(BigDecimal.valueOf(2));
         when(feePolicyPort.cardPaymentFee(any(Money.class))).thenReturn(fee);
@@ -225,5 +231,50 @@ class PayByCardServiceTest {
                 transactionRepositoryPort, feePolicyPort, ledgerAppendPort, auditPort);
     }
 
-    // ... le reste du fichier inchangé si tu en as (garde tes autres tests)
+    @Test
+    void payByCard_fails_whenInsufficientFunds() {
+        when(idempotencyPort.find("idem-insufficient", PayByCardResult.class)).thenReturn(Optional.empty());
+        when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(3);
+
+        Terminal terminal = new Terminal(TerminalId.of("term-1"), MerchantId.of("m-1"));
+        when(terminalRepositoryPort.findById("term-1")).thenReturn(Optional.of(terminal));
+
+        Merchant merchant = new Merchant(MerchantId.of("m-1"), Status.ACTIVE);
+        when(merchantRepositoryPort.findById("m-1")).thenReturn(Optional.of(merchant));
+
+        Card card = new Card(
+                CardId.of("card-1"),
+                AccountId.of("acc-1"),
+                "CARD-UID-1",
+                new HashedPin("$2a$12$fakehash"),
+                CardStatus.ACTIVE,
+                0
+        );
+        when(cardRepositoryPort.findByCardUid("CARD-UID-1")).thenReturn(Optional.of(card));
+        when(pinHasherPort.matches(eq("1234"), any(HashedPin.class))).thenReturn(true);
+
+        Account account = new Account(AccountId.of("acc-1"), ClientId.of("c-1"), Status.ACTIVE);
+        when(accountRepositoryPort.findById(AccountId.of("acc-1"))).thenReturn(Optional.of(account));
+
+        // amount=1000, fee=20 => totalDebited=1020
+        when(feePolicyPort.cardPaymentFee(any(Money.class))).thenReturn(Money.of(new BigDecimal("20.00")));
+
+        // client balance = 0 => insufficient
+        when(ledgerQueryPort.netBalance(com.kori.domain.ledger.LedgerAccount.CLIENT, "c-1"))
+                .thenReturn(Money.of(new BigDecimal("0.00")));
+
+        PayByCardCommand cmd = new PayByCardCommand(
+                "idem-insufficient",
+                new ActorContext(ActorType.TERMINAL, "terminal-actor", Map.of()),
+                "term-1",
+                "CARD-UID-1",
+                "1234",
+                new BigDecimal("1000.00")
+        );
+
+        assertThrows(InsufficientFundsException.class,
+                () -> service.execute(cmd)
+        );
+    }
+
 }

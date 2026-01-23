@@ -54,6 +54,7 @@ public class ApplicationWiringConfig {
                                              FeePolicyPort feePolicyPort,
                                              CardSecurityPolicyPort cardSecurityPolicyPort,
                                              LedgerAppendPort ledgerAppendPort,
+                                             LedgerQueryPort ledgerQueryPort,
                                              AuditPort auditPort,
                                              PinHasherPort pinHasherPort) {
         return new PayByCardService(
@@ -67,6 +68,7 @@ public class ApplicationWiringConfig {
                 feePolicyPort,
                 cardSecurityPolicyPort,
                 ledgerAppendPort,
+                ledgerQueryPort,
                 auditPort,
                 pinHasherPort
         );
@@ -80,6 +82,7 @@ public class ApplicationWiringConfig {
             AgentRepositoryPort agentRepositoryPort,
             FeePolicyPort feePolicyPort,
             CommissionPolicyPort commissionPolicyPort,
+            LedgerQueryPort ledgerQueryPort,
             TransactionRepositoryPort transactionRepositoryPort,
             LedgerAppendPort ledgerAppendPort,
             AuditPort auditPort
@@ -91,6 +94,7 @@ public class ApplicationWiringConfig {
                 agentRepositoryPort,
                 feePolicyPort,
                 commissionPolicyPort,
+                ledgerQueryPort,
                 transactionRepositoryPort,
                 ledgerAppendPort,
                 auditPort

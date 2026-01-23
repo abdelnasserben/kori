@@ -59,7 +59,13 @@ public class JpaLedgerAdapter implements LedgerAppendPort, LedgerQueryPort {
     @Override
     @Transactional(readOnly = true)
     public Money agentAvailableBalance(String agentId) {
-        BigDecimal v = repo.netBalance(LedgerAccount.AGENT.name(), agentId);
+        return netBalance(LedgerAccount.AGENT, agentId);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Money netBalance(LedgerAccount ledgerAccount, String referenceId) {
+        BigDecimal v = repo.netBalance(ledgerAccount.name(), referenceId);
         return Money.of(v == null ? BigDecimal.ZERO : v);
     }
 

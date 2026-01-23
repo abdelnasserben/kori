@@ -9,6 +9,13 @@ import java.util.List;
 public interface LedgerQueryPort {
     Money agentAvailableBalance(String agentId);
 
+    /**
+     * Returns the net balance for a given ledger scope: (sum(CREDIT) - sum(DEBIT)).
+     *
+     * <p>This is used for consultation features and for business pre-checks (ex: sufficient funds).
+     */
+    Money netBalance(LedgerAccount ledgerAccount, String referenceId);
+
     // Needed for generic reversal
     List<LedgerEntry> findByTransactionId(String transactionId);
 

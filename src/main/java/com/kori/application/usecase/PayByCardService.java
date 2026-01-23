@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.PayByCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.port.in.PayByCardUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.PayByCardResult;
@@ -38,6 +39,7 @@ public final class PayByCardService implements PayByCardUseCase {
     private final CardSecurityPolicyPort cardSecurityPolicyPort;
 
     private final LedgerAppendPort ledgerAppendPort;
+    private final LedgerQueryPort ledgerQueryPort;
     private final AuditPort auditPort;
 
     private final PinHasherPort pinHasherPort;
@@ -50,7 +52,7 @@ public final class PayByCardService implements PayByCardUseCase {
                             AccountRepositoryPort accountRepositoryPort,
                             TransactionRepositoryPort transactionRepositoryPort,
                             FeePolicyPort feePolicyPort, CardSecurityPolicyPort cardSecurityPolicyPort,
-                            LedgerAppendPort ledgerAppendPort,
+                            LedgerAppendPort ledgerAppendPort, LedgerQueryPort ledgerQueryPort,
                             AuditPort auditPort, PinHasherPort pinHasherPort) {
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
@@ -62,6 +64,7 @@ public final class PayByCardService implements PayByCardUseCase {
         this.feePolicyPort = feePolicyPort;
         this.cardSecurityPolicyPort = cardSecurityPolicyPort;
         this.ledgerAppendPort = ledgerAppendPort;
+        this.ledgerQueryPort = ledgerQueryPort;
         this.auditPort = auditPort;
         this.pinHasherPort = pinHasherPort;
     }
@@ -118,6 +121,15 @@ public final class PayByCardService implements PayByCardUseCase {
         Money amount = Money.positive(command.amount());
         Money fee = feePolicyPort.cardPaymentFee(amount);
         Money totalDebited = amount.plus(fee);
+
+        // --- Sufficient funds check (ledger-driven)
+        // If you want to support overdraft/credit line later, model it explicitly.
+        Money available = ledgerQueryPort.netBalance(LedgerAccount.CLIENT, account.clientId().value());
+        if (totalDebited.isGreaterThan(available)) {
+            throw new InsufficientFundsException(
+                    "Insufficient funds: need " + totalDebited + " but available " + available
+            );
+        }
 
         Transaction tx = Transaction.payByCard(amount, now);
         tx = transactionRepositoryPort.save(tx);

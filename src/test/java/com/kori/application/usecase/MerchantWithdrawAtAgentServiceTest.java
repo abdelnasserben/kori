@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.MerchantWithdrawAtAgentCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.port.out.*;
 import com.kori.application.result.MerchantWithdrawAtAgentResult;
 import com.kori.application.security.ActorContext;
@@ -38,6 +39,7 @@ class MerchantWithdrawAtAgentServiceTest {
     @Mock FeePolicyPort feePolicyPort;
     @Mock CommissionPolicyPort commissionPolicyPort;
     @Mock TransactionRepositoryPort transactionRepositoryPort;
+    @Mock LedgerQueryPort ledgerQueryPort;
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock AuditPort auditPort;
 
@@ -48,7 +50,7 @@ class MerchantWithdrawAtAgentServiceTest {
         service = new MerchantWithdrawAtAgentService(
                 timeProviderPort, idempotencyPort,
                 merchantRepositoryPort, agentRepositoryPort,
-                feePolicyPort, commissionPolicyPort,
+                feePolicyPort, commissionPolicyPort, ledgerQueryPort,
                 transactionRepositoryPort, ledgerAppendPort, auditPort
         );
     }
@@ -95,6 +97,10 @@ class MerchantWithdrawAtAgentServiceTest {
         Money commission = Money.of(BigDecimal.valueOf(2));
         when(feePolicyPort.merchantWithdrawFee(any(Money.class))).thenReturn(fee);
         when(commissionPolicyPort.merchantWithdrawAgentCommission(fee)).thenReturn(commission);
+
+        // merchant balance sufficient
+        when(ledgerQueryPort.netBalance(com.kori.domain.ledger.LedgerAccount.MERCHANT, "m-1"))
+                .thenReturn(Money.of(new BigDecimal("1000.00")));
 
         when(transactionRepositoryPort.save(any(Transaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -172,4 +178,39 @@ class MerchantWithdrawAtAgentServiceTest {
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
     }
+
+    @Test
+    void withdraw_fails_whenMerchantHasInsufficientFunds() {
+        Instant now = Instant.parse("2026-01-21T10:15:30Z");
+        when(timeProviderPort.now()).thenReturn(now);
+
+        when(idempotencyPort.find("idem-insufficient", MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+
+        when(agentRepositoryPort.existsById("agent-1")).thenReturn(true);
+        when(merchantRepositoryPort.findById("m-1"))
+                .thenReturn(Optional.of(new Merchant(MerchantId.of("m-1"), Status.ACTIVE)));
+
+        // amount=1000, fee=10 => totalDebited=1010
+        Money fee = Money.of(new BigDecimal("10.00"));
+        Money commission = Money.of(new BigDecimal("2.00"));
+        when(feePolicyPort.merchantWithdrawFee(any(Money.class))).thenReturn(fee);
+        when(commissionPolicyPort.merchantWithdrawAgentCommission(fee)).thenReturn(commission);
+
+        // merchant balance = 0 => insufficient
+        when(ledgerQueryPort.netBalance(com.kori.domain.ledger.LedgerAccount.MERCHANT, "m-1"))
+                .thenReturn(Money.of(new BigDecimal("0.00")));
+
+        MerchantWithdrawAtAgentCommand cmd = new MerchantWithdrawAtAgentCommand(
+                "idem-insufficient",
+                new ActorContext(ActorType.AGENT, "agent-actor", Map.of()),
+                "m-1",
+                "agent-1",
+                new BigDecimal("1000.00")
+        );
+
+        assertThrows(InsufficientFundsException.class,
+                () -> service.execute(cmd)
+        );
+    }
+
 }

@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.MerchantWithdrawAtAgentCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.MerchantWithdrawAtAgentResult;
@@ -27,6 +28,8 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
     private final FeePolicyPort feePolicyPort;
     private final CommissionPolicyPort commissionPolicyPort;
 
+    private final LedgerQueryPort ledgerQueryPort;
+
     private final TransactionRepositoryPort transactionRepositoryPort;
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
@@ -36,7 +39,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
                                           MerchantRepositoryPort merchantRepositoryPort,
                                           AgentRepositoryPort agentRepositoryPort,
                                           FeePolicyPort feePolicyPort,
-                                          CommissionPolicyPort commissionPolicyPort,
+                                          CommissionPolicyPort commissionPolicyPort, LedgerQueryPort ledgerQueryPort,
                                           TransactionRepositoryPort transactionRepositoryPort,
                                           LedgerAppendPort ledgerAppendPort,
                                           AuditPort auditPort) {
@@ -46,6 +49,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         this.agentRepositoryPort = agentRepositoryPort;
         this.feePolicyPort = feePolicyPort;
         this.commissionPolicyPort = commissionPolicyPort;
+        this.ledgerQueryPort = ledgerQueryPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.ledgerAppendPort = ledgerAppendPort;
         this.auditPort = auditPort;
@@ -83,6 +87,14 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
 
         Money platformRevenue = fee.minus(commission);
         Money totalDebitedMerchant = amount.plus(fee);
+
+        // --- Sufficient funds check (merchant)
+        Money available = ledgerQueryPort.netBalance(LedgerAccount.MERCHANT, command.merchantId());
+        if (totalDebitedMerchant.isGreaterThan(available)) {
+            throw new InsufficientFundsException(
+                    "Insufficient merchant funds: need " + totalDebitedMerchant + " but available " + available
+            );
+        }
 
         Transaction tx = Transaction.merchantWithdrawAtAgent(amount, now);
         tx = transactionRepositoryPort.save(tx);
