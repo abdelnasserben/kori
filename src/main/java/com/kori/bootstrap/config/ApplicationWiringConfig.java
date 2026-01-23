@@ -107,7 +107,6 @@ public class ApplicationWiringConfig {
             IdempotencyPort idempotencyPort,
             AgentRepositoryPort agentRepositoryPort,
             LedgerQueryPort ledgerQueryPort,
-            LedgerAppendPort ledgerAppendPort,
             TransactionRepositoryPort transactionRepositoryPort,
             PayoutRepositoryPort payoutRepositoryPort,
             AuditPort auditPort
@@ -117,8 +116,33 @@ public class ApplicationWiringConfig {
                 idempotencyPort,
                 agentRepositoryPort,
                 ledgerQueryPort,
-                ledgerAppendPort,
                 transactionRepositoryPort,
+                payoutRepositoryPort,
+                auditPort
+        );
+    }
+
+    @Bean
+    public CompleteAgentPayoutUseCase completeAgentPayoutUseCase(TimeProviderPort timeProviderPort,
+                                                                 PayoutRepositoryPort payoutRepositoryPort,
+                                                                 LedgerQueryPort ledgerQueryPort,
+                                                                 LedgerAppendPort ledgerAppendPort,
+                                                                 AuditPort auditPort) {
+        return new CompleteAgentPayoutService(
+                timeProviderPort,
+                payoutRepositoryPort,
+                ledgerQueryPort,
+                ledgerAppendPort,
+                auditPort
+        );
+    }
+
+    @Bean
+    public FailAgentPayoutUseCase failAgentPayoutUseCase(TimeProviderPort timeProviderPort,
+                                                         PayoutRepositoryPort payoutRepositoryPort,
+                                                         AuditPort auditPort) {
+        return new FailAgentPayoutService(
+                timeProviderPort,
                 payoutRepositoryPort,
                 auditPort
         );

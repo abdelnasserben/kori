@@ -40,7 +40,7 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
         if (cached.isPresent()) return cached.get();
 
         if (command.actorContext().actorType() != ActorType.AGENT) {
-            throw new ForbiddenOperationException("Only AGENT can update card status");
+            throw new ForbiddenOperationException("Actor must be an AGENT");
         }
 
         if (!agentRepositoryPort.existsById(command.agentId())) {
@@ -50,21 +50,10 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
         Card card = cardRepositoryPort.findByCardUid(command.cardUid())
                 .orElseThrow(() -> new ForbiddenOperationException("Card not found"));
 
-        CardStatus targetStatus = switch (command.action()) {
-            case BLOCKED -> CardStatus.BLOCKED;
-            case LOST -> CardStatus.LOST;
-        };
+        CardStatus target = getCardStatus(command, card);
 
-        Card updated = new Card(
-                card.id(),
-                card.accountId(),
-                card.cardUid(),
-                card.hashedPin(),
-                targetStatus,
-                card.failedPinAttempts()
-        );
-
-        updated = cardRepositoryPort.save(updated);
+        Card updated = card.transitionTo(target);
+        cardRepositoryPort.save(updated);
 
         Instant now = timeProviderPort.now();
 
@@ -93,5 +82,30 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
 
         idempotencyPort.save(command.idempotencyKey(), result);
         return result;
+    }
+
+    private static CardStatus getCardStatus(AgentUpdateCardStatusCommand command, Card card) {
+
+        CardStatus target = switch (command.action()) {
+            case BLOCKED -> CardStatus.BLOCKED;
+            case LOST -> CardStatus.LOST;
+        };
+
+        // LOST is terminal: agent cannot do anything once LOST
+        if (card.status() == CardStatus.LOST) {
+            throw new ForbiddenOperationException("Card is LOST and cannot be updated by agent");
+        }
+
+        // Agent rules:
+        // - BLOCKED allowed only from ACTIVE
+        if (target == CardStatus.BLOCKED && card.status() != CardStatus.ACTIVE) {
+            throw new ForbiddenOperationException("Agent can only BLOCK an ACTIVE card");
+        }
+
+        // - LOST allowed from ACTIVE or BLOCKED
+        if (target == CardStatus.LOST && !(card.status() == CardStatus.ACTIVE || card.status() == CardStatus.BLOCKED)) {
+            throw new ForbiddenOperationException("Agent can only mark LOST from ACTIVE or BLOCKED");
+        }
+        return target;
     }
 }

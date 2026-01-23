@@ -15,6 +15,7 @@ import com.kori.domain.model.client.Client;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.transaction.Transaction;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -119,15 +120,26 @@ public final class EnrollCardService implements EnrollCardUseCase {
         Money cardPrice = feePolicyPort.cardEnrollmentPrice();
         Money agentCommission = commissionPolicyPort.cardEnrollmentAgentCommission();
 
+        BigDecimal price = cardPrice.asBigDecimal();
+        BigDecimal commission = agentCommission.asBigDecimal();
+
+        if (price.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ForbiddenOperationException("Invalid fee policy: cardEnrollmentPrice cannot be negative");
+        }
+        if (commission.compareTo(BigDecimal.ZERO) < 0) {
+            throw new ForbiddenOperationException("Invalid commission policy: cardEnrollmentAgentCommission cannot be negative");
+        }
+        if (commission.compareTo(price) > 0) {
+            throw new ForbiddenOperationException("Invalid commission policy: agentCommission cannot exceed cardPrice");
+        }
+
+        Money platformRevenue = cardPrice.minus(agentCommission); // never negative due to guards
+
         // 6) transaction
         Transaction tx = Transaction.enrollCard(cardPrice, now);
         tx = transactionRepositoryPort.save(tx);
 
         // 7) ledger (revenu + commission)
-        // CREDIT plateforme : cardPrice - agentCommission
-        // CREDIT agent : agentCommission
-        Money platformRevenue = cardPrice.minus(agentCommission);
-
         ledgerAppendPort.append(List.of(
                 LedgerEntry.credit(tx.id(), LedgerAccount.PLATFORM, platformRevenue, null),
                 LedgerEntry.credit(tx.id(), LedgerAccount.AGENT, agentCommission, command.agentId())

@@ -3,12 +3,18 @@ package com.kori.adapters.out.jpa.adapter;
 import com.kori.adapters.out.jpa.entity.PayoutEntity;
 import com.kori.adapters.out.jpa.repo.PayoutJpaRepository;
 import com.kori.application.port.out.PayoutRepositoryPort;
+import com.kori.domain.model.common.Money;
 import com.kori.domain.model.payout.Payout;
+import com.kori.domain.model.payout.PayoutId;
+import com.kori.domain.model.payout.PayoutStatus;
+import com.kori.domain.model.transaction.TransactionId;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 @Component
@@ -37,6 +43,35 @@ public class JpaPayoutRepositoryAdapter implements PayoutRepositoryPort {
 
         repo.save(entity);
         return payout;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Payout> findById(PayoutId payoutId) {
+        Objects.requireNonNull(payoutId);
+        return repo.findById(payoutId.value()).map(this::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public boolean existsRequestedForAgent(String agentId) {
+        if (agentId == null || agentId.isBlank()) return false;
+        return repo.existsByAgentIdAndStatus(agentId, PayoutStatus.REQUESTED.name());
+    }
+
+    private Payout toDomain(PayoutEntity e) {
+        Instant createdAt = e.getCreatedAt().toInstant();
+        Instant completedAt = e.getCompletedAt() == null ? null : e.getCompletedAt().toInstant();
+
+        return new Payout(
+                new PayoutId(e.getId()),
+                e.getAgentId(),
+                TransactionId.of(e.getTransactionId().toString()),
+                Money.of(e.getAmount()),
+                PayoutStatus.valueOf(e.getStatus()),
+                createdAt,
+                completedAt
+        );
     }
 
 }

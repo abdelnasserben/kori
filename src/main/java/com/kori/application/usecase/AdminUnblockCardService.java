@@ -42,23 +42,16 @@ public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
         Card card = cardRepositoryPort.findByCardUid(command.cardUid())
                 .orElseThrow(() -> new ForbiddenOperationException("Card not found"));
 
-        if ("LOST".equals(card.status().name())) {
+        if (card.status() == CardStatus.LOST) {
             throw new ForbiddenOperationException("Cannot unblock a LOST card");
         }
 
-        if (!"BLOCKED".equals(card.status().name())) {
-            throw new ForbiddenOperationException("Card is not blocked");
+        if (card.status() != CardStatus.BLOCKED) {
+            throw new ForbiddenOperationException("Only BLOCKED cards can be unblocked");
         }
 
-        Card updated = new Card(
-                card.id(),
-                card.accountId(),
-                card.cardUid(),
-                card.hashedPin(),
-                CardStatus.ACTIVE,
-                0
-        );
-        updated = cardRepositoryPort.save(updated);
+        Card updated = card.unblockToActive();
+        cardRepositoryPort.save(updated);
 
         Instant now = timeProviderPort.now();
 

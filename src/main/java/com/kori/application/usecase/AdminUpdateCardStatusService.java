@@ -42,21 +42,10 @@ public final class AdminUpdateCardStatusService implements AdminUpdateCardStatus
         Card card = cardRepositoryPort.findByCardUid(command.cardUid())
                 .orElseThrow(() -> new ForbiddenOperationException("Card not found"));
 
-        CardStatus target = switch (command.action()) {
-            case ACTIVE -> CardStatus.ACTIVE;
-            case SUSPENDED -> CardStatus.SUSPENDED;
-            case INACTIVE -> CardStatus.INACTIVE;
-        };
+        CardStatus target = getCardStatus(command, card);
 
-        Card updated = new Card(
-                card.id(),
-                card.accountId(),
-                card.cardUid(),
-                card.hashedPin(),
-                target,
-                card.failedPinAttempts()
-        );
-        updated = cardRepositoryPort.save(updated);
+        Card updated = card.transitionTo(target);
+        cardRepositoryPort.save(updated);
 
         Instant now = timeProviderPort.now();
 
@@ -82,5 +71,24 @@ public final class AdminUpdateCardStatusService implements AdminUpdateCardStatus
 
         idempotencyPort.save(command.idempotencyKey(), result);
         return result;
+    }
+
+    private static CardStatus getCardStatus(AdminUpdateCardStatusCommand command, Card card) {
+        CardStatus target = switch (command.action()) {
+            case ACTIVE -> CardStatus.ACTIVE;
+            case SUSPENDED -> CardStatus.SUSPENDED;
+            case INACTIVE -> CardStatus.INACTIVE;
+        };
+
+        // Governance rule: BLOCKED -> ACTIVE must go through AdminUnblockCard
+        if (card.status() == CardStatus.BLOCKED && target == CardStatus.ACTIVE) {
+            throw new ForbiddenOperationException("Use AdminUnblockCard to reactivate a BLOCKED card");
+        }
+
+        // LOST terminal: only allow LOST -> INACTIVE
+        if (card.status() == CardStatus.LOST && target != CardStatus.INACTIVE) {
+            throw new ForbiddenOperationException("LOST card can only be set to INACTIVE by admin");
+        }
+        return target;
     }
 }

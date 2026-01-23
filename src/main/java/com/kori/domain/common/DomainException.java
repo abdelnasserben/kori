@@ -1,4 +1,4 @@
-package com.kori.domain.exception;
+package com.kori.domain.common;
 
 public class DomainException extends RuntimeException {
     public DomainException(String message) {

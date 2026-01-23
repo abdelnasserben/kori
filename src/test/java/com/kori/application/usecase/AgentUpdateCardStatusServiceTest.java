@@ -19,6 +19,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
+import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -171,6 +172,101 @@ class AgentUpdateCardStatusServiceTest {
                 "reason"
         );
 
-        assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
+        Exception exception = assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
+        assertThat(exception.getMessage()).isEqualTo("Actor must be an AGENT");
     }
+
+    @Test
+    void forbidden_whenAgentBlockingCardIfNotActive() {
+        when(agentRepositoryPort.existsById("agent-1")).thenReturn(true);
+
+        Card blocked = new Card(
+                CardId.of("card-1"),
+                AccountId.of("acc-1"),
+                "CARD-UID-1",
+                new HashedPin("1234"),
+                CardStatus.SUSPENDED,
+                0
+        );
+        when(cardRepositoryPort.findByCardUid("CARD-UID-1")).thenReturn(Optional.of(blocked));
+
+        AgentUpdateCardStatusCommand cmd = new AgentUpdateCardStatusCommand(
+                "idem-1",
+                new ActorContext(ActorType.AGENT, "agent-1", Map.of()),
+                "agent-1",
+                "CARD-UID-1",
+                AgentCardAction.BLOCKED,
+                "reason"
+        );
+
+        Exception exception = assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
+        assertThat(exception.getMessage()).isEqualTo("Agent can only BLOCK an ACTIVE card");
+
+        verify(cardRepositoryPort, never()).save(any());
+        verify(auditPort, never()).publish(any());
+    }
+
+    @Test
+    void forbidden_anyStatusChangeWhenLost() {
+        when(agentRepositoryPort.existsById("agent-1")).thenReturn(true);
+
+        Card lost = new Card(
+                CardId.of("card-1"),
+                AccountId.of("acc-1"),
+                "CARD-UID-1",
+                new HashedPin("$hash"),
+                CardStatus.LOST,
+                0
+        );
+        when(cardRepositoryPort.findByCardUid("CARD-UID-1")).thenReturn(Optional.of(lost));
+
+        AgentUpdateCardStatusCommand cmd = new AgentUpdateCardStatusCommand(
+                "idem-1",
+                new ActorContext(ActorType.AGENT, "agent-1", Map.of()),
+                "agent-1",
+                "CARD-UID-1",
+                AgentCardAction.BLOCKED,
+                "reason"
+        );
+
+        Exception exception = assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
+        assertThat(exception.getMessage()).isEqualTo("Card is LOST and cannot be updated by agent");
+
+        verify(cardRepositoryPort, never()).save(any());
+        verify(auditPort, never()).publish(any());
+    }
+
+    @Test
+    void allows_agentMarkCardLostFromBlocked() {
+        Instant now = Instant.parse("2026-01-21T10:15:30Z");
+        when(timeProviderPort.now()).thenReturn(now);
+
+        when(idempotencyPort.find("idem-1", AgentUpdateCardStatusResult.class)).thenReturn(Optional.empty());
+        when(agentRepositoryPort.existsById("agent-1")).thenReturn(true);
+
+        Card blocked = new Card(
+                CardId.of("card-1"),
+                AccountId.of("acc-1"),
+                "CARD-UID-1",
+                new HashedPin("$hash"),
+                CardStatus.BLOCKED,
+                2
+        );
+        when(cardRepositoryPort.findByCardUid("CARD-UID-1")).thenReturn(Optional.of(blocked));
+
+        AgentUpdateCardStatusCommand cmd = new AgentUpdateCardStatusCommand(
+                "idem-1",
+                new ActorContext(ActorType.AGENT, "agent-1", Map.of()),
+                "agent-1",
+                "CARD-UID-1",
+                AgentCardAction.LOST,
+                "reason"
+        );
+
+        assertDoesNotThrow(() -> service.execute(cmd));
+
+        verify(cardRepositoryPort).save(argThat(c -> c.status() == CardStatus.LOST));
+        verify(auditPort).publish(any());
+    }
+
 }

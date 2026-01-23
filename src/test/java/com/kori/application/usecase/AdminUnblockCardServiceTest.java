@@ -124,4 +124,60 @@ class AdminUnblockCardServiceTest {
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
     }
+
+    @Test
+    void forbidden_adminToUnblockLostCard() {
+        when(idempotencyPort.find("idem-1", AdminUnblockCardResult.class)).thenReturn(Optional.empty());
+
+        Card lost = new Card(
+                CardId.of("card-1"),
+                AccountId.of("acc-1"),
+                "CARD-UID-1",
+                new HashedPin("$hash"),
+                CardStatus.LOST,
+                0
+        );
+        when(cardRepositoryPort.findByCardUid("CARD-UID-1")).thenReturn(Optional.of(lost));
+
+        AdminUnblockCardCommand cmd = new AdminUnblockCardCommand(
+                "idem-1",
+                new ActorContext(ActorType.ADMIN, "admin-actor", Map.of()),
+                "CARD-UID-1",
+                "reason"
+        );
+
+        assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
+
+        verify(cardRepositoryPort, never()).save(any());
+        verify(auditPort, never()).publish(any());
+    }
+
+    @Test
+    void adminUnblockCard_unblocksBlockedAndResetsPinAttempts() {
+        when(timeProviderPort.now()).thenReturn(Instant.parse("2026-01-21T10:00:00Z"));
+
+        Card blocked = new Card(
+                CardId.of("card-2"),
+                AccountId.of("acc-1"),
+                "CARD-UID-1",
+                new HashedPin("$hash"),
+                CardStatus.BLOCKED,
+                3
+        );
+        when(cardRepositoryPort.findByCardUid("CARD-UID-1")).thenReturn(Optional.of(blocked));
+
+        AdminUnblockCardCommand cmd = new AdminUnblockCardCommand(
+                "idem-1",
+                new ActorContext(ActorType.ADMIN, "admin-actor", Map.of()),
+                "CARD-UID-1",
+                "reason"
+        );
+
+
+        assertDoesNotThrow(() -> service.execute(cmd));
+
+        verify(cardRepositoryPort).save(argThat(c -> c.status() == CardStatus.ACTIVE && c.failedPinAttempts() == 0));
+        verify(auditPort).publish(any());
+    }
+
 }

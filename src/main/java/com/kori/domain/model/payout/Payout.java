@@ -1,5 +1,6 @@
 package com.kori.domain.model.payout;
 
+import com.kori.domain.common.DomainException;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.transaction.TransactionId;
 
@@ -36,13 +37,35 @@ public record Payout(
         return new Payout(PayoutId.newId(), agentId, transactionId, amount, PayoutStatus.REQUESTED, createdAt, null);
     }
 
+    public boolean isFinal() {
+        return status == PayoutStatus.COMPLETED || status == PayoutStatus.FAILED;
+    }
+
     public Payout complete(Instant completedAt) {
+        if (this.status != PayoutStatus.REQUESTED) {
+            throw new DomainException("Only REQUESTED payout can be completed (current=" + status + ")");
+        }
         return new Payout(
                 this.id,
                 this.agentId,
                 this.transactionId,
                 this.amount,
                 PayoutStatus.COMPLETED,
+                this.createdAt,
+                Objects.requireNonNull(completedAt)
+        );
+    }
+
+    public Payout fail(Instant completedAt) {
+        if (this.status != PayoutStatus.REQUESTED) {
+            throw new IllegalStateException("Only REQUESTED payout can be failed (current=" + status + ")");
+        }
+        return new Payout(
+                this.id,
+                this.agentId,
+                this.transactionId,
+                this.amount,
+                PayoutStatus.FAILED,
                 this.createdAt,
                 Objects.requireNonNull(completedAt)
         );

@@ -22,8 +22,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -101,4 +100,85 @@ class AdminUpdateCardStatusServiceTest {
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
     }
+
+    @Test
+    void forbidden_adminUpdatingCardFromBlockedToActiveStatus() {
+        Card blocked = new Card(
+                CardId.of("card-1"),
+                AccountId.of("acc-1"),
+                "CARD-UID-1",
+                new HashedPin("$hash"),
+                CardStatus.BLOCKED,
+                3
+        );
+        when(cardRepositoryPort.findByCardUid("CARD-UID-1")).thenReturn(Optional.of(blocked));
+
+        AdminUpdateCardStatusCommand cmd = new AdminUpdateCardStatusCommand(
+                "idem-2",
+            new ActorContext(ActorType.ADMIN, "admin-1", Map.of()),
+                "CARD-UID-1",
+                AdminCardStatusAction.ACTIVE,
+                "reason"
+        );
+
+        assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
+
+        verify(cardRepositoryPort, never()).save(any());
+        verify(auditPort, never()).publish(any());
+    }
+
+    @Test
+    void forbidden_adminUpdatingCardFromBLockedToActiveStatus() {
+        Card lost = new Card(
+                CardId.of("card-1"),
+                AccountId.of("acc-1"),
+                "CARD-UID-1",
+                new HashedPin("$hash"),
+                CardStatus.LOST,
+                0
+        );
+        when(cardRepositoryPort.findByCardUid("CARD-UID-1")).thenReturn(Optional.of(lost));
+
+        AdminUpdateCardStatusCommand cmd = new AdminUpdateCardStatusCommand(
+                "idem-1",
+                new ActorContext(ActorType.ADMIN, "admin-1", Map.of()),
+                "CARD-UID-1",
+                AdminCardStatusAction.ACTIVE,
+                "reason"
+        );
+
+        assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd));
+
+        verify(cardRepositoryPort, never()).save(any());
+        verify(auditPort, never()).publish(any());
+    }
+
+    @Test
+    void allowsAdminUpdatingCardFromLostToInactiveStatus() {
+        when(timeProviderPort.now()).thenReturn(Instant.parse("2026-01-21T10:00:00Z"));
+
+        Card lost = new Card(
+                CardId.of("card-1"),
+                AccountId.of("acc-1"),
+                "CARD-UID-1",
+                new HashedPin("$hash"),
+                CardStatus.LOST,
+                0
+        );
+        when(cardRepositoryPort.findByCardUid("CARD-UID-1")).thenReturn(Optional.of(lost));
+
+        AdminUpdateCardStatusCommand cmd = new AdminUpdateCardStatusCommand(
+                "idem-2",
+                new ActorContext(ActorType.ADMIN, "admin-1", Map.of()),
+                "CARD-UID-1",
+                AdminCardStatusAction.INACTIVE,
+                "reason"
+        );
+
+        assertDoesNotThrow(() -> service.execute(cmd));
+
+        verify(cardRepositoryPort).save(argThat(c -> c.status() == CardStatus.INACTIVE));
+        verify(auditPort).publish(any());
+    }
+
 }

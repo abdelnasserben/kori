@@ -44,7 +44,7 @@ class AgentPayoutServiceTest {
         service = new AgentPayoutService(
                 timeProviderPort, idempotencyPort,
                 agentRepositoryPort, ledgerQueryPort,
-                ledgerAppendPort, transactionRepositoryPort,
+                transactionRepositoryPort,
                 payoutRepositoryPort,
                 auditPort
         );
