@@ -3,23 +3,17 @@ package com.kori.domain.model.client;
 import java.util.Objects;
 import java.util.UUID;
 
-public final class ClientId {
-    private final String value;
-
-    private ClientId(String value) {
+public record ClientId(UUID value) {
+    public ClientId(UUID value) {
         this.value = Objects.requireNonNull(value);
     }
 
     public static ClientId newId() {
-        return new ClientId(UUID.randomUUID().toString());
+        return new ClientId(UUID.randomUUID());
     }
 
     public static ClientId of(String value) {
-        return new ClientId(value);
-    }
-
-    public String value() {
-        return value;
+        return new ClientId(UUID.fromString(value));
     }
 
     @Override
@@ -27,11 +21,6 @@ public final class ClientId {
         if (this == o) return true;
         if (!(o instanceof ClientId other)) return false;
         return value.equals(other.value);
-    }
-
-    @Override
-    public int hashCode() {
-        return value.hashCode();
     }
 
 }

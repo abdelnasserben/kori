@@ -2,6 +2,7 @@ package com.kori.application.command;
 
 import com.kori.application.security.ActorContext;
 import com.kori.domain.ledger.LedgerAccount;
+import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.transaction.TransactionType;
 
 import java.math.BigDecimal;
@@ -12,8 +13,7 @@ public record SearchTransactionHistoryCommand(
         ActorContext actorContext,
 
         // Optional: ADMIN can query an arbitrary scope; others must query self.
-        LedgerAccount ledgerAccount,
-        String referenceId,
+        LedgerAccountRef ledgerAccountRef,
 
         // Filters
         TransactionType transactionType,

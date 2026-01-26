@@ -1,13 +1,12 @@
 package com.kori.application.result;
 
-import com.kori.domain.ledger.LedgerAccount;
+import com.kori.domain.ledger.LedgerAccountRef;
 
 import java.time.Instant;
 import java.util.List;
 
 public record TransactionHistoryResult(
-        LedgerAccount ledgerAccount,
-        String referenceId,
+        LedgerAccountRef ledgerAccountRef,
         List<TransactionHistoryItem> items,
 
         // Next page cursor (stable)

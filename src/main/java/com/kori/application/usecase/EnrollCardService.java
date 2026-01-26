@@ -2,17 +2,21 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.in.EnrollCardUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.EnrollCardResult;
 import com.kori.application.security.ActorType;
 import com.kori.application.security.PinFormatValidator;
-import com.kori.domain.ledger.LedgerAccount;
+import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
-import com.kori.domain.model.account.Account;
+import com.kori.domain.model.account.AccountProfile;
+import com.kori.domain.model.agent.Agent;
+import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.client.Client;
 import com.kori.domain.model.common.Money;
+import com.kori.domain.model.common.Status;
 import com.kori.domain.model.transaction.Transaction;
 
 import java.math.BigDecimal;
@@ -27,37 +31,39 @@ public final class EnrollCardService implements EnrollCardUseCase {
     private final IdempotencyPort idempotencyPort;
 
     private final ClientRepositoryPort clientRepositoryPort;
-    private final AccountRepositoryPort accountRepositoryPort;
     private final CardRepositoryPort cardRepositoryPort;
+
     private final AgentRepositoryPort agentRepositoryPort;
     private final TransactionRepositoryPort transactionRepositoryPort;
+
+    private final AccountProfilePort accountProfilePort;
 
     private final FeePolicyPort feePolicyPort;
     private final CommissionPolicyPort commissionPolicyPort;
 
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
-
     private final PinHasherPort pinHasherPort;
 
     public EnrollCardService(TimeProviderPort timeProviderPort,
                              IdempotencyPort idempotencyPort,
                              ClientRepositoryPort clientRepositoryPort,
-                             AccountRepositoryPort accountRepositoryPort,
                              CardRepositoryPort cardRepositoryPort,
                              AgentRepositoryPort agentRepositoryPort,
                              TransactionRepositoryPort transactionRepositoryPort,
+                             AccountProfilePort accountProfilePort,
                              FeePolicyPort feePolicyPort,
                              CommissionPolicyPort commissionPolicyPort,
                              LedgerAppendPort ledgerAppendPort,
-                             AuditPort auditPort, PinHasherPort pinHasherPort) {
+                             AuditPort auditPort,
+                             PinHasherPort pinHasherPort) {
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
         this.clientRepositoryPort = clientRepositoryPort;
-        this.accountRepositoryPort = accountRepositoryPort;
         this.cardRepositoryPort = cardRepositoryPort;
         this.agentRepositoryPort = agentRepositoryPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
+        this.accountProfilePort = accountProfilePort;
         this.feePolicyPort = feePolicyPort;
         this.commissionPolicyPort = commissionPolicyPort;
         this.ledgerAppendPort = ledgerAppendPort;
@@ -67,30 +73,38 @@ public final class EnrollCardService implements EnrollCardUseCase {
 
     @Override
     public EnrollCardResult execute(EnrollCardCommand command) {
-        // Idempotence (Phase 1, use-case scoped)
-        var cached = idempotencyPort.find(command.idempotencyKey(), com.kori.application.result.EnrollCardResult.class);
+
+        // 0) Idempotence
+        var cached = idempotencyPort.find(command.idempotencyKey(), EnrollCardResult.class);
         if (cached.isPresent()) {
             return cached.get();
         }
 
-        // Authorization conceptuelle : enrôlement effectué par un AGENT
+        // 1) Authorization conceptuelle : enrôlement effectué par un AGENT
         if (command.actorContext().actorType() != ActorType.AGENT) {
             throw new ForbiddenOperationException("Only AGENT can enroll a card");
         }
 
-        // Agent must exist
-        if (!agentRepositoryPort.existsById(command.agentId())) {
-            throw new ForbiddenOperationException("Agent not found");
+        // 2) Agent must exist (by code) + should be ACTIVE
+        Agent agent = agentRepositoryPort.findByCode(AgentCode.of(command.agentCode()))
+                .orElseThrow(() -> new NotFoundException("Agent not found"));
+
+        var agentAccount = LedgerAccountRef.agent(agent.id().value().toString());
+        var agentProfile = accountProfilePort.findByAccount(agentAccount)
+                .orElseThrow(() -> new NotFoundException("Agent account not found"));
+
+        if (agentProfile.status() != Status.ACTIVE) {
+            throw new ForbiddenOperationException("Agent is not active");
         }
 
-        // Card UID must be unique
+        // 3) Card UID must be unique
         if (cardRepositoryPort.findByCardUid(command.cardUid()).isPresent()) {
             throw new ForbiddenOperationException("Card UID already enrolled");
         }
 
         Instant now = timeProviderPort.now();
 
-        // 1) client (si absent)
+        // 4) client (find or create by phone)
         boolean clientCreated = false;
         Client client = clientRepositoryPort.findByPhoneNumber(command.phoneNumber()).orElse(null);
 
@@ -100,23 +114,29 @@ public final class EnrollCardService implements EnrollCardUseCase {
             clientCreated = true;
         }
 
-        // 2) compte (si absent)
-        boolean accountCreated = false;
-        Account account = accountRepositoryPort.findByClientId(client.id()).orElse(null);
+        // 5) client accountRef profile (create if absent)
+        boolean clientAccountProfileCreated = false;
+        var clientAccount = LedgerAccountRef.client(client.id().toString()); // adapt if value() is not String
+        var clientProfileOpt = accountProfilePort.findByAccount(clientAccount);
 
-        if (account == null) {
-            account = Account.activeNew(client.id());
-            account = accountRepositoryPort.save(account);
-            accountCreated = true;
+        if (clientProfileOpt.isEmpty()) {
+            AccountProfile profile = AccountProfile.activeNew(clientAccount, now);
+            accountProfilePort.save(profile);
+            clientAccountProfileCreated = true;
+        } else {
+            if (clientProfileOpt.get().status() != Status.ACTIVE) {
+                throw new ForbiddenOperationException("Client account is not active");
+            }
         }
 
-        // 3) ajout carte (active)
+        // 6) Card (active) linked to ClientId (no AccountId anymore)
         PinFormatValidator.validate(command.pin());
         var hashed = pinHasherPort.hash(command.pin());
-        Card card = Card.activeNew(account.id(), command.cardUid(), hashed);
+
+        Card card = Card.activeNew(client.id(), command.cardUid(), hashed);
         card = cardRepositoryPort.save(card);
 
-        // 4) frais d’enrôlement + 5) commission agent (policies)
+        // 7) pricing / commissions policies
         Money cardPrice = feePolicyPort.cardEnrollmentPrice();
         Money agentCommission = commissionPolicyPort.cardEnrollmentAgentCommission();
 
@@ -133,22 +153,24 @@ public final class EnrollCardService implements EnrollCardUseCase {
             throw new ForbiddenOperationException("Invalid commission policy: agentCommission cannot exceed cardPrice");
         }
 
-        Money platformRevenue = cardPrice.minus(agentCommission); // never negative due to guards
+        Money platformRevenue = cardPrice.minus(agentCommission); // safe due to guards
 
-        // 6) transaction
+        // 8) transaction
         Transaction tx = Transaction.enrollCard(cardPrice, now);
         tx = transactionRepositoryPort.save(tx);
 
-        // 7) ledger (revenu + commission)
+        // 9) ledger entries (platform revenue + agent commission)
         ledgerAppendPort.append(List.of(
-                LedgerEntry.credit(tx.id(), LedgerAccount.PLATFORM, platformRevenue, null),
-                LedgerEntry.credit(tx.id(), LedgerAccount.AGENT, agentCommission, command.agentId())
+                LedgerEntry.credit(tx.id(), LedgerAccountRef.platformFeeRevenue(), platformRevenue),
+                LedgerEntry.credit(tx.id(), agentAccount, agentCommission)
         ));
 
-        // 8) audit
+        // 10) audit
         Map<String, String> metadata = new HashMap<>();
-        metadata.put("agentId", command.agentId());
-        metadata.put("transactionId", tx.id().value());
+        metadata.put("transactionId", tx.id().toString());
+        metadata.put("agentCode", command.agentCode());
+        metadata.put("clientPhoneNumber", client.phoneNumber());
+        metadata.put("cardUid", card.cardUid());
 
         AuditEvent event = new AuditEvent(
                 "ENROLL_CARD",
@@ -160,14 +182,13 @@ public final class EnrollCardService implements EnrollCardUseCase {
         auditPort.publish(event);
 
         EnrollCardResult result = new EnrollCardResult(
-                tx.id().value(),
-                client.id().value(),
-                account.id().value(),
-                card.id().value(),
+                tx.id().toString(),
+                client.phoneNumber(),
+                card.cardUid(),
                 cardPrice.asBigDecimal(),
                 agentCommission.asBigDecimal(),
                 clientCreated,
-                accountCreated
+                clientAccountProfileCreated
         );
 
         idempotencyPort.save(command.idempotencyKey(), result);

@@ -1,10 +1,12 @@
 package com.kori.adapters.out.jpa.entity;
 
 import jakarta.persistence.*;
+import lombok.Getter;
 
 import java.time.OffsetDateTime;
 import java.util.UUID;
 
+@Getter
 @Entity
 @Table(name = "audit_events",
         indexes = {
@@ -44,10 +46,4 @@ public class AuditEventEntity {
         this.metadataJson = metadataJson;
     }
 
-    public UUID getId() { return id; }
-    public String getAction() { return action; }
-    public String getActorType() { return actorType; }
-    public String getActorId() { return actorId; }
-    public OffsetDateTime getOccurredAt() { return occurredAt; }
-    public String getMetadataJson() { return metadataJson; }
 }

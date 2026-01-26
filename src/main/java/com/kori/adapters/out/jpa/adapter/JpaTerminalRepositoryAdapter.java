@@ -1,5 +1,6 @@
 package com.kori.adapters.out.jpa.adapter;
 
+import com.kori.adapters.out.jpa.entity.TerminalEntity;
 import com.kori.adapters.out.jpa.repo.TerminalJpaRepository;
 import com.kori.application.port.out.TerminalRepositoryPort;
 import com.kori.domain.model.merchant.MerchantId;
@@ -17,18 +18,28 @@ public class JpaTerminalRepositoryAdapter implements TerminalRepositoryPort {
     private final TerminalJpaRepository repo;
 
     public JpaTerminalRepositoryAdapter(TerminalJpaRepository repo) {
-        this.repo = Objects.requireNonNull(repo);
+        this.repo = repo;
     }
 
     @Override
     @Transactional(readOnly = true)
     public Optional<Terminal> findById(String terminalId) {
         Objects.requireNonNull(terminalId, "terminalId must not be null");
-        return repo.findById(terminalId).map(e ->
-                new Terminal(
-                        TerminalId.of(e.getId()),
-                        MerchantId.of(e.getMerchantId())
+        return repo.findById(terminalId)
+                .map(e -> new Terminal(
+                        new TerminalId(e.getId()),
+                        MerchantId.of(e.getMerchantId()),
+                        e.getStatus()
                 )
         );
+    }
+
+    @Override
+    public void save(Terminal terminal) {
+        repo.save(new TerminalEntity(
+                terminal.id().value(),
+                terminal.merchantId().toString(),
+                terminal.status()
+        ));
     }
 }

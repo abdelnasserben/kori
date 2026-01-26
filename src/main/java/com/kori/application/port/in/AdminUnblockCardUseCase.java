@@ -1,8 +1,8 @@
 package com.kori.application.port.in;
 
 import com.kori.application.command.AdminUnblockCardCommand;
-import com.kori.application.result.AdminUnblockCardResult;
+import com.kori.application.result.UpdateCardStatusResult;
 
 public interface AdminUnblockCardUseCase {
-    AdminUnblockCardResult execute(AdminUnblockCardCommand command);
+    UpdateCardStatusResult execute(AdminUnblockCardCommand command);
 }

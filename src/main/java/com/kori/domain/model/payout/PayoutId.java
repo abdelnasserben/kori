@@ -13,6 +13,10 @@ public record PayoutId(UUID value) {
         return new PayoutId(UUID.randomUUID());
     }
 
+    public static PayoutId of(String value) {
+        return new PayoutId(UUID.fromString(value));
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

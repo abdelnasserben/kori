@@ -1,5 +1,7 @@
 package com.kori.adapters.out.jpa.entity;
 
+import com.kori.domain.ledger.LedgerAccountType;
+import com.kori.domain.ledger.LedgerEntryType;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -9,46 +11,56 @@ import java.util.UUID;
 
 @Getter
 @Entity
-@Table(name = "ledger_entries",
+@Table(
+        name = "ledger_entries",
         indexes = {
                 @Index(name = "idx_ledger_tx", columnList = "transaction_id"),
-                @Index(name = "idx_ledger_account_ref", columnList = "account, reference_id"),
+                @Index(name = "idx_ledger_account", columnList = "account_type, owner_ref"),
                 @Index(name = "idx_ledger_created_at", columnList = "created_at")
-        })
+        }
+)
 @Access(AccessType.FIELD)
 public class LedgerEntryEntity {
 
     @Id
-    @Column(name = "id", nullable = false, updatable = false)
+    @Column(nullable = false, updatable = false)
     private UUID id;
 
     @Column(name = "transaction_id", nullable = false, updatable = false)
     private UUID transactionId;
 
-    @Column(name = "account", nullable = false, updatable = false, length = 64)
-    private String account;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_type", nullable = false, updatable = false, length = 32)
+    private LedgerAccountType accountType;
 
+    @Column(name = "owner_ref", nullable = false, updatable = false, length = 128)
+    private String ownerRef;
+
+    @Enumerated(EnumType.STRING)
     @Column(name = "entry_type", nullable = false, updatable = false, length = 16)
-    private String entryType;
+    private LedgerEntryType entryType;
 
-    @Column(name = "amount", nullable = false, updatable = false, precision = 19, scale = 2)
+    @Column(nullable = false, updatable = false, precision = 19, scale = 2)
     private BigDecimal amount;
-
-    @Column(name = "reference_id", updatable = false, length = 128)
-    private String referenceId;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
-    protected LedgerEntryEntity() { }
+    protected LedgerEntryEntity() {}
 
-    public LedgerEntryEntity(UUID id, UUID transactionId, String account, String entryType, BigDecimal amount, String referenceId) {
+    public LedgerEntryEntity(
+            UUID id,
+            UUID transactionId,
+            LedgerAccountType accountType,
+            String ownerRef,
+            LedgerEntryType entryType,
+            BigDecimal amount
+    ) {
         this.id = id;
         this.transactionId = transactionId;
-        this.account = account;
+        this.accountType = accountType;
+        this.ownerRef = ownerRef;
         this.entryType = entryType;
         this.amount = amount;
-        this.referenceId = referenceId;
     }
-
 }

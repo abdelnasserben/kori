@@ -1,21 +1,44 @@
 package com.kori.adapters.out.jpa.entity;
 
+import com.kori.domain.model.common.Status;
 import jakarta.persistence.*;
+import lombok.Getter;
 
+import java.time.Instant;
+import java.util.UUID;
+
+@Getter
 @Entity
-@Table(name = "merchants")
+@Table(
+        name = "merchants",
+        indexes = {
+                @Index(name = "idx_merchant_code", columnList = "code", unique = true),
+                @Index(name = "idx_merchant_status", columnList = "status")
+        }
+)
 @Access(AccessType.FIELD)
 public class MerchantEntity {
+
     @Id
-    @Column(name = "id", nullable = false, length = 64)
-    private String id;
+    @Column(nullable = false, updatable = false, length = 36)
+    private UUID id;
 
-    @Column(name = "status", nullable = false, length = 16)
-    private String status;
+    @Column(nullable = false, updatable = false, length = 16, unique = true)
+    private String code;
 
-    protected MerchantEntity() { }
-    public MerchantEntity(String id, String status) { this.id = id; this.status = status; }
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private Status status;
 
-    public String getId() { return id; }
-    public String getStatus() { return status; }
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
+    protected MerchantEntity() {}
+
+    public MerchantEntity(UUID id, String code, Status status, Instant createdAt) {
+        this.id = id;
+        this.code = code;
+        this.status = status;
+        this.createdAt = createdAt;
+    }
 }

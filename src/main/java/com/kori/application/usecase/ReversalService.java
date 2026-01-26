@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.ReversalCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.in.ReversalUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.ReversalResult;
@@ -15,7 +16,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 public final class ReversalService implements ReversalUseCase {
 
@@ -55,49 +55,43 @@ public final class ReversalService implements ReversalUseCase {
 
         TransactionId originalTxId = TransactionId.of(command.originalTransactionId());
         Transaction originalTx = transactionRepositoryPort.findById(originalTxId)
-                .orElseThrow(() -> new ForbiddenOperationException("Original transaction not found"));
+                .orElseThrow(() -> new NotFoundException("Original transaction not found"));
 
         if (transactionRepositoryPort.existsReversalFor(command.originalTransactionId())) {
             throw new ForbiddenOperationException("Transaction already reversed");
         }
 
-        List<LedgerEntry> originalEntries = ledgerQueryPort.findByTransactionId(originalTxId.value());
+        List<LedgerEntry> originalEntries = ledgerQueryPort.findByTransactionId(originalTxId.toString());
         if (originalEntries.isEmpty()) {
             throw new ForbiddenOperationException("Original transaction has no ledger entries");
         }
+
+        originalEntries.forEach(l -> {
+            if(l.accountRef() == null)
+                throw new ForbiddenOperationException("account reference is required");
+        });
 
         Instant now = timeProviderPort.now();
 
         // Create reversal transaction linked to original
         Transaction reversalTx = Transaction.reversal(originalTxId, originalTx.amount(), now);
-        reversalTx = transactionRepositoryPort.save(reversalTx);
+        transactionRepositoryPort.save(reversalTx);
 
         // Append inverse ledger entries (append-only compensation)
         final TransactionId reversalTxId = reversalTx.id();
 
         List<LedgerEntry> reversalEntries = originalEntries.stream()
-                .map(e -> {
-                    LedgerEntryType inverted =
-                            (e.type() == LedgerEntryType.CREDIT)
-                                    ? LedgerEntryType.DEBIT
-                                    : LedgerEntryType.CREDIT;
-
-                    return new LedgerEntry(
-                            UUID.randomUUID().toString(),
-                            reversalTxId,
-                            e.account(),
-                            inverted,
-                            e.amount(),
-                            e.referenceId()
-                    );
-                })
+                .map(e -> e.type() == LedgerEntryType.CREDIT
+                        ? LedgerEntry.debit(reversalTxId, e.accountRef(), e.amount())
+                        : LedgerEntry.credit(reversalTxId, e.accountRef(), e.amount())
+                )
                 .toList();
 
         ledgerAppendPort.append(reversalEntries);
 
         Map<String, String> metadata = new HashMap<>();
-        metadata.put("transactionId", reversalTx.id().value());
-        metadata.put("originalTransactionId", originalTxId.value());
+        metadata.put("transactionId", reversalTx.id().toString());
+        metadata.put("originalTransactionId", originalTxId.toString());
 
         auditPort.publish(new AuditEvent(
                 "REVERSAL",
@@ -107,7 +101,7 @@ public final class ReversalService implements ReversalUseCase {
                 metadata
         ));
 
-        ReversalResult result = new ReversalResult(reversalTx.id().value(), originalTxId.value());
+        ReversalResult result = new ReversalResult(reversalTx.id().toString(), originalTxId.toString());
         idempotencyPort.save(command.idempotencyKey(), result);
         return result;
     }

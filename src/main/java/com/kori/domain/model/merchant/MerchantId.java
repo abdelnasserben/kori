@@ -1,20 +1,19 @@
 package com.kori.domain.model.merchant;
 
 import java.util.Objects;
+import java.util.UUID;
 
-public final class MerchantId {
-    private final String value;
-
-    private MerchantId(String value) {
+public record MerchantId(UUID value) {
+    public MerchantId(UUID value) {
         this.value = Objects.requireNonNull(value);
     }
 
     public static MerchantId of(String value) {
-        return new MerchantId(value);
+        return new MerchantId(UUID.fromString(value));
     }
 
-    public String value() {
-        return value;
+    public static MerchantId newId() {
+        return new MerchantId(UUID.randomUUID());
     }
 
     @Override
@@ -22,11 +21,6 @@ public final class MerchantId {
         if (this == o) return true;
         if (!(o instanceof MerchantId other)) return false;
         return value.equals(other.value);
-    }
-
-    @Override
-    public int hashCode() {
-        return value.hashCode();
     }
 
 }

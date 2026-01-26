@@ -1,58 +1,68 @@
 package com.kori.adapters.out.jpa.entity;
 
+import com.kori.domain.model.payout.PayoutStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.math.BigDecimal;
-import java.time.OffsetDateTime;
+import java.time.Instant;
 import java.util.UUID;
 
 @Getter
 @Entity
-@Table(name = "payouts",
+@Table(
+        name = "payouts",
         indexes = {
-                @Index(name = "idx_payouts_agent", columnList = "agent_id")
-        },
-        uniqueConstraints = {
-                @UniqueConstraint(name = "uk_payouts_transaction_id", columnNames = {"transaction_id"})
-        })
+                @Index(name = "idx_payouts_agent", columnList = "agent_id"),
+                @Index(name = "idx_payouts_tx", columnList = "transaction_id", unique = true),
+                @Index(name = "idx_payouts_status", columnList = "status")
+        }
+)
 @Access(AccessType.FIELD)
 public class PayoutEntity {
 
     @Id
-    @Column(name = "id", nullable = false)
+    @Column(nullable = false, updatable = false, length = 36)
     private UUID id;
 
-    @Column(name = "agent_id", nullable = false, length = 64)
+    @Column(name = "agent_id", nullable = false, updatable = false, length = 64)
     private String agentId;
 
-    @Column(name = "transaction_id", nullable = false)
-    private UUID transactionId;
+    @Column(name = "transaction_id", nullable = false, updatable = false, length = 36, unique = true)
+    private String transactionId; // TransactionId.value() (String)
 
-    @Column(name = "amount", nullable = false, precision = 19, scale = 2)
+    @Column(name = "amount", nullable = false, updatable = false, precision = 19, scale = 2)
     private BigDecimal amount;
 
-    @Setter
-    @Column(name = "status", nullable = false, length = 32)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private PayoutStatus status;
 
-    @Column(name = "created_at", nullable = false)
-    private OffsetDateTime createdAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
-    @Setter
     @Column(name = "completed_at")
-    private OffsetDateTime completedAt;
+    private Instant completedAt;
 
-    protected PayoutEntity() { }
+    @Column(name = "failed_at")
+    private Instant failedAt;
 
-    public PayoutEntity(UUID id,
-                        String agentId,
-                        UUID transactionId,
-                        BigDecimal amount,
-                        String status,
-                        OffsetDateTime createdAt,
-                        OffsetDateTime completedAt) {
+    @Column(name = "failure_reason", length = 255)
+    private String failureReason;
+
+    protected PayoutEntity() {}
+
+    public PayoutEntity(
+            UUID id,
+            String agentId,
+            String transactionId,
+            BigDecimal amount,
+            PayoutStatus status,
+            Instant createdAt,
+            Instant completedAt,
+            Instant failedAt,
+            String failureReason
+    ) {
         this.id = id;
         this.agentId = agentId;
         this.transactionId = transactionId;
@@ -60,6 +70,7 @@ public class PayoutEntity {
         this.status = status;
         this.createdAt = createdAt;
         this.completedAt = completedAt;
+        this.failedAt = failedAt;
+        this.failureReason = failureReason;
     }
-
 }

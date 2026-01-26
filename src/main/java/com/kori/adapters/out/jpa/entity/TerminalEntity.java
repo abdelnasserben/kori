@@ -1,21 +1,39 @@
 package com.kori.adapters.out.jpa.entity;
 
+import com.kori.domain.model.common.Status;
 import jakarta.persistence.*;
+import lombok.Getter;
 
+import java.util.UUID;
+
+@Getter
 @Entity
-@Table(name = "terminals")
+@Table(
+        name = "terminals",
+        indexes = {
+                @Index(name = "idx_terminal_merchant", columnList = "merchant_id"),
+                @Index(name = "idx_terminal_status", columnList = "status")
+        }
+)
 @Access(AccessType.FIELD)
 public class TerminalEntity {
+
     @Id
-    @Column(name = "id", nullable = false, length = 64)
-    private String id;
+    @Column(nullable = false, updatable = false, length = 36)
+    private UUID id;
 
-    @Column(name = "merchant_id", nullable = false, length = 64)
-    private String merchantId;
+    @Column(name = "merchant_id", nullable = false, updatable = false, length = 36)
+    private String merchantId; // MerchantId.value()
 
-    protected TerminalEntity() { }
-    public TerminalEntity(String id, String merchantId) { this.id = id; this.merchantId = merchantId; }
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private Status status;
 
-    public String getId() { return id; }
-    public String getMerchantId() { return merchantId; }
+    protected TerminalEntity() {}
+
+    public TerminalEntity(UUID id, String merchantId, Status status) {
+        this.id = id;
+        this.merchantId = merchantId;
+        this.status = status;
+    }
 }

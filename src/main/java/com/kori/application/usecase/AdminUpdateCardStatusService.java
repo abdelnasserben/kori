@@ -2,93 +2,90 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.AdminUpdateCardStatusCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.in.AdminUpdateCardStatusUseCase;
-import com.kori.application.port.out.*;
-import com.kori.application.result.AdminUpdateCardStatusResult;
+import com.kori.application.port.out.AuditEvent;
+import com.kori.application.port.out.AuditPort;
+import com.kori.application.port.out.CardRepositoryPort;
+import com.kori.application.port.out.TimeProviderPort;
+import com.kori.application.result.UpdateCardStatusResult;
+import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.CardStatus;
 
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public final class AdminUpdateCardStatusService implements AdminUpdateCardStatusUseCase {
 
     private final TimeProviderPort timeProviderPort;
-    private final IdempotencyPort idempotencyPort;
     private final CardRepositoryPort cardRepositoryPort;
     private final AuditPort auditPort;
 
-    public AdminUpdateCardStatusService(TimeProviderPort timeProviderPort,
-                                        IdempotencyPort idempotencyPort,
-                                        CardRepositoryPort cardRepositoryPort,
-                                        AuditPort auditPort) {
+    public AdminUpdateCardStatusService(
+            TimeProviderPort timeProviderPort,
+            CardRepositoryPort cardRepositoryPort,
+            AuditPort auditPort) {
         this.timeProviderPort = timeProviderPort;
-        this.idempotencyPort = idempotencyPort;
         this.cardRepositoryPort = cardRepositoryPort;
         this.auditPort = auditPort;
     }
 
     @Override
-    public AdminUpdateCardStatusResult execute(AdminUpdateCardStatusCommand command) {
-        var cached = idempotencyPort.find(command.idempotencyKey(), AdminUpdateCardStatusResult.class);
-        if (cached.isPresent()) return cached.get();
+    public UpdateCardStatusResult execute(AdminUpdateCardStatusCommand cmd) {
 
-        if (command.actorContext().actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Only ADMIN can update card status");
+        requireAdminActor(cmd.actorContext());
+
+        if (cmd.targetStatus() != CardStatus.ACTIVE
+                && cmd.targetStatus() != CardStatus.INACTIVE
+                && cmd.targetStatus() != CardStatus.SUSPENDED) {
+            throw new ForbiddenOperationException("Admin can only set it");
         }
 
-        Card card = cardRepositoryPort.findByCardUid(command.cardUid())
-                .orElseThrow(() -> new ForbiddenOperationException("Card not found"));
+        Card card = getCard(cmd.cardUid());
+        CardStatus before = card.status(); // for audit
 
-        CardStatus target = getCardStatus(command, card);
+        // Domaine fait respecter LOST terminal + refus BLOCKED->ACTIVE via activate()
+        switch (cmd.targetStatus()) {
+            case ACTIVE -> card.activate();
+            case INACTIVE -> card.deactivate();
+            case SUSPENDED -> card.suspend();
+            default -> throw new ForbiddenOperationException("Unexpected target status: " + cmd.targetStatus());
+        }
 
-        Card updated = card.transitionTo(target);
-        cardRepositoryPort.save(updated);
+        cardRepositoryPort.save(card);
 
+        // Audit
+        String auditAction = "ADMIN_CARD_STATUS_UPDATED_" + cmd.targetStatus().name();
         Instant now = timeProviderPort.now();
-
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("cardUid", command.cardUid());
-        metadata.put("reason", command.reason());
-
-        String auditAction = "ADMIN_SET_CARD_STATUS_" + command.action().name();
 
         auditPort.publish(new AuditEvent(
                 auditAction,
-                command.actorContext().actorType().name(),
-                command.actorContext().actorId(),
+                cmd.actorContext().actorType().name(),
+                cmd.actorContext().actorId(),
                 now,
-                metadata
+                Map.of(
+                        "cardId", card.id().toString(),
+                        "before", before.name(),
+                        "after", card.status().name(),
+                        "target", cmd.targetStatus().name(),
+                        "reason", cmd.reason()
+                )
         ));
 
-        AdminUpdateCardStatusResult result = new AdminUpdateCardStatusResult(
-                updated.id().value(),
-                updated.cardUid(),
-                updated.status().name()
-        );
-
-        idempotencyPort.save(command.idempotencyKey(), result);
-        return result;
+        return new UpdateCardStatusResult(cmd.cardUid(), before, card.status());
     }
 
-    private static CardStatus getCardStatus(AdminUpdateCardStatusCommand command, Card card) {
-        CardStatus target = switch (command.action()) {
-            case ACTIVE -> CardStatus.ACTIVE;
-            case SUSPENDED -> CardStatus.SUSPENDED;
-            case INACTIVE -> CardStatus.INACTIVE;
-        };
+    private Card getCard(UUID cardUid) {
+        return cardRepositoryPort.findByCardUid(cardUid.toString())
+                .orElseThrow(() -> new NotFoundException("Card not found"));
+    }
 
-        // Governance rule: BLOCKED -> ACTIVE must go through AdminUnblockCard
-        if (card.status() == CardStatus.BLOCKED && target == CardStatus.ACTIVE) {
-            throw new ForbiddenOperationException("Use AdminUnblockCard to reactivate a BLOCKED card");
+    private void requireAdminActor(ActorContext ctx) {
+        if (ctx.actorType() != ActorType.AGENT) {
+            throw new ForbiddenOperationException("Actor must be an ADMIN");
         }
-
-        // LOST terminal: only allow LOST -> INACTIVE
-        if (card.status() == CardStatus.LOST && target != CardStatus.INACTIVE) {
-            throw new ForbiddenOperationException("LOST card can only be set to INACTIVE by admin");
-        }
-        return target;
     }
 }

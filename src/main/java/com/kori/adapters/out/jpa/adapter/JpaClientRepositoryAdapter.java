@@ -31,14 +31,14 @@ public class JpaClientRepositoryAdapter implements ClientRepositoryPort {
     @Override
     @Transactional(readOnly = true)
     public Optional<Client> findById(ClientId clientId) {
-        return repo.findById(UUID.fromString(clientId.value())).map(this::toDomain);
+        return repo.findById(clientId.value()).map(this::toDomain);
     }
 
     @Override
     @Transactional
     public Client save(Client client) {
         ClientEntity e = new ClientEntity(
-                UUID.fromString(client.id().value()),
+                client.id().value(),
                 client.phoneNumber(),
                 client.status().name()
         );

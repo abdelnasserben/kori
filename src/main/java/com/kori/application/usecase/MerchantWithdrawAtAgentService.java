@@ -7,9 +7,15 @@ import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.MerchantWithdrawAtAgentResult;
 import com.kori.application.security.ActorType;
-import com.kori.domain.ledger.LedgerAccount;
+import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
+import com.kori.domain.model.account.AccountProfile;
+import com.kori.domain.model.agent.Agent;
+import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.common.Money;
+import com.kori.domain.model.common.Status;
+import com.kori.domain.model.merchant.Merchant;
+import com.kori.domain.model.merchant.MerchantCode;
 import com.kori.domain.model.transaction.Transaction;
 
 import java.time.Instant;
@@ -24,6 +30,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
 
     private final MerchantRepositoryPort merchantRepositoryPort;
     private final AgentRepositoryPort agentRepositoryPort;
+    private final AccountProfilePort accountProfilePort;
 
     private final FeePolicyPort feePolicyPort;
     private final CommissionPolicyPort commissionPolicyPort;
@@ -38,8 +45,10 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
                                           IdempotencyPort idempotencyPort,
                                           MerchantRepositoryPort merchantRepositoryPort,
                                           AgentRepositoryPort agentRepositoryPort,
+                                          AccountProfilePort accountProfilePort,
                                           FeePolicyPort feePolicyPort,
-                                          CommissionPolicyPort commissionPolicyPort, LedgerQueryPort ledgerQueryPort,
+                                          CommissionPolicyPort commissionPolicyPort,
+                                          LedgerQueryPort ledgerQueryPort,
                                           TransactionRepositoryPort transactionRepositoryPort,
                                           LedgerAppendPort ledgerAppendPort,
                                           AuditPort auditPort) {
@@ -47,6 +56,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         this.idempotencyPort = idempotencyPort;
         this.merchantRepositoryPort = merchantRepositoryPort;
         this.agentRepositoryPort = agentRepositoryPort;
+        this.accountProfilePort = accountProfilePort;
         this.feePolicyPort = feePolicyPort;
         this.commissionPolicyPort = commissionPolicyPort;
         this.ledgerQueryPort = ledgerQueryPort;
@@ -67,12 +77,29 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
             throw new ForbiddenOperationException("Only AGENT can initiate MerchantWithdrawAtAgent");
         }
 
-        // agent + merchant doivent exister
-        if (!agentRepositoryPort.existsById(command.agentId())) {
-            throw new ForbiddenOperationException("Agent not found");
-        }
-        merchantRepositoryPort.findById(command.merchantId())
+        // Resolve AGENT by code
+        Agent agent = agentRepositoryPort.findByCode(AgentCode.of(command.agentCode()))
+                .orElseThrow(() -> new ForbiddenOperationException("Agent not found"));
+
+        // Resolve MERCHANT by code
+        Merchant merchant = merchantRepositoryPort.findByCode(MerchantCode.of(command.merchantCode()))
                 .orElseThrow(() -> new ForbiddenOperationException("Merchant not found"));
+
+        // Profiles must be ACTIVE (recommended)
+        var agentAcc = LedgerAccountRef.agent(agent.id().value().toString());
+        var merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
+
+        AccountProfile agentProfile = accountProfilePort.findByAccount(agentAcc)
+                .orElseThrow(() -> new ForbiddenOperationException("Agent accountRef profile not found"));
+        if (agentProfile.status() != Status.ACTIVE) {
+            throw new ForbiddenOperationException("Agent is not active");
+        }
+
+        AccountProfile merchantProfile = accountProfilePort.findByAccount(merchantAcc)
+                .orElseThrow(() -> new ForbiddenOperationException("Merchant accountRef profile not found"));
+        if (merchantProfile.status() != Status.ACTIVE) {
+            throw new ForbiddenOperationException("Merchant is not active");
+        }
 
         Instant now = timeProviderPort.now();
 
@@ -89,7 +116,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         Money totalDebitedMerchant = amount.plus(fee);
 
         // --- Sufficient funds check (merchant)
-        Money available = ledgerQueryPort.netBalance(LedgerAccount.MERCHANT, command.merchantId());
+        Money available = ledgerQueryPort.netBalance(merchantAcc);
         if (totalDebitedMerchant.isGreaterThan(available)) {
             throw new InsufficientFundsException(
                     "Insufficient merchant funds: need " + totalDebitedMerchant + " but available " + available
@@ -99,18 +126,20 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         Transaction tx = Transaction.merchantWithdrawAtAgent(amount, now);
         tx = transactionRepositoryPort.save(tx);
 
-        // Ledger (spec)
+        var clearingAcc = LedgerAccountRef.platformClearing();
+        var feeAcc = LedgerAccountRef.platformFeeRevenue();
+
         ledgerAppendPort.append(List.of(
-                LedgerEntry.debit(tx.id(), LedgerAccount.MERCHANT, totalDebitedMerchant, command.merchantId()),
-                LedgerEntry.credit(tx.id(), LedgerAccount.PLATFORM_CLEARING, amount, null),
-                LedgerEntry.credit(tx.id(), LedgerAccount.AGENT, commission, command.agentId()),
-                LedgerEntry.credit(tx.id(), LedgerAccount.PLATFORM, platformRevenue, null)
+                LedgerEntry.debit(tx.id(), merchantAcc, totalDebitedMerchant),
+                LedgerEntry.credit(tx.id(), clearingAcc, amount),
+                LedgerEntry.credit(tx.id(), agentAcc, commission),
+                LedgerEntry.credit(tx.id(), feeAcc, platformRevenue)
         ));
 
         Map<String, String> metadata = new HashMap<>();
-        metadata.put("merchantId", command.merchantId());
-        metadata.put("agentId", command.agentId());
-        metadata.put("transactionId", tx.id().value());
+        metadata.put("transactionId", tx.id().toString());
+        metadata.put("merchantCode", command.merchantCode());
+        metadata.put("agentCode", command.agentCode());
 
         auditPort.publish(new AuditEvent(
                 "MERCHANT_WITHDRAW_AT_AGENT",
@@ -121,9 +150,9 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         ));
 
         MerchantWithdrawAtAgentResult result = new MerchantWithdrawAtAgentResult(
-                tx.id().value(),
-                command.merchantId(),
-                command.agentId(),
+                tx.id().toString(),
+                merchant.code().value(),
+                agent.code().value(),
                 amount.asBigDecimal(),
                 fee.asBigDecimal(),
                 commission.asBigDecimal(),

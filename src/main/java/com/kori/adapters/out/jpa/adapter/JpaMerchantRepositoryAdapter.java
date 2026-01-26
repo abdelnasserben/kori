@@ -1,9 +1,10 @@
 package com.kori.adapters.out.jpa.adapter;
 
+import com.kori.adapters.out.jpa.entity.MerchantEntity;
 import com.kori.adapters.out.jpa.repo.MerchantJpaRepository;
 import com.kori.application.port.out.MerchantRepositoryPort;
-import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
+import com.kori.domain.model.merchant.MerchantCode;
 import com.kori.domain.model.merchant.MerchantId;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,13 +23,39 @@ public class JpaMerchantRepositoryAdapter implements MerchantRepositoryPort {
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<Merchant> findById(String merchantId) {
-        Objects.requireNonNull(merchantId, "merchantId must not be null");
-        return repo.findById(merchantId).map(e ->
-                new Merchant(
-                        MerchantId.of(e.getId()),
-                        Status.valueOf(e.getStatus())
-                )
+    public boolean existsByCode(MerchantCode code) {
+        return repo.existsByCode(code.value());
+    }
+
+    @Override
+    @Transactional
+    public void save(Merchant merchant) {
+        repo.save(new MerchantEntity(
+                merchant.id().value(),
+                merchant.code().value(),
+                merchant.status(),
+                merchant.createdAt()
+        ));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Merchant> findById(MerchantId id) {
+        return repo.findById(id.toString()).map(this::toDomain);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Optional<Merchant> findByCode(MerchantCode code) {
+        return repo.findByCode(code.value()).map(this::toDomain);
+    }
+
+    private Merchant toDomain(MerchantEntity e) {
+        return new Merchant(
+                new MerchantId(e.getId()),
+                MerchantCode.of(e.getCode()),
+                e.getStatus(),
+                e.getCreatedAt()
         );
     }
 }

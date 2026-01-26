@@ -6,4 +6,6 @@ import java.util.Optional;
 
 public interface TerminalRepositoryPort {
     Optional<Terminal> findById(String terminalId);
+
+    void save(Terminal terminal);
 }

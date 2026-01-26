@@ -6,30 +6,30 @@ import com.kori.domain.model.transaction.TransactionId;
 import java.util.Objects;
 import java.util.UUID;
 
-/**
- * @param referenceId ex: agentId, merchantId, clientId
- */
-public record LedgerEntry(String id, TransactionId transactionId, LedgerAccount account, LedgerEntryType type,
-                          Money amount, String referenceId) {
+public record LedgerEntry(
+        String id,
+        TransactionId transactionId,
+        LedgerAccountRef accountRef,
+        LedgerEntryType type,
+        Money amount
+) {
     public LedgerEntry(String id,
                        TransactionId transactionId,
-                       LedgerAccount account,
+                       LedgerAccountRef accountRef,
                        LedgerEntryType type,
-                       Money amount,
-                       String referenceId) {
-        this.id = Objects.requireNonNull(id);
-        this.transactionId = Objects.requireNonNull(transactionId);
-        this.account = Objects.requireNonNull(account);
-        this.type = Objects.requireNonNull(type);
-        this.amount = Objects.requireNonNull(amount);
-        this.referenceId = referenceId;
+                       Money amount) {
+        this.id = Objects.requireNonNull(id, "id");
+        this.transactionId = Objects.requireNonNull(transactionId, "transactionId");
+        this.accountRef = Objects.requireNonNull(accountRef, "accountRef");
+        this.type = Objects.requireNonNull(type, "type");
+        this.amount = Objects.requireNonNull(amount, "amount");
     }
 
-    public static LedgerEntry credit(TransactionId txId, LedgerAccount account, Money amount, String referenceId) {
-        return new LedgerEntry(UUID.randomUUID().toString(), txId, account, LedgerEntryType.CREDIT, amount, referenceId);
+    public static LedgerEntry credit(TransactionId txId, LedgerAccountRef account, Money amount) {
+        return new LedgerEntry(UUID.randomUUID().toString(), txId, account, LedgerEntryType.CREDIT, amount);
     }
 
-    public static LedgerEntry debit(TransactionId txId, LedgerAccount account, Money amount, String referenceId) {
-        return new LedgerEntry(UUID.randomUUID().toString(), txId, account, LedgerEntryType.DEBIT, amount, referenceId);
+    public static LedgerEntry debit(TransactionId txId, LedgerAccountRef account, Money amount) {
+        return new LedgerEntry(UUID.randomUUID().toString(), txId, account, LedgerEntryType.DEBIT, amount);
     }
 }

@@ -1,48 +1,59 @@
 package com.kori.adapters.out.jpa.entity;
 
+import com.kori.domain.model.card.CardStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
-import lombok.Setter;
 
 import java.util.UUID;
 
 @Getter
 @Entity
-@Table(name = "cards")
+@Table(
+        name = "cards",
+        indexes = {
+                @Index(name = "idx_cards_client_id", columnList = "client_id"),
+                @Index(name = "idx_cards_uid", columnList = "card_uid", unique = true),
+                @Index(name = "idx_cards_status", columnList = "status")
+        }
+)
 @Access(AccessType.FIELD)
 public class CardEntity {
 
     @Id
-    @Column(name = "id", nullable = false)
+    @Column(nullable = false, updatable = false, length = 36)
     private UUID id;
 
-    @Column(name = "account_id", nullable = false)
-    private UUID accountId;
+    @Column(name = "client_id", nullable = false, updatable = false, length = 64)
+    private UUID clientId;
 
-    @Column(name = "card_uid", nullable = false, unique = true, length = 128)
+    @Column(name = "card_uid", nullable = false, updatable = false, length = 64, unique = true)
     private String cardUid;
 
-    @Setter
-    @Column(name = "pin", nullable = false, length = 64)
-    private String pin;
+    @Column(name = "hashed_pin", nullable = false, length = 255)
+    private String hashedPin;
 
-    @Setter
-    @Column(name = "status", nullable = false, length = 16)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 16)
+    private CardStatus status;
 
-    @Setter
     @Column(name = "failed_pin_attempts", nullable = false)
     private int failedPinAttempts;
 
-    protected CardEntity() { }
+    protected CardEntity() {}
 
-    public CardEntity(UUID id, UUID accountId, String cardUid, String pin, String status, int failedPinAttempts) {
+    public CardEntity(
+            UUID id,
+            UUID clientId,
+            String cardUid,
+            String hashedPin,
+            CardStatus status,
+            int failedPinAttempts
+    ) {
         this.id = id;
-        this.accountId = accountId;
+        this.clientId = clientId;
         this.cardUid = cardUid;
-        this.pin = pin;
+        this.hashedPin = hashedPin;
         this.status = status;
         this.failedPinAttempts = failedPinAttempts;
     }
-
 }

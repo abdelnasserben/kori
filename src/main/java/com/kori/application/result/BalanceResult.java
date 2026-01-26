@@ -1,18 +1,16 @@
 package com.kori.application.result;
 
-import com.kori.domain.ledger.LedgerAccount;
+import com.kori.domain.ledger.LedgerAccountRef;
 
 import java.math.BigDecimal;
 import java.util.Objects;
 
 public record BalanceResult(
-        LedgerAccount ledgerAccount,
-        String referenceId,
+        LedgerAccountRef ledgerAccountRef,
         BigDecimal balance
 ) {
     public BalanceResult {
-        Objects.requireNonNull(ledgerAccount);
-        Objects.requireNonNull(referenceId);
+        Objects.requireNonNull(ledgerAccountRef);
         Objects.requireNonNull(balance);
     }
 }

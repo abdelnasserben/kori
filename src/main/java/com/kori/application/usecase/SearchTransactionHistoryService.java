@@ -11,7 +11,8 @@ import com.kori.application.result.TransactionHistoryResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.application.security.LedgerAccessPolicy;
-import com.kori.domain.ledger.LedgerAccount;
+import com.kori.domain.ledger.LedgerAccountRef;
+import com.kori.domain.ledger.LedgerAccountType;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.ledger.LedgerEntryType;
 import com.kori.domain.model.common.Money;
@@ -40,16 +41,16 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
     public TransactionHistoryResult execute(SearchTransactionHistoryCommand command) {
         Objects.requireNonNull(command);
 
-        var scope = resolveScope(command.actorContext(), command.ledgerAccount(), command.referenceId());
-        ledgerAccessPolicy.assertCanReadLedger(command.actorContext(), scope.ledgerAccount, scope.referenceId);
+        LedgerAccountRef scope = resolveScope(command.actorContext(), command.ledgerAccountRef());
+        ledgerAccessPolicy.assertCanReadLedger(command.actorContext(), scope);
 
         // Entries of the actor's ledger (scope) => defines which tx are "visible" for that actor
-        var scopeEntries = ledgerQueryPort.findEntries(scope.ledgerAccount, scope.referenceId);
+        var scopeEntries = ledgerQueryPort.findEntries(scope);
 
         // Group scope entries by tx (preserve order)
         var byTx = new LinkedHashMap<String, List<LedgerEntry>>();
         for (var e : scopeEntries) {
-            byTx.computeIfAbsent(e.transactionId().value(), __ -> new ArrayList<>()).add(e);
+            byTx.computeIfAbsent(e.transactionId().toString(), __ -> new ArrayList<>()).add(e);
         }
 
         List<TransactionHistoryItem> items = new ArrayList<>();
@@ -72,7 +73,7 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
 
                 boolean strictlyBefore =
                         tx.createdAt().isBefore(bc)
-                                || (tx.createdAt().equals(bc) && tx.id().value().compareTo(bt) < 0);
+                                || (tx.createdAt().equals(bc) && tx.id().value().compareTo(UUID.fromString(bt)) < 0);
 
                 if (!strictlyBefore) continue;
             }
@@ -81,34 +82,32 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
             var allEntries = ledgerQueryPort.findByTransactionId(txId);
 
             // Counterparties
-            String clientId = firstRef(allEntries, LedgerAccount.CLIENT);
-            String merchantId = firstRef(allEntries, LedgerAccount.MERCHANT);
-            String agentId = firstRef(allEntries, LedgerAccount.AGENT);
+            String clientId = firstOwnerRef(allEntries, LedgerAccountType.CLIENT);
+            String merchantId = firstOwnerRef(allEntries, LedgerAccountType.MERCHANT);
+            String agentId = firstOwnerRef(allEntries, LedgerAccountType.AGENT);
 
             // Self aggregates (only from the entries of the scope ledger)
             Money selfDebits = Money.zero();
             Money selfCredits = Money.zero();
             for (var e : kv.getValue()) {
-                if (e.account() != scope.ledgerAccount) continue;
+                if (!e.accountRef().equals(scope)) continue;
                 if (e.type() == LedgerEntryType.DEBIT) selfDebits = selfDebits.plus(e.amount());
                 else selfCredits = selfCredits.plus(e.amount());
             }
             Money selfNet = selfCredits.minus(selfDebits);
 
-            // Projection fields for PAY_BY_CARD_VIEW / COMMISSION_VIEW
-            Money clientDebit = sum(allEntries, LedgerAccount.CLIENT, LedgerEntryType.DEBIT);
-            Money merchantCredit = sum(allEntries, LedgerAccount.MERCHANT, LedgerEntryType.CREDIT);
-            Money platformCredit = sum(allEntries, LedgerAccount.PLATFORM, LedgerEntryType.CREDIT);
-            Money agentCredit = sum(allEntries, LedgerAccount.AGENT, LedgerEntryType.CREDIT);
+            // Projection fields
+            Money clientDebit = sum(allEntries, LedgerAccountType.CLIENT, LedgerEntryType.DEBIT);
+            Money merchantCredit = sum(allEntries, LedgerAccountType.MERCHANT, LedgerEntryType.CREDIT);
+            Money platformCredit = sum(allEntries, LedgerAccountType.PLATFORM_FEE_REVENUE, LedgerEntryType.CREDIT);
+            Money agentCredit = sum(allEntries, LedgerAccountType.AGENT, LedgerEntryType.CREDIT);
 
             TransactionHistoryView view = command.view();
 
-            // Optional: if someone asks PAY_BY_CARD_VIEW but tx isn't PAY_BY_CARD, we skip (clean UI)
             if (view == TransactionHistoryView.PAY_BY_CARD_VIEW && tx.type() != TransactionType.PAY_BY_CARD) {
                 continue;
             }
-            // Optional: COMMISSION_VIEW shows only tx where agent actually has credit
-            if (view == TransactionHistoryView.COMMISSION_VIEW && agentCredit.asBigDecimal().compareTo(Money.zero().asBigDecimal()) == 0) {
+            if (view == TransactionHistoryView.COMMISSION_VIEW && agentCredit.isZero()) {
                 continue;
             }
 
@@ -121,14 +120,13 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
                 fee = platformCredit.asBigDecimal();
                 totalDebited = clientDebit.asBigDecimal();
             } else if (view == TransactionHistoryView.COMMISSION_VIEW) {
-                // for agent, amount = credited commission
                 amount = agentCredit.asBigDecimal();
                 fee = BigDecimal.ZERO.setScale(2);
                 totalDebited = BigDecimal.ZERO.setScale(2);
             }
 
             var built = new TransactionHistoryItem(
-                    tx.id().value(),
+                    tx.id().toString(),
                     tx.type(),
                     tx.createdAt(),
                     clientId,
@@ -145,7 +143,6 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
             if (passesAmountFilter(command.view(), command.minAmount(), command.maxAmount(), built)) {
                 items.add(built);
             }
-
         }
 
         // Sort newest first
@@ -160,23 +157,16 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
             items = items.subList(0, limit);
         }
 
-        // Compute next cursor (stable)
+        // Next cursor
         Instant nextBeforeCreatedAt = null;
         String nextBeforeTransactionId = null;
-
         if (!items.isEmpty()) {
             var last = items.get(items.size() - 1);
             nextBeforeCreatedAt = last.createdAt();
             nextBeforeTransactionId = last.transactionId();
         }
 
-        return new TransactionHistoryResult(
-                scope.ledgerAccount,
-                scope.referenceId,
-                items,
-                nextBeforeCreatedAt,
-                nextBeforeTransactionId
-        );
+        return new TransactionHistoryResult(scope, items, nextBeforeCreatedAt, nextBeforeTransactionId);
     }
 
     private boolean withinRange(Instant value, Instant from, Instant to) {
@@ -185,47 +175,39 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
         return true;
     }
 
-    private Money sum(List<com.kori.domain.ledger.LedgerEntry> entries, LedgerAccount account, LedgerEntryType type) {
+    private Money sum(List<LedgerEntry> entries, LedgerAccountType type, LedgerEntryType entryType) {
         Money total = Money.zero();
         for (var e : entries) {
-            if (e.account() == account && e.type() == type) {
+            if (e.accountRef().type() == type && e.type() == entryType) {
                 total = total.plus(e.amount());
             }
         }
         return total;
     }
 
-    private String firstRef(List<com.kori.domain.ledger.LedgerEntry> entries, LedgerAccount account) {
+    private String firstOwnerRef(List<LedgerEntry> entries, LedgerAccountType type) {
         for (var e : entries) {
-            if (e.account() == account && e.referenceId() != null) return e.referenceId();
+            if (e.accountRef().type() == type) {
+                return e.accountRef().ownerRef();
+            }
         }
         return null;
     }
 
-    private Scope resolveScope(ActorContext actorContext, LedgerAccount requestedAccount, String requestedRef) {
-        if (requestedAccount != null || requestedRef != null) {
+    private LedgerAccountRef resolveScope(ActorContext actorContext, LedgerAccountRef requestedScope) {
+        if (requestedScope != null) {
             if (actorContext.actorType() != ActorType.ADMIN) {
                 throw new ForbiddenOperationException("Only ADMIN can specify an arbitrary ledger scope");
             }
-            if (requestedAccount == null || requestedRef == null) {
-                throw new IllegalArgumentException("ledgerAccount and referenceId must both be provided");
-            }
-            return new Scope(requestedAccount, requestedRef);
+            return requestedScope;
         }
 
         return switch (actorContext.actorType()) {
-            case CLIENT -> new Scope(LedgerAccount.CLIENT, actorContext.actorId());
-            case MERCHANT -> new Scope(LedgerAccount.MERCHANT, actorContext.actorId());
-            case AGENT -> new Scope(LedgerAccount.AGENT, actorContext.actorId());
+            case CLIENT -> LedgerAccountRef.client(actorContext.actorId());
+            case MERCHANT -> LedgerAccountRef.merchant(actorContext.actorId());
+            case AGENT -> LedgerAccountRef.agent(actorContext.actorId());
             default -> throw new ForbiddenOperationException("Actor type cannot consult history");
         };
-    }
-
-    private record Scope(LedgerAccount ledgerAccount, String referenceId) {
-        private Scope {
-            Objects.requireNonNull(ledgerAccount);
-            Objects.requireNonNull(referenceId);
-        }
     }
 
     private boolean passesAmountFilter(TransactionHistoryView view,
@@ -238,7 +220,6 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
         if (value == null) return false;
 
         if (min != null && value.compareTo(min) < 0) return false;
-
         return max == null || value.compareTo(max) <= 0;
     }
 
@@ -248,5 +229,4 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
             case PAY_BY_CARD_VIEW, COMMISSION_VIEW -> item.amount();
         };
     }
-
 }

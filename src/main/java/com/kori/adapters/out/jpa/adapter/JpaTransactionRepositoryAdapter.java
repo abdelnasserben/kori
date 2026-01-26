@@ -27,8 +27,8 @@ public class JpaTransactionRepositoryAdapter implements TransactionRepositoryPor
     @Override
     @Transactional
     public Transaction save(Transaction transaction) {
-        UUID id = UUID.fromString(transaction.id().value());
-        UUID original = transaction.originalTransactionId() == null ? null : UUID.fromString(transaction.originalTransactionId().value());
+        UUID id = UUID.fromString(transaction.id().toString());
+        UUID original = transaction.originalTransactionId() == null ? null : UUID.fromString(transaction.originalTransactionId().toString());
 
         TransactionEntity entity = new TransactionEntity(
                 id,
@@ -45,7 +45,7 @@ public class JpaTransactionRepositoryAdapter implements TransactionRepositoryPor
     @Override
     @Transactional(readOnly = true)
     public Optional<Transaction> findById(TransactionId transactionId) {
-        return repo.findById(UUID.fromString(transactionId.value())).map(e ->
+        return repo.findById(UUID.fromString(transactionId.toString())).map(e ->
                 new Transaction(
                         TransactionId.of(e.getId().toString()),
                         TransactionType.valueOf(e.getType()),

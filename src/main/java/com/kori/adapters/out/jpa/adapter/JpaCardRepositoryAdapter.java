@@ -3,17 +3,15 @@ package com.kori.adapters.out.jpa.adapter;
 import com.kori.adapters.out.jpa.entity.CardEntity;
 import com.kori.adapters.out.jpa.repo.CardJpaRepository;
 import com.kori.application.port.out.CardRepositoryPort;
-import com.kori.domain.model.account.AccountId;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.CardId;
-import com.kori.domain.model.card.CardStatus;
 import com.kori.domain.model.card.HashedPin;
+import com.kori.domain.model.client.ClientId;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 
 @Component
 public class JpaCardRepositoryAdapter implements CardRepositoryPort {
@@ -37,11 +35,11 @@ public class JpaCardRepositoryAdapter implements CardRepositoryPort {
         Objects.requireNonNull(card, "card must not be null");
 
         CardEntity entity = new CardEntity(
-                UUID.fromString(card.id().value()),
-                UUID.fromString(card.accountId().value()),
+                card.id().value(),
+                card.clientId().value(),
                 card.cardUid(),
                 card.hashedPin().value(),
-                card.status().name(),
+                card.status(),
                 card.failedPinAttempts()
         );
 
@@ -51,11 +49,11 @@ public class JpaCardRepositoryAdapter implements CardRepositoryPort {
 
     private Card toDomain(CardEntity e) {
         return new Card(
-                CardId.of(e.getId().toString()),
-                AccountId.of(e.getAccountId().toString()),
+                new CardId(e.getId()),
+                new ClientId(e.getClientId()),
                 e.getCardUid(),
-                new HashedPin(e.getPin()),
-                CardStatus.valueOf(e.getStatus()),
+                new HashedPin(e.getHashedPin()),
+                e.getStatus(),
                 e.getFailedPinAttempts()
         );
     }

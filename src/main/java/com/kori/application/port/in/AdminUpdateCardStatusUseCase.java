@@ -1,8 +1,8 @@
 package com.kori.application.port.in;
 
 import com.kori.application.command.AdminUpdateCardStatusCommand;
-import com.kori.application.result.AdminUpdateCardStatusResult;
+import com.kori.application.result.UpdateCardStatusResult;
 
 public interface AdminUpdateCardStatusUseCase {
-    AdminUpdateCardStatusResult execute(AdminUpdateCardStatusCommand command);
+    UpdateCardStatusResult execute(AdminUpdateCardStatusCommand command);
 }

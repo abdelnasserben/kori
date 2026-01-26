@@ -8,7 +8,7 @@ import com.kori.application.result.BalanceResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.application.security.LedgerAccessPolicy;
-import com.kori.domain.ledger.LedgerAccount;
+import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntryType;
 import com.kori.domain.model.common.Money;
 
@@ -28,10 +28,11 @@ public final class GetBalanceService implements GetBalanceUseCase {
     public BalanceResult execute(GetBalanceCommand command) {
         Objects.requireNonNull(command);
 
-        var scope = resolveScope(command.actorContext(), command.ledgerAccount(), command.referenceId());
-        ledgerAccessPolicy.assertCanReadLedger(command.actorContext(), scope.ledgerAccount, scope.referenceId);
+        LedgerAccountRef scope = resolveScope(command.actorContext(), command.ledgerAccountRef());
+        ledgerAccessPolicy.assertCanReadLedger(command.actorContext(), scope);
 
-        var entries = ledgerQueryPort.findEntries(scope.ledgerAccount, scope.referenceId);
+        var entries = ledgerQueryPort.findEntries(scope);
+
         Money balance = Money.zero();
         for (var e : entries) {
             if (e.type() == LedgerEntryType.CREDIT) {
@@ -41,32 +42,22 @@ public final class GetBalanceService implements GetBalanceUseCase {
             }
         }
 
-        return new BalanceResult(scope.ledgerAccount, scope.referenceId, balance.asBigDecimal());
+        return new BalanceResult(scope, balance.asBigDecimal());
     }
 
-    private Scope resolveScope(ActorContext actorContext, LedgerAccount requestedAccount, String requestedRef) {
-        if (requestedAccount != null || requestedRef != null) {
+    private LedgerAccountRef resolveScope(ActorContext actorContext, LedgerAccountRef requestedScope) {
+        if (requestedScope != null) {
             if (actorContext.actorType() != ActorType.ADMIN) {
                 throw new ForbiddenOperationException("Only ADMIN can specify an arbitrary ledger scope");
             }
-            if (requestedAccount == null || requestedRef == null) {
-                throw new IllegalArgumentException("ledgerAccount and referenceId must both be provided");
-            }
-            return new Scope(requestedAccount, requestedRef);
+            return requestedScope;
         }
 
         return switch (actorContext.actorType()) {
-            case CLIENT -> new Scope(LedgerAccount.CLIENT, actorContext.actorId());
-            case MERCHANT -> new Scope(LedgerAccount.MERCHANT, actorContext.actorId());
-            case AGENT -> new Scope(LedgerAccount.AGENT, actorContext.actorId());
+            case CLIENT -> LedgerAccountRef.client(actorContext.actorId());
+            case MERCHANT -> LedgerAccountRef.merchant(actorContext.actorId());
+            case AGENT -> LedgerAccountRef.agent(actorContext.actorId());
             default -> throw new ForbiddenOperationException("Actor type cannot consult balance");
         };
-    }
-
-    private record Scope(LedgerAccount ledgerAccount, String referenceId) {
-        private Scope {
-            Objects.requireNonNull(ledgerAccount);
-            Objects.requireNonNull(referenceId);
-        }
     }
 }

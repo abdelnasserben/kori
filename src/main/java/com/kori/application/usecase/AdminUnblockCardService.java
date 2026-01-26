@@ -2,16 +2,18 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.AdminUnblockCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.in.AdminUnblockCardUseCase;
 import com.kori.application.port.out.*;
-import com.kori.application.result.AdminUnblockCardResult;
+import com.kori.application.result.UpdateCardStatusResult;
+import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.CardStatus;
 
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
 
@@ -31,50 +33,44 @@ public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
     }
 
     @Override
-    public AdminUnblockCardResult execute(AdminUnblockCardCommand command) {
-        var cached = idempotencyPort.find(command.idempotencyKey(), AdminUnblockCardResult.class);
-        if (cached.isPresent()) return cached.get();
+    public UpdateCardStatusResult execute(AdminUnblockCardCommand cmd) {
 
-        if (command.actorContext().actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Only ADMIN can unblock cards");
-        }
+        requireAdminActor(cmd.actorContext());
 
-        Card card = cardRepositoryPort.findByCardUid(command.cardUid())
-                .orElseThrow(() -> new ForbiddenOperationException("Card not found"));
+        Card card = getCard(cmd.cardUid());
+        CardStatus before = card.status(); // for audit
 
-        if (card.status() == CardStatus.LOST) {
-            throw new ForbiddenOperationException("Cannot unblock a LOST card");
-        }
+        // Domaine impose: only if BLOCKED, reset failedPinAttempts, set ACTIVE
+        card.unblock();
 
-        if (card.status() != CardStatus.BLOCKED) {
-            throw new ForbiddenOperationException("Only BLOCKED cards can be unblocked");
-        }
-
-        Card updated = card.unblockToActive();
-        cardRepositoryPort.save(updated);
+        cardRepositoryPort.save(card);
 
         Instant now = timeProviderPort.now();
 
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("cardUid", command.cardUid());
-        metadata.put("reason", command.reason());
-
         auditPort.publish(new AuditEvent(
                 "ADMIN_UNBLOCK_CARD",
-                command.actorContext().actorType().name(),
-                command.actorContext().actorId(),
+                cmd.actorContext().actorType().name(),
+                cmd.actorContext().actorId(),
                 now,
-                metadata
+                Map.of(
+                        "cardId", card.id().toString(),
+                        "before", before.name(),
+                        "after", card.status().name(),
+                        "reason", cmd.reason()
+                )
         ));
 
-        AdminUnblockCardResult result = new AdminUnblockCardResult(
-                updated.id().value(),
-                updated.cardUid(),
-                updated.status().name(),
-                updated.failedPinAttempts()
-        );
+        return new UpdateCardStatusResult(cmd.cardUid(), before, card.status());
+    }
 
-        idempotencyPort.save(command.idempotencyKey(), result);
-        return result;
+    private Card getCard(UUID cardUid) {
+        return cardRepositoryPort.findByCardUid(cardUid.toString())
+                .orElseThrow(() -> new NotFoundException("Card not found"));
+    }
+
+    private void requireAdminActor(ActorContext ctx) {
+        if (ctx.actorType() != ActorType.AGENT) {
+            throw new ForbiddenOperationException("Actor must be an ADMIN");
+        }
     }
 }

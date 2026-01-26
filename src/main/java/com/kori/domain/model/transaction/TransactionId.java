@@ -4,21 +4,21 @@ import java.util.Objects;
 import java.util.UUID;
 
 public final class TransactionId {
-    private final String value;
+    private final UUID value;
 
-    private TransactionId(String value) {
+    private TransactionId(UUID value) {
         this.value = Objects.requireNonNull(value);
     }
 
     public static TransactionId newId() {
-        return new TransactionId(UUID.randomUUID().toString());
+        return new TransactionId(UUID.randomUUID());
     }
 
     public static TransactionId of(String value) {
-        return new TransactionId(value);
+        return new TransactionId(UUID.fromString(value));
     }
 
-    public String value() {
+    public UUID value() {
         return value;
     }
 

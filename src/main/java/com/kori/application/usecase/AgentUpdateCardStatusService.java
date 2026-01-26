@@ -2,110 +2,97 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.AgentUpdateCardStatusCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.in.AgentUpdateCardStatusUseCase;
 import com.kori.application.port.out.*;
-import com.kori.application.result.AgentUpdateCardStatusResult;
+import com.kori.application.result.UpdateCardStatusResult;
+import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
-import com.kori.domain.model.card.AgentCardAction;
+import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.CardStatus;
+import com.kori.domain.model.common.Status;
 
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public final class AgentUpdateCardStatusService implements AgentUpdateCardStatusUseCase {
 
     private final TimeProviderPort timeProviderPort;
-    private final IdempotencyPort idempotencyPort;
     private final AgentRepositoryPort agentRepositoryPort;
     private final CardRepositoryPort cardRepositoryPort;
     private final AuditPort auditPort;
 
-    public AgentUpdateCardStatusService(TimeProviderPort timeProviderPort,
-                                        IdempotencyPort idempotencyPort,
-                                        AgentRepositoryPort agentRepositoryPort,
-                                        CardRepositoryPort cardRepositoryPort,
-                                        AuditPort auditPort) {
+    public AgentUpdateCardStatusService(
+            TimeProviderPort timeProviderPort,
+            AgentRepositoryPort agentRepositoryPort,
+            CardRepositoryPort cardRepositoryPort,
+            AuditPort auditPort) {
         this.timeProviderPort = timeProviderPort;
-        this.idempotencyPort = idempotencyPort;
         this.agentRepositoryPort = agentRepositoryPort;
         this.cardRepositoryPort = cardRepositoryPort;
         this.auditPort = auditPort;
     }
 
     @Override
-    public AgentUpdateCardStatusResult execute(AgentUpdateCardStatusCommand command) {
-        var cached = idempotencyPort.find(command.idempotencyKey(), AgentUpdateCardStatusResult.class);
-        if (cached.isPresent()) return cached.get();
+    public UpdateCardStatusResult execute(AgentUpdateCardStatusCommand cmd) {
 
-        if (command.actorContext().actorType() != ActorType.AGENT) {
-            throw new ForbiddenOperationException("Actor must be an AGENT");
+        requireAgentActor(cmd.actorContext());
+
+        if (cmd.targetStatus() != CardStatus.BLOCKED && cmd.targetStatus() != CardStatus.LOST) {
+            throw new ForbiddenOperationException("Agent can only can set it");
         }
 
-        if (!agentRepositoryPort.existsById(command.agentId())) {
-            throw new ForbiddenOperationException("Agent not found");
+        // Agent must be active
+        Agent agent = agentRepositoryPort.findByCode(cmd.agentCode())
+                .orElseThrow(() -> new NotFoundException("Agent not found"));
+
+        if (agent.status() != Status.ACTIVE) {
+            throw new ForbiddenOperationException("Agent is not active");
         }
 
-        Card card = cardRepositoryPort.findByCardUid(command.cardUid())
-                .orElseThrow(() -> new ForbiddenOperationException("Card not found"));
+        Card card = getCard(cmd.cardUid());
+        CardStatus before = card.status(); // for audit
 
-        CardStatus target = getCardStatus(command, card);
+        switch (cmd.targetStatus()) {
+            case BLOCKED -> card.block();
+            case LOST -> card.markLost();
+            default -> throw new ForbiddenOperationException("Unexpected target status: " + cmd.targetStatus());
+        }
 
-        Card updated = card.transitionTo(target);
-        cardRepositoryPort.save(updated);
+        cardRepositoryPort.save(card);
 
+        // Audit
         Instant now = timeProviderPort.now();
-
-        String auditAction = (command.action() == AgentCardAction.BLOCKED)
+        String auditAction = cmd.targetStatus() == CardStatus.BLOCKED
                 ? "AGENT_BLOCK_CARD"
                 : "AGENT_MARK_CARD_LOST";
 
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("agentId", command.agentId());
-        metadata.put("cardUid", command.cardUid());
-        metadata.put("reason", command.reason());
-
         auditPort.publish(new AuditEvent(
                 auditAction,
-                command.actorContext().actorType().name(),
-                command.actorContext().actorId(),
+                cmd.actorContext().actorType().name(),
+                cmd.actorContext().actorId(),
                 now,
-                metadata
+                Map.of(
+                        "cardId", card.id().toString(),
+                        "before", before.name(),
+                        "after", card.status().name(),
+                        "reason", cmd.reason()
+                )
         ));
 
-        AgentUpdateCardStatusResult result = new AgentUpdateCardStatusResult(
-                updated.id().value(),
-                updated.cardUid(),
-                updated.status().name()
-        );
-
-        idempotencyPort.save(command.idempotencyKey(), result);
-        return result;
+        return new UpdateCardStatusResult(cmd.cardUid(), before, card.status());
     }
 
-    private static CardStatus getCardStatus(AgentUpdateCardStatusCommand command, Card card) {
+    private Card getCard(UUID cardUid) {
+        return cardRepositoryPort.findByCardUid(cardUid.toString())
+                .orElseThrow(() -> new NotFoundException("Card not found"));
+    }
 
-        CardStatus target = switch (command.action()) {
-            case BLOCKED -> CardStatus.BLOCKED;
-            case LOST -> CardStatus.LOST;
-        };
-
-        // LOST is terminal: agent cannot do anything once LOST
-        if (card.status() == CardStatus.LOST) {
-            throw new ForbiddenOperationException("Card is LOST and cannot be updated by agent");
+    private static void requireAgentActor(ActorContext ctx) {
+        if (ctx.actorType() != ActorType.AGENT) {
+            throw new ForbiddenOperationException("Actor must be an AGENT");
         }
-
-        // Agent rules:
-        // - BLOCKED allowed only from ACTIVE
-        if (target == CardStatus.BLOCKED && card.status() != CardStatus.ACTIVE) {
-            throw new ForbiddenOperationException("Agent can only BLOCK an ACTIVE card");
-        }
-
-        // - LOST allowed from ACTIVE or BLOCKED
-        if (target == CardStatus.LOST && !(card.status() == CardStatus.ACTIVE || card.status() == CardStatus.BLOCKED)) {
-            throw new ForbiddenOperationException("Agent can only mark LOST from ACTIVE or BLOCKED");
-        }
-        return target;
     }
 }

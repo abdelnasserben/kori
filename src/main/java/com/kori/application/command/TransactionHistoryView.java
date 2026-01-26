@@ -10,7 +10,7 @@ public enum TransactionHistoryView {
     /**
      * UI-friendly view for card payments (PAY_BY_CARD).
      * Builds: amount (merchant credit), fee (platform credit), totalDebited (client debit),
-     * and counterparties (clientId/merchantId/agentId when present).
+     * and counterparties (cardUid/merchantCode/agentCode when present).
      */
     PAY_BY_CARD_VIEW,
 

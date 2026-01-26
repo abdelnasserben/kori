@@ -1,20 +1,19 @@
 package com.kori.domain.model.terminal;
 
 import java.util.Objects;
+import java.util.UUID;
 
-public final class TerminalId {
-    private final String value;
-
-    private TerminalId(String value) {
+public record TerminalId(UUID value) {
+    public TerminalId(UUID value) {
         this.value = Objects.requireNonNull(value);
     }
 
-    public static TerminalId of(String value) {
-        return new TerminalId(value);
+    public static TerminalId newId() {
+        return new TerminalId(UUID.randomUUID());
     }
 
-    public String value() {
-        return value;
+    public static TerminalId of(String value) {
+        return new TerminalId(UUID.fromString(value));
     }
 
     @Override
@@ -22,11 +21,6 @@ public final class TerminalId {
         if (this == o) return true;
         if (!(o instanceof TerminalId other)) return false;
         return value.equals(other.value);
-    }
-
-    @Override
-    public int hashCode() {
-        return value.hashCode();
     }
 
 }

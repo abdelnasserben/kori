@@ -1,5 +1,6 @@
 package com.kori.application.port.out;
 
+import com.kori.domain.model.agent.AgentId;
 import com.kori.domain.model.payout.Payout;
 import com.kori.domain.model.payout.PayoutId;
 
@@ -10,5 +11,5 @@ public interface PayoutRepositoryPort {
 
     Optional<Payout> findById(PayoutId payoutId);
 
-    boolean existsRequestedForAgent(String agentId);
+    boolean existsRequestedForAgent(AgentId agentId);
 }
