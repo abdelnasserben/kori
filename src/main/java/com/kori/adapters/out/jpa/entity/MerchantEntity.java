@@ -1,6 +1,5 @@
 package com.kori.adapters.out.jpa.entity;
 
-import com.kori.domain.model.common.Status;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -26,16 +25,15 @@ public class MerchantEntity {
     @Column(nullable = false, updatable = false, length = 16, unique = true)
     private String code;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
-    private Status status;
+    private String status;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
     protected MerchantEntity() {}
 
-    public MerchantEntity(UUID id, String code, Status status, Instant createdAt) {
+    public MerchantEntity(UUID id, String code, String status, Instant createdAt) {
         this.id = id;
         this.code = code;
         this.status = status;

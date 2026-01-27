@@ -1,12 +1,9 @@
 package com.kori.application.result;
 
-import com.kori.domain.model.agent.AgentCode;
-import com.kori.domain.model.agent.AgentId;
-
 import java.util.Objects;
 
-public record CreateAgentResult(AgentId agentId, AgentCode agentCode) {
-    public CreateAgentResult(AgentId agentId, AgentCode agentCode) {
+public record CreateAgentResult(String agentId, String agentCode) {
+    public CreateAgentResult(String agentId, String agentCode) {
         this.agentId = Objects.requireNonNull(agentId, "agentCode");
         this.agentCode = Objects.requireNonNull(agentCode, "agentCode");
     }

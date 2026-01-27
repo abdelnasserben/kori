@@ -4,12 +4,14 @@ import com.kori.application.command.AdminUnblockCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.in.AdminUnblockCardUseCase;
-import com.kori.application.port.out.*;
+import com.kori.application.port.out.AuditPort;
+import com.kori.application.port.out.CardRepositoryPort;
+import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateCardStatusResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
-import com.kori.domain.model.card.CardStatus;
 
 import java.time.Instant;
 import java.util.Map;
@@ -18,16 +20,13 @@ import java.util.UUID;
 public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
 
     private final TimeProviderPort timeProviderPort;
-    private final IdempotencyPort idempotencyPort;
     private final CardRepositoryPort cardRepositoryPort;
     private final AuditPort auditPort;
 
     public AdminUnblockCardService(TimeProviderPort timeProviderPort,
-                                   IdempotencyPort idempotencyPort,
                                    CardRepositoryPort cardRepositoryPort,
                                    AuditPort auditPort) {
         this.timeProviderPort = timeProviderPort;
-        this.idempotencyPort = idempotencyPort;
         this.cardRepositoryPort = cardRepositoryPort;
         this.auditPort = auditPort;
     }
@@ -38,7 +37,7 @@ public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
         requireAdminActor(cmd.actorContext());
 
         Card card = getCard(cmd.cardUid());
-        CardStatus before = card.status(); // for audit
+        String before = card.status().name(); // for audit
 
         // Domaine impose: only if BLOCKED, reset failedPinAttempts, set ACTIVE
         card.unblock();
@@ -54,13 +53,13 @@ public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
                 now,
                 Map.of(
                         "cardId", card.id().toString(),
-                        "before", before.name(),
+                        "before", before,
                         "after", card.status().name(),
                         "reason", cmd.reason()
                 )
         ));
 
-        return new UpdateCardStatusResult(cmd.cardUid(), before, card.status());
+        return new UpdateCardStatusResult(cmd.cardUid(), before, card.status().name());
     }
 
     private Card getCard(UUID cardUid) {

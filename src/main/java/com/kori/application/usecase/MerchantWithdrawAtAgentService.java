@@ -12,6 +12,7 @@ import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.account.AccountProfile;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
+import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;

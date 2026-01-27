@@ -1,6 +1,5 @@
 package com.kori.adapters.out.jpa.entity;
 
-import com.kori.domain.model.payout.PayoutStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -26,17 +25,16 @@ public class PayoutEntity {
     private UUID id;
 
     @Column(name = "agent_id", nullable = false, updatable = false, length = 64)
-    private String agentId;
+    private UUID agentId;
 
     @Column(name = "transaction_id", nullable = false, updatable = false, length = 36, unique = true)
-    private String transactionId; // TransactionId.value() (String)
+    private UUID transactionId;
 
     @Column(name = "amount", nullable = false, updatable = false, precision = 19, scale = 2)
     private BigDecimal amount;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
-    private PayoutStatus status;
+    private String status;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
@@ -54,10 +52,10 @@ public class PayoutEntity {
 
     public PayoutEntity(
             UUID id,
-            String agentId,
-            String transactionId,
+            UUID agentId,
+            UUID transactionId,
             BigDecimal amount,
-            PayoutStatus status,
+            String status,
             Instant createdAt,
             Instant completedAt,
             Instant failedAt,

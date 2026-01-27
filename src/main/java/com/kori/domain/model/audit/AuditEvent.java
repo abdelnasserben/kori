@@ -1,4 +1,4 @@
-package com.kori.application.port.out;
+package com.kori.domain.model.audit;
 
 import java.time.Instant;
 import java.util.Collections;

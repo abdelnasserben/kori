@@ -3,6 +3,7 @@ package com.kori.adapters.out.jpa.adapter;
 import com.kori.adapters.out.jpa.entity.TerminalEntity;
 import com.kori.adapters.out.jpa.repo.TerminalJpaRepository;
 import com.kori.application.port.out.TerminalRepositoryPort;
+import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.MerchantId;
 import com.kori.domain.model.terminal.Terminal;
 import com.kori.domain.model.terminal.TerminalId;
@@ -28,8 +29,8 @@ public class JpaTerminalRepositoryAdapter implements TerminalRepositoryPort {
         return repo.findById(terminalId)
                 .map(e -> new Terminal(
                         new TerminalId(e.getId()),
-                        MerchantId.of(e.getMerchantId()),
-                        e.getStatus()
+                        new MerchantId(e.getMerchantId()),
+                        Status.valueOf(e.getStatus())
                 )
         );
     }
@@ -38,8 +39,8 @@ public class JpaTerminalRepositoryAdapter implements TerminalRepositoryPort {
     public void save(Terminal terminal) {
         repo.save(new TerminalEntity(
                 terminal.id().value(),
-                terminal.merchantId().toString(),
-                terminal.status()
+                terminal.merchantId().value(),
+                terminal.status().name()
         ));
     }
 }

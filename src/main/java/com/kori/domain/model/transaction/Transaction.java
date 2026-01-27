@@ -26,7 +26,15 @@ public record Transaction(
         this.type = Objects.requireNonNull(type);
         this.amount = Objects.requireNonNull(amount);
         this.createdAt = Objects.requireNonNull(createdAt);
-        this.originalTransactionId = originalTransactionId;
+
+        if(type == TransactionType.REVERSAL) {
+            this.originalTransactionId = Objects.requireNonNull(originalTransactionId, "original transaction ID is required for REVERSAL");
+        } else {
+            if (originalTransactionId != null) {
+                throw new IllegalArgumentException("original transaction ID must be null for non-REVERSAL transactions");
+            }
+            this.originalTransactionId = null;
+        }
     }
 
     public static Transaction enrollCard(Money cardPrice, Instant createdAt) {
@@ -51,7 +59,7 @@ public record Transaction(
                 TransactionType.REVERSAL,
                 originalAmount,
                 createdAt,
-                Objects.requireNonNull(originalTransactionId)
+                originalTransactionId
         );
     }
 }

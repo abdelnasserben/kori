@@ -4,17 +4,23 @@ import com.kori.application.command.AgentUpdateCardStatusCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.in.AgentUpdateCardStatusUseCase;
-import com.kori.application.port.out.*;
+import com.kori.application.port.out.AgentRepositoryPort;
+import com.kori.application.port.out.AuditPort;
+import com.kori.application.port.out.CardRepositoryPort;
+import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateCardStatusResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.model.agent.Agent;
+import com.kori.domain.model.agent.AgentCode;
+import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.CardStatus;
 import com.kori.domain.model.common.Status;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 public final class AgentUpdateCardStatusService implements AgentUpdateCardStatusUseCase {
@@ -40,12 +46,13 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
 
         requireAgentActor(cmd.actorContext());
 
-        if (cmd.targetStatus() != CardStatus.BLOCKED && cmd.targetStatus() != CardStatus.LOST) {
+        if (!Objects.equals(cmd.targetStatus(), CardStatus.BLOCKED.name())
+                && !Objects.equals(cmd.targetStatus(), CardStatus.LOST.name())) {
             throw new ForbiddenOperationException("Agent can only can set it");
         }
 
         // Agent must be active
-        Agent agent = agentRepositoryPort.findByCode(cmd.agentCode())
+        Agent agent = agentRepositoryPort.findByCode(AgentCode.of(cmd.agentCode()))
                 .orElseThrow(() -> new NotFoundException("Agent not found"));
 
         if (agent.status() != Status.ACTIVE) {
@@ -53,9 +60,9 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
         }
 
         Card card = getCard(cmd.cardUid());
-        CardStatus before = card.status(); // for audit
+        String before = card.status().name(); // for audit
 
-        switch (cmd.targetStatus()) {
+        switch (CardStatus.valueOf(cmd.targetStatus())) {
             case BLOCKED -> card.block();
             case LOST -> card.markLost();
             default -> throw new ForbiddenOperationException("Unexpected target status: " + cmd.targetStatus());
@@ -65,7 +72,7 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
 
         // Audit
         Instant now = timeProviderPort.now();
-        String auditAction = cmd.targetStatus() == CardStatus.BLOCKED
+        String auditAction = cmd.targetStatus().equals(CardStatus.BLOCKED.name())
                 ? "AGENT_BLOCK_CARD"
                 : "AGENT_MARK_CARD_LOST";
 
@@ -76,13 +83,13 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
                 now,
                 Map.of(
                         "cardId", card.id().toString(),
-                        "before", before.name(),
+                        "before", before,
                         "after", card.status().name(),
                         "reason", cmd.reason()
                 )
         ));
 
-        return new UpdateCardStatusResult(cmd.cardUid(), before, card.status());
+        return new UpdateCardStatusResult(cmd.cardUid(), before, card.status().name());
     }
 
     private Card getCard(UUID cardUid) {

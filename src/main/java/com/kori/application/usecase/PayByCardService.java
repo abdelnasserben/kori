@@ -12,6 +12,7 @@ import com.kori.application.security.PinFormatValidator;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.account.AccountProfile;
+import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;

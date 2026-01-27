@@ -9,6 +9,7 @@ import com.kori.application.result.ReversalResult;
 import com.kori.application.security.ActorType;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.ledger.LedgerEntryType;
+import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
 

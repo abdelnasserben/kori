@@ -1,13 +1,10 @@
 package com.kori.application.result;
 
-import com.kori.domain.model.merchant.MerchantCode;
-import com.kori.domain.model.merchant.MerchantId;
-
 import java.util.Objects;
 
 public record CreateMerchantResult(
-        MerchantId merchantId,
-        MerchantCode code
+        String merchantId,
+        String code
 ) {
     public CreateMerchantResult {
         Objects.requireNonNull(merchantId);

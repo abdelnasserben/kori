@@ -1,8 +1,6 @@
 package com.kori.application.command;
 
 import com.kori.application.security.ActorContext;
-import com.kori.domain.ledger.LedgerAccount;
-import com.kori.domain.ledger.LedgerAccountRef;
 
 import java.util.Objects;
 
@@ -12,14 +10,12 @@ import java.util.Objects;
  */
 public record GetBalanceCommand(
         ActorContext actorContext,
-        LedgerAccountRef ledgerAccountRef
+        String accountType,
+        String ownerRef
 ) {
     public GetBalanceCommand {
         Objects.requireNonNull(actorContext);
-        // ledgerAccount/referenceId may be null for self-scope consultation
-    }
-
-    public static GetBalanceCommand self(ActorContext actorContext) {
-        return new GetBalanceCommand(actorContext, null);
+        Objects.requireNonNull(accountType);
+        Objects.requireNonNull(ownerRef);
     }
 }

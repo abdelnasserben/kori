@@ -10,6 +10,7 @@ import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.account.AccountProfile;
+import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
@@ -28,13 +29,15 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
+    private final CodeGeneratorPort codeGeneratorPort;
 
-    public CreateMerchantService(MerchantRepositoryPort merchantRepository, AccountProfilePort accountProfilePort, AuditPort auditPort, TimeProviderPort timeProviderPort, IdempotencyPort idempotencyPort) {
+    public CreateMerchantService(MerchantRepositoryPort merchantRepository, AccountProfilePort accountProfilePort, AuditPort auditPort, TimeProviderPort timeProviderPort, IdempotencyPort idempotencyPort, CodeGeneratorPort codeGeneratorPort) {
         this.merchantRepository = merchantRepository;
         this.accountProfilePort = accountProfilePort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
+        this.codeGeneratorPort = codeGeneratorPort;
     }
 
     @Override
@@ -67,7 +70,7 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
         AccountProfile profile = AccountProfile.activeNew(merchantAccount, now);
         accountProfilePort.save(profile);
 
-        CreateMerchantResult result = new CreateMerchantResult(id, code);
+        CreateMerchantResult result = new CreateMerchantResult(id.toString(), code.value());
         idempotencyPort.save(command.idempotencyKey(), result);
 
         Map<String, String> metadata = new HashMap<>();
@@ -87,11 +90,12 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
 
     private MerchantCode generateUniqueMerchantCode() {
         for (int i = 0; i < MAX_CODE_GENERATION_ATTEMPTS; i++) {
-            MerchantCode code = MerchantCode.generate();
-            if (!merchantRepository.existsByCode(code)) {
-                return code;
+            String digits = codeGeneratorPort.next6Digits();
+            MerchantCode candidate = MerchantCode.of("M-" + digits);
+            if (!merchantRepository.existsByCode(candidate)) {
+                return candidate;
             }
         }
-        throw new ApplicationException("Unable to generate unique merchantCode. Please retry.");
+        throw new ApplicationException("Unable to generate unique merchantCode.");
     }
 }

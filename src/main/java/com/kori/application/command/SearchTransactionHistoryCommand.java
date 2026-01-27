@@ -1,9 +1,7 @@
 package com.kori.application.command;
 
 import com.kori.application.security.ActorContext;
-import com.kori.domain.ledger.LedgerAccount;
 import com.kori.domain.ledger.LedgerAccountRef;
-import com.kori.domain.model.transaction.TransactionType;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -16,7 +14,7 @@ public record SearchTransactionHistoryCommand(
         LedgerAccountRef ledgerAccountRef,
 
         // Filters
-        TransactionType transactionType,
+        String transactionType,
         Instant from,
         Instant to,
 

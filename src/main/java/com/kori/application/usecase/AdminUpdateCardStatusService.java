@@ -4,18 +4,19 @@ import com.kori.application.command.AdminUpdateCardStatusCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.in.AdminUpdateCardStatusUseCase;
-import com.kori.application.port.out.AuditEvent;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.CardRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateCardStatusResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.CardStatus;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 public final class AdminUpdateCardStatusService implements AdminUpdateCardStatusUseCase {
@@ -38,17 +39,17 @@ public final class AdminUpdateCardStatusService implements AdminUpdateCardStatus
 
         requireAdminActor(cmd.actorContext());
 
-        if (cmd.targetStatus() != CardStatus.ACTIVE
-                && cmd.targetStatus() != CardStatus.INACTIVE
-                && cmd.targetStatus() != CardStatus.SUSPENDED) {
+        if (!Objects.equals(cmd.targetStatus(), CardStatus.ACTIVE.name())
+                && !Objects.equals(cmd.targetStatus(), CardStatus.INACTIVE.name())
+                && !Objects.equals(cmd.targetStatus(), CardStatus.SUSPENDED.name())) {
             throw new ForbiddenOperationException("Admin can only set it");
         }
 
         Card card = getCard(cmd.cardUid());
-        CardStatus before = card.status(); // for audit
+        String before = card.status().name(); // for audit
 
         // Domaine fait respecter LOST terminal + refus BLOCKED->ACTIVE via activate()
-        switch (cmd.targetStatus()) {
+        switch (CardStatus.valueOf(cmd.targetStatus())) {
             case ACTIVE -> card.activate();
             case INACTIVE -> card.deactivate();
             case SUSPENDED -> card.suspend();
@@ -58,7 +59,7 @@ public final class AdminUpdateCardStatusService implements AdminUpdateCardStatus
         cardRepositoryPort.save(card);
 
         // Audit
-        String auditAction = "ADMIN_CARD_STATUS_UPDATED_" + cmd.targetStatus().name();
+        String auditAction = "ADMIN_CARD_STATUS_UPDATED_" + cmd.targetStatus();
         Instant now = timeProviderPort.now();
 
         auditPort.publish(new AuditEvent(
@@ -68,14 +69,14 @@ public final class AdminUpdateCardStatusService implements AdminUpdateCardStatus
                 now,
                 Map.of(
                         "cardId", card.id().toString(),
-                        "before", before.name(),
+                        "before", before,
                         "after", card.status().name(),
-                        "target", cmd.targetStatus().name(),
+                        "target", cmd.targetStatus(),
                         "reason", cmd.reason()
                 )
         ));
 
-        return new UpdateCardStatusResult(cmd.cardUid(), before, card.status());
+        return new UpdateCardStatusResult(cmd.cardUid(), before, cmd.targetStatus());
     }
 
     private Card getCard(UUID cardUid) {

@@ -13,6 +13,7 @@ import com.kori.domain.model.account.AccountProfile;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.agent.AgentId;
+import com.kori.domain.model.audit.AuditEvent;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -28,13 +29,15 @@ public final class CreateAgentService implements CreateAgentUseCase {
     private final IdempotencyPort idempotencyPort;
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
+    private final CodeGeneratorPort codeGeneratorPort;
 
-    public CreateAgentService(AgentRepositoryPort agentRepositoryPort, AccountProfilePort accountProfilePort, IdempotencyPort idempotencyPort, AuditPort auditPort, TimeProviderPort timeProviderPort) {
+    public CreateAgentService(AgentRepositoryPort agentRepositoryPort, AccountProfilePort accountProfilePort, IdempotencyPort idempotencyPort, AuditPort auditPort, TimeProviderPort timeProviderPort, CodeGeneratorPort codeGeneratorPort) {
         this.agentRepositoryPort = agentRepositoryPort;
         this.accountProfilePort = accountProfilePort;
         this.idempotencyPort = idempotencyPort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
+        this.codeGeneratorPort = codeGeneratorPort;
     }
 
     @Override
@@ -69,12 +72,12 @@ public final class CreateAgentService implements CreateAgentUseCase {
         AccountProfile profile = AccountProfile.activeNew(agentAccount, now);
         accountProfilePort.save(profile);
 
-        CreateAgentResult result = new CreateAgentResult(id, code);
+        CreateAgentResult result = new CreateAgentResult(id.toString(), code.toString());
         idempotencyPort.save(command.idempotencyKey(), result);
 
         Map<String, String> metadata = new HashMap<>();
         metadata.put("adminId", actorContext.actorId());
-        metadata.put("agentCode", code.value());
+        metadata.put("agentCode", code.toString());
 
         auditPort.publish(new AuditEvent(
                 "AGENT_CREATED",
@@ -88,12 +91,12 @@ public final class CreateAgentService implements CreateAgentUseCase {
 
     private AgentCode generateUniqueAgentCode() {
         for (int i = 0; i < MAX_CODE_GENERATION_ATTEMPTS; i++) {
-            AgentCode candidate = AgentCode.generate();
+            String digits = codeGeneratorPort.next6Digits();
+            AgentCode candidate = AgentCode.of("A-" + digits);
             if (!agentRepositoryPort.existsByCode(candidate)) {
                 return candidate;
             }
         }
-        throw new ApplicationException("Unable to generate unique agentCode. Please retry.");
+        throw new ApplicationException("Unable to generate unique agentCode.");
     }
-
 }

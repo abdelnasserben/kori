@@ -9,7 +9,7 @@ import java.util.UUID;
 public interface PayoutJpaRepository extends JpaRepository<PayoutEntity, UUID> {
     Optional<PayoutEntity> findByTransactionId(UUID transactionId);
 
-    boolean existsByAgentIdAndStatus(String agentId, String status);
+    boolean existsByAgentIdAndStatus(UUID agentId, String status);
 
-    boolean existsRequestedForAgent(String agentId);
+    boolean existsRequestedForAgent(UUID agentId);
 }

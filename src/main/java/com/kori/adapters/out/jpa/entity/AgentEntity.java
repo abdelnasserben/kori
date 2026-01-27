@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 
 @Getter
@@ -12,7 +13,7 @@ import java.util.UUID;
 @Table(
         name = "agents",
         indexes = {
-                @Index(name = "idx_agent_code", columnList = "code", unique = true),
+                @Index(name = "idx_agent_code", columnList = "code"),
                 @Index(name = "idx_agent_status", columnList = "status")
         }
 )
@@ -33,12 +34,20 @@ public class AgentEntity {
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
 
-    protected AgentEntity() {}
+    protected AgentEntity() {
+        // for JPA
+    }
 
     public AgentEntity(UUID id, String code, Status status, Instant createdAt) {
-        this.id = id;
-        this.code = code;
-        this.status = status;
-        this.createdAt = createdAt;
+        this.id = Objects.requireNonNull(id, "id");
+
+        String normalizedCode = Objects.requireNonNull(code, "code").trim();
+        if (normalizedCode.isBlank()) {
+            throw new IllegalArgumentException("code must not be blank");
+        }
+        this.code = normalizedCode;
+
+        this.status = Objects.requireNonNull(status, "status");
+        this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
     }
 }

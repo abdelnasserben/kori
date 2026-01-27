@@ -9,6 +9,7 @@ import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.application.security.LedgerAccessPolicy;
 import com.kori.domain.ledger.LedgerAccountRef;
+import com.kori.domain.ledger.LedgerAccountType;
 import com.kori.domain.ledger.LedgerEntryType;
 import com.kori.domain.model.common.Money;
 
@@ -25,13 +26,13 @@ public final class GetBalanceService implements GetBalanceUseCase {
     }
 
     @Override
-    public BalanceResult execute(GetBalanceCommand command) {
-        Objects.requireNonNull(command);
+    public BalanceResult execute(GetBalanceCommand cmd) {
+        Objects.requireNonNull(cmd);
 
-        LedgerAccountRef scope = resolveScope(command.actorContext(), command.ledgerAccountRef());
-        ledgerAccessPolicy.assertCanReadLedger(command.actorContext(), scope);
+        LedgerAccountRef accountRef = resolveLedgerAccountRef(cmd.actorContext(), cmd.accountType(), cmd.ownerRef());
+        ledgerAccessPolicy.assertCanReadLedger(cmd.actorContext(), accountRef);
 
-        var entries = ledgerQueryPort.findEntries(scope);
+        var entries = ledgerQueryPort.findEntries(accountRef);
 
         Money balance = Money.zero();
         for (var e : entries) {
@@ -42,22 +43,18 @@ public final class GetBalanceService implements GetBalanceUseCase {
             }
         }
 
-        return new BalanceResult(scope, balance.asBigDecimal());
+        return new BalanceResult(cmd.accountType(), cmd.ownerRef(), balance.asBigDecimal());
     }
 
-    private LedgerAccountRef resolveScope(ActorContext actorContext, LedgerAccountRef requestedScope) {
-        if (requestedScope != null) {
-            if (actorContext.actorType() != ActorType.ADMIN) {
-                throw new ForbiddenOperationException("Only ADMIN can specify an arbitrary ledger scope");
-            }
-            return requestedScope;
+    private LedgerAccountRef resolveLedgerAccountRef(ActorContext actorContext, String accountType, String ownerRef) {
+
+        LedgerAccountType type = LedgerAccountType.valueOf(accountType);
+        LedgerAccountRef ledgerAccountRef = new LedgerAccountRef(type, ownerRef);
+
+        if (actorContext.actorType() != ActorType.ADMIN) {
+            throw new ForbiddenOperationException("Only ADMIN can specify an arbitrary ledger scope");
         }
 
-        return switch (actorContext.actorType()) {
-            case CLIENT -> LedgerAccountRef.client(actorContext.actorId());
-            case MERCHANT -> LedgerAccountRef.merchant(actorContext.actorId());
-            case AGENT -> LedgerAccountRef.agent(actorContext.actorId());
-            default -> throw new ForbiddenOperationException("Actor type cannot consult balance");
-        };
+        return ledgerAccountRef;
     }
 }

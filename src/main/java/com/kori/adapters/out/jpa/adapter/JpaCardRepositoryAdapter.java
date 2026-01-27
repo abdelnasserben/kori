@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 
 @Component
 public class JpaCardRepositoryAdapter implements CardRepositoryPort {
@@ -26,7 +27,7 @@ public class JpaCardRepositoryAdapter implements CardRepositoryPort {
     @Transactional(readOnly = true)
     public Optional<Card> findByCardUid(String cardUid) {
         Objects.requireNonNull(cardUid, "cardUid must not be null");
-        return repo.findByCardUid(cardUid).map(this::toDomain);
+        return repo.findByCardUid(UUID.fromString(cardUid)).map(this::toDomain);
     }
 
     @Override

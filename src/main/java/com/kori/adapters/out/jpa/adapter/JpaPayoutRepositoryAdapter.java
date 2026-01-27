@@ -7,6 +7,7 @@ import com.kori.domain.model.agent.AgentId;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.payout.Payout;
 import com.kori.domain.model.payout.PayoutId;
+import com.kori.domain.model.payout.PayoutStatus;
 import com.kori.domain.model.transaction.TransactionId;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,10 +32,10 @@ public class JpaPayoutRepositoryAdapter implements PayoutRepositoryPort {
 
         PayoutEntity entity = new PayoutEntity(
                 payout.id().value(),
-                payout.agentId().toString(),                 // AgentId -> String
-                payout.transactionId().toString(),           // TransactionId -> String
+                payout.agentId().value(),                 // AgentId -> String
+                payout.transactionId().value(),           // TransactionId -> String
                 payout.amount().asBigDecimal(),
-                payout.status(),
+                payout.status().name(),
                 payout.createdAt(),
                 payout.completedAt(),
                 payout.failedAt(),
@@ -56,16 +57,16 @@ public class JpaPayoutRepositoryAdapter implements PayoutRepositoryPort {
     @Transactional(readOnly = true)
     public boolean existsRequestedForAgent(AgentId agentId) {
         Objects.requireNonNull(agentId, "agentId");
-        return repo.existsRequestedForAgent(agentId.toString());
+        return repo.existsRequestedForAgent(agentId.value());
     }
 
     private Payout toDomain(PayoutEntity e) {
         return new Payout(
                 new PayoutId(e.getId()),
-                AgentId.of(e.getAgentId()),
-                TransactionId.of(e.getTransactionId()),
+                new AgentId(e.getAgentId()),
+                new TransactionId(e.getTransactionId()),
                 Money.of(e.getAmount()),
-                e.getStatus(),
+                PayoutStatus.valueOf(e.getStatus()),
                 e.getCreatedAt(),
                 e.getCompletedAt(),
                 e.getFailedAt(),

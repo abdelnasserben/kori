@@ -4,14 +4,15 @@ import com.kori.application.command.UpdateClientStatusCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.in.UpdateClientStatusUseCase;
-import com.kori.application.port.out.AuditEvent;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.ClientRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateClientStatusResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.client.Client;
+import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.common.Status;
 
 import java.time.Instant;
@@ -37,14 +38,14 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
     public UpdateClientStatusResult execute(UpdateClientStatusCommand cmd) {
         requireAdmin(cmd.actorContext());
 
-        Client client = clientRepositoryPort.findById(cmd.clientId())
+        Client client = clientRepositoryPort.findById(ClientId.of(cmd.clientId()))
                 .orElseThrow(() -> new NotFoundException("Client not found"));
 
         // For audit
-        Status before = client.status();
+        String before = client.status().name();
 
         // Apply updating
-        switch (cmd.targetStatus()) {
+        switch (Status.valueOf(cmd.targetStatus())) {
             case ACTIVE -> client.activate();
             case SUSPENDED -> client.suspend();
             case CLOSED -> client.close();
@@ -56,9 +57,9 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
         Instant now = timeProviderPort.now();
 
         Map<String, String> metadata = new HashMap<>();
-        metadata.put("clientId", cmd.clientId().toString());
-        metadata.put("before", before.name());
-        metadata.put("after", cmd.targetStatus().name());
+        metadata.put("clientId", cmd.clientId());
+        metadata.put("before", before);
+        metadata.put("after", cmd.targetStatus());
         metadata.put("reason", cmd.reason());
 
         auditPort.publish(new AuditEvent(
@@ -68,7 +69,7 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
                 now,
                 metadata
         ));
-        return new UpdateClientStatusResult(client.id(), before, cmd.targetStatus());
+        return new UpdateClientStatusResult(client.id().toString(), before, cmd.targetStatus());
     }
 
     private void requireAdmin(ActorContext actor) {

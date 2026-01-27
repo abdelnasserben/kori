@@ -8,10 +8,6 @@ public record AgentId(UUID value) {
         this.value = Objects.requireNonNull(value, "value");
     }
 
-    public static AgentId of(String value) {
-        return new AgentId(UUID.fromString(value));
-    }
-
     public static AgentId newId() {
         return new AgentId(UUID.randomUUID());
     }

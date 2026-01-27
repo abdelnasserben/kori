@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 
 @Component
 public class JpaClientRepositoryAdapter implements ClientRepositoryPort {
@@ -48,7 +47,7 @@ public class JpaClientRepositoryAdapter implements ClientRepositoryPort {
 
     private Client toDomain(ClientEntity e) {
         return new Client(
-                ClientId.of(e.getId().toString()),
+                new ClientId(e.getId()),
                 e.getPhoneNumber(),
                 Status.valueOf(e.getStatus())
         );

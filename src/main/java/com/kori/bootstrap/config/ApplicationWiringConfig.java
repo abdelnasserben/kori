@@ -189,13 +189,11 @@ public class ApplicationWiringConfig {
     @Bean
     public AdminUnblockCardUseCase adminUnblockCardUseCase(
             TimeProviderPort timeProviderPort,
-            IdempotencyPort idempotencyPort,
             CardRepositoryPort cardRepositoryPort,
             AuditPort auditPort
     ) {
         return new AdminUnblockCardService(
                 timeProviderPort,
-                idempotencyPort,
                 cardRepositoryPort,
                 auditPort
         );

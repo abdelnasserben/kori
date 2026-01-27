@@ -63,7 +63,7 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
             var tx = txOpt.get();
 
             // Filters on the transaction itself
-            if (command.transactionType() != null && tx.type() != command.transactionType()) continue;
+            if (command.transactionType() != null && !tx.type().name().equals(command.transactionType())) continue;
             if (!withinRange(tx.createdAt(), command.from(), command.to())) continue;
 
             // Stable cursor filtering

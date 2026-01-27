@@ -8,10 +8,6 @@ public record MerchantId(UUID value) {
         this.value = Objects.requireNonNull(value);
     }
 
-    public static MerchantId of(String value) {
-        return new MerchantId(UUID.fromString(value));
-    }
-
     public static MerchantId newId() {
         return new MerchantId(UUID.randomUUID());
     }

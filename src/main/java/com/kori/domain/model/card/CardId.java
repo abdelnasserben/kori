@@ -12,10 +12,6 @@ public record CardId(UUID value) {
         return new CardId(UUID.randomUUID());
     }
 
-    public static CardId of(String value) {
-        return new CardId(UUID.fromString(value));
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

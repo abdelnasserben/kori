@@ -13,6 +13,7 @@ public record ClientId(UUID value) {
     }
 
     public static ClientId of(String value) {
+        Objects.requireNonNull(value);
         return new ClientId(UUID.fromString(value));
     }
 

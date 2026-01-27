@@ -3,8 +3,8 @@ package com.kori.adapters.out.jpa.adapter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.out.jpa.entity.AuditEventEntity;
 import com.kori.adapters.out.jpa.repo.AuditEventJpaRepository;
-import com.kori.application.port.out.AuditEvent;
 import com.kori.application.port.out.AuditPort;
+import com.kori.domain.model.audit.AuditEvent;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 

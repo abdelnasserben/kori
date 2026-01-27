@@ -10,6 +10,7 @@ import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.agent.AgentId;
+import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.payout.Payout;
@@ -106,7 +107,7 @@ public final class RequestAgentPayoutService implements RequestAgentPayoutUseCas
                 payout.id().toString(),
                 command.agentCode(),
                 due.asBigDecimal(),
-                PayoutStatus.REQUESTED
+                PayoutStatus.REQUESTED.name()
         );
 
         idempotencyPort.save(command.idempotencyKey(), result);

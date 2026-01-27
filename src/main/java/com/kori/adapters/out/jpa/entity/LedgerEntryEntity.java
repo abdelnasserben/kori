@@ -1,7 +1,5 @@
 package com.kori.adapters.out.jpa.entity;
 
-import com.kori.domain.ledger.LedgerAccountType;
-import com.kori.domain.ledger.LedgerEntryType;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -29,16 +27,14 @@ public class LedgerEntryEntity {
     @Column(name = "transaction_id", nullable = false, updatable = false)
     private UUID transactionId;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "account_type", nullable = false, updatable = false, length = 32)
-    private LedgerAccountType accountType;
+    private String accountType;
 
     @Column(name = "owner_ref", nullable = false, updatable = false, length = 128)
     private String ownerRef;
 
-    @Enumerated(EnumType.STRING)
     @Column(name = "entry_type", nullable = false, updatable = false, length = 16)
-    private LedgerEntryType entryType;
+    private String entryType;
 
     @Column(nullable = false, updatable = false, precision = 19, scale = 2)
     private BigDecimal amount;
@@ -51,9 +47,9 @@ public class LedgerEntryEntity {
     public LedgerEntryEntity(
             UUID id,
             UUID transactionId,
-            LedgerAccountType accountType,
+            String accountType,
             String ownerRef,
-            LedgerEntryType entryType,
+            String entryType,
             BigDecimal amount
     ) {
         this.id = id;
