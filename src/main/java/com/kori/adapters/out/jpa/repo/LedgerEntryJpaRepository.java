@@ -23,9 +23,9 @@ public interface LedgerEntryJpaRepository extends JpaRepository<LedgerEntryEntit
           coalesce(sum(case when e.entryType = 'CREDIT' then e.amount else 0 end), 0)
           - coalesce(sum(case when e.entryType = 'DEBIT' then e.amount else 0 end), 0)
         from LedgerEntryEntity e
-        where e.accountType = :accountType and e.ownerRef = :ownerRef
+        where e.ledgerAccountType = :ledgerAccountType and e.ownerRef = :ownerRef
     """)
-    BigDecimal netBalance(@Param("accountType") String accountType,
+    BigDecimal netBalance(@Param("ledgerAccountType") String accountType,
                           @Param("ownerRef") String ownerRef);
 }
 

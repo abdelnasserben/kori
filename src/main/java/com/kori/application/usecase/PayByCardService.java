@@ -177,7 +177,7 @@ public final class PayByCardService implements PayByCardUseCase {
 
         Map<String, String> metadata = new HashMap<>();
         metadata.put("terminalUid", command.terminalUid());
-        metadata.put("merchantCode", merchant.id().value().toString());
+        metadata.put("merchantCode", merchant.code().value());
         metadata.put("transactionId", tx.id().value().toString());
         metadata.put("cardUid", command.cardUid());
 

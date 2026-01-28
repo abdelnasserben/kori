@@ -85,7 +85,7 @@ public final class AdminUpdateCardStatusService implements AdminUpdateCardStatus
     }
 
     private void requireAdminActor(ActorContext ctx) {
-        if (ctx.actorType() != ActorType.AGENT) {
+        if (ctx.actorType() != ActorType.ADMIN) {
             throw new ForbiddenOperationException("Actor must be an ADMIN");
         }
     }

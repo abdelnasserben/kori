@@ -29,32 +29,55 @@ public final class GetBalanceService implements GetBalanceUseCase {
     public BalanceResult execute(GetBalanceCommand cmd) {
         Objects.requireNonNull(cmd);
 
-        LedgerAccountRef accountRef = resolveLedgerAccountRef(cmd.actorContext(), cmd.accountType(), cmd.ownerRef());
-        ledgerAccessPolicy.assertCanReadLedger(cmd.actorContext(), accountRef);
+        LedgerAccountRef scope = resolveScope(cmd.actorContext(), cmd.accountType(), cmd.ownerRef());
 
-        var entries = ledgerQueryPort.findEntries(accountRef);
+        // centralized authorization (admin-any, others self-only, terminal forbidden, etc.)
+        ledgerAccessPolicy.assertCanReadLedger(cmd.actorContext(), scope);
+
+        var entries = ledgerQueryPort.findEntries(scope);
 
         Money balance = Money.zero();
         for (var e : entries) {
             if (e.type() == LedgerEntryType.CREDIT) {
                 balance = balance.plus(e.amount());
-            } else {
+            } else if (e.type() == LedgerEntryType.DEBIT) {
                 balance = balance.minus(e.amount());
             }
         }
 
-        return new BalanceResult(cmd.accountType(), cmd.ownerRef(), balance.asBigDecimal());
+        return new BalanceResult(scope.type().name(), scope.ownerRef(), balance.asBigDecimal());
     }
 
-    private LedgerAccountRef resolveLedgerAccountRef(ActorContext actorContext, String accountType, String ownerRef) {
+    private LedgerAccountRef resolveScope(ActorContext actor, String accountType, String ownerRef) {
 
-        LedgerAccountType type = LedgerAccountType.valueOf(accountType);
-        LedgerAccountRef ledgerAccountRef = new LedgerAccountRef(type, ownerRef);
-
-        if (actorContext.actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Only ADMIN can specify an arbitrary ledger scope");
+        // ADMIN -> explicit scope required (any scope allowed)
+        if (actor.actorType() == ActorType.ADMIN) {
+            if (accountType == null || ownerRef == null) {
+                throw new ForbiddenOperationException("ADMIN must specify accountType and ownerRef");
+            }
+            return new LedgerAccountRef(LedgerAccountType.valueOf(accountType), ownerRef);
         }
 
-        return ledgerAccountRef;
+        // Non-admin -> own scope
+        LedgerAccountRef own = ownScope(actor);
+
+        // If provided, must match own scope (prevents reading others even before policy)
+        if (accountType != null && ownerRef != null) {
+            LedgerAccountRef requested = new LedgerAccountRef(LedgerAccountType.valueOf(accountType), ownerRef);
+            if (!requested.equals(own)) {
+                throw new ForbiddenOperationException("You can only consult your own balance");
+            }
+        }
+
+        return own;
+    }
+
+    private static LedgerAccountRef ownScope(ActorContext actor) {
+        return switch (actor.actorType()) {
+            case AGENT -> LedgerAccountRef.agent(actor.actorId());
+            case MERCHANT -> LedgerAccountRef.merchant(actor.actorId());
+            case CLIENT -> LedgerAccountRef.client(actor.actorId());
+            default -> throw new ForbiddenOperationException("Actor type cannot consult ledger");
+        };
     }
 }

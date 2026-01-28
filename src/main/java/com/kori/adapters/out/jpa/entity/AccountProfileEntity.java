@@ -52,8 +52,8 @@ public class AccountProfileEntity {
         }
 
         public AccountProfileId(String accountType, String ownerRef) {
-            String t = Objects.requireNonNull(accountType, "accountType").trim();
-            if (t.isBlank()) throw new IllegalArgumentException("accountType must not be blank");
+            String t = Objects.requireNonNull(accountType, "ledgerAccountType").trim();
+            if (t.isBlank()) throw new IllegalArgumentException("ledgerAccountType must not be blank");
             this.accountType = t;
 
             String o = Objects.requireNonNull(ownerRef, "ownerRef").trim();

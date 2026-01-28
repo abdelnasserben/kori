@@ -6,7 +6,6 @@ import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.port.in.CreateMerchantUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CreateMerchantResult;
-import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.account.AccountProfile;
@@ -43,7 +42,8 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
     }
 
     @Override
-    public CreateMerchantResult execute(CreateMerchantCommand command, ActorContext actorContext) {
+    public CreateMerchantResult execute(CreateMerchantCommand command) {
+        var actorContext = command.actorContext();
 
         if (actorContext.actorType() != ActorType.ADMIN) {
             throw new ForbiddenOperationException("Only ADMIN can create a merchant.");

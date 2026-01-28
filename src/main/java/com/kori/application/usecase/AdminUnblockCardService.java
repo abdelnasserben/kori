@@ -68,7 +68,7 @@ public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
     }
 
     private void requireAdminActor(ActorContext ctx) {
-        if (ctx.actorType() != ActorType.AGENT) {
+        if (ctx.actorType() != ActorType.ADMIN) {
             throw new ForbiddenOperationException("Actor must be an ADMIN");
         }
     }
