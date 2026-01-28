@@ -8,10 +8,6 @@ public record AgentId(UUID value) {
         this.value = Objects.requireNonNull(value, "value");
     }
 
-    public static AgentId newId() {
-        return new AgentId(UUID.randomUUID());
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

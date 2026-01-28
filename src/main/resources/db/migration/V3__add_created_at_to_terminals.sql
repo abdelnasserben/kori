@@ -1,0 +1,2 @@
+ALTER TABLE terminals
+ADD COLUMN created_at TIMESTAMPTZ NOT NULL;

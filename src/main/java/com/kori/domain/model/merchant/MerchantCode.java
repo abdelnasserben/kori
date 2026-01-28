@@ -13,11 +13,11 @@ public final class MerchantCode {
     private final String value;
 
     private MerchantCode(String value) {
-        this.value = value;
+        this.value = Objects.requireNonNull(value, "code");
     }
 
     public static MerchantCode of(String raw) {
-        Objects.requireNonNull(raw, "merchantCode");
+        Objects.requireNonNull(raw, "code");
         String normalized = raw.trim().toUpperCase();
 
         if (!FORMAT.matcher(normalized).matches()) {

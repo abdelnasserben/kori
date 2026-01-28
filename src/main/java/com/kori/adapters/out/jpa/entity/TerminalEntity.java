@@ -3,6 +3,7 @@ package com.kori.adapters.out.jpa.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 
+import java.time.Instant;
 import java.util.UUID;
 
 @Getter
@@ -27,11 +28,15 @@ public class TerminalEntity {
     @Column(nullable = false, length = 16)
     private String status;
 
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
+
     protected TerminalEntity() {}
 
-    public TerminalEntity(UUID id, UUID merchantId, String status) {
+    public TerminalEntity(UUID id, UUID merchantId, String status, Instant createdAt) {
         this.id = id;
         this.merchantId = merchantId;
         this.status = status;
+        this.createdAt = createdAt;
     }
 }

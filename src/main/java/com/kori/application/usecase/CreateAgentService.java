@@ -6,7 +6,6 @@ import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.port.in.CreateAgentUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CreateAgentResult;
-import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.account.AccountProfile;
@@ -30,20 +29,22 @@ public final class CreateAgentService implements CreateAgentUseCase {
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
     private final CodeGeneratorPort codeGeneratorPort;
+    private final IdGeneratorPort idGeneratorPort;
 
-    public CreateAgentService(AgentRepositoryPort agentRepositoryPort, AccountProfilePort accountProfilePort, IdempotencyPort idempotencyPort, AuditPort auditPort, TimeProviderPort timeProviderPort, CodeGeneratorPort codeGeneratorPort) {
+    public CreateAgentService(AgentRepositoryPort agentRepositoryPort, AccountProfilePort accountProfilePort, IdempotencyPort idempotencyPort, AuditPort auditPort, TimeProviderPort timeProviderPort, CodeGeneratorPort codeGeneratorPort, IdGeneratorPort idGeneratorPort) {
         this.agentRepositoryPort = agentRepositoryPort;
         this.accountProfilePort = accountProfilePort;
         this.idempotencyPort = idempotencyPort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
         this.codeGeneratorPort = codeGeneratorPort;
+        this.idGeneratorPort = idGeneratorPort;
     }
 
     @Override
-    public CreateAgentResult execute(CreateAgentCommand command, ActorContext actorContext) {
+    public CreateAgentResult execute(CreateAgentCommand command) {
         Objects.requireNonNull(command, "command");
-        Objects.requireNonNull(actorContext, "actorContext");
+        var actorContext = command.actorContext();
 
         if (actorContext.actorType() != ActorType.ADMIN) {
             throw new ForbiddenOperationException("Only ADMIN can create an agent.");
@@ -56,7 +57,7 @@ public final class CreateAgentService implements CreateAgentUseCase {
         }
 
         AgentCode code = generateUniqueAgentCode();
-        AgentId id = AgentId.newId();
+        AgentId id = new AgentId(idGeneratorPort.newUuid());
         Instant now = timeProviderPort.now();
 
         Agent agent = Agent.activeNew(id, code, now);

@@ -121,7 +121,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
 
         // 5) client accountRef profile (create if absent)
         boolean clientAccountProfileCreated = false;
-        var clientAccount = LedgerAccountRef.client(client.id().toString()); // adapt if value() is not String
+        var clientAccount = LedgerAccountRef.client(client.id().value().toString()); // adapt if value() is not String
         var clientProfileOpt = accountProfilePort.findByAccount(clientAccount);
 
         if (clientProfileOpt.isEmpty()) {

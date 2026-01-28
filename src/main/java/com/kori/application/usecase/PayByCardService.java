@@ -26,6 +26,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 public final class PayByCardService implements PayByCardUseCase {
 
@@ -91,7 +92,8 @@ public final class PayByCardService implements PayByCardUseCase {
         }
 
         // Merchant accountRef must be ACTIVE
-        Terminal terminal = terminalRepositoryPort.findById(TerminalId.of(command.terminalId()))
+        TerminalId terminalId = new TerminalId(UUID.fromString(command.terminalUid()));
+        Terminal terminal = terminalRepositoryPort.findById(terminalId)
                 .orElseThrow(() -> new NotFoundException("Terminal not found"));
 
         if (terminal.status() != Status.ACTIVE) {
@@ -102,7 +104,7 @@ public final class PayByCardService implements PayByCardUseCase {
         Merchant merchant = merchantRepositoryPort.findById(terminal.merchantId())
                 .orElseThrow(() -> new NotFoundException("Merchant not found"));
 
-        var merchantAcc = LedgerAccountRef.merchant(merchant.id().toString());
+        var merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
         AccountProfile merchantProfile = accountProfilePort.findByAccount(merchantAcc)
                 .orElseThrow(() -> new NotFoundException("Merchant account not found"));
 
@@ -174,7 +176,7 @@ public final class PayByCardService implements PayByCardUseCase {
         ));
 
         Map<String, String> metadata = new HashMap<>();
-        metadata.put("terminalId", command.terminalId());
+        metadata.put("terminalUid", command.terminalUid());
         metadata.put("merchantCode", merchant.id().value().toString());
         metadata.put("transactionId", tx.id().value().toString());
         metadata.put("cardUid", command.cardUid());
@@ -188,7 +190,7 @@ public final class PayByCardService implements PayByCardUseCase {
         ));
 
         PayByCardResult result = new PayByCardResult(
-                tx.id().toString(),
+                tx.id().value().toString(),
                 merchant.code().value(),
                 card.cardUid(),
                 amount.asBigDecimal(),

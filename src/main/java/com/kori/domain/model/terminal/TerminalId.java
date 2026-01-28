@@ -8,10 +8,6 @@ public record TerminalId(UUID value) {
         this.value = Objects.requireNonNull(value);
     }
 
-    public static TerminalId of(String value) {
-        return new TerminalId(UUID.fromString(value));
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
