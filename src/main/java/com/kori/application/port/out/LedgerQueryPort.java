@@ -3,6 +3,7 @@ package com.kori.application.port.out;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.common.Money;
+import com.kori.domain.model.transaction.TransactionId;
 
 import java.util.List;
 
@@ -14,7 +15,7 @@ public interface LedgerQueryPort {
     Money netBalance(LedgerAccountRef account);
 
     // Needed for generic reversal
-    List<LedgerEntry> findByTransactionId(String transactionId);
+    List<LedgerEntry> findByTransactionId(TransactionId transactionId);
 
     /**
      * Read-only access to the ledger for consultation features (balance & history).

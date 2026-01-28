@@ -9,10 +9,6 @@ public record PayoutId(UUID value) {
         Objects.requireNonNull(value);
     }
 
-    public static PayoutId newId() {
-        return new PayoutId(UUID.randomUUID());
-    }
-
     public static PayoutId of(String value) {
         return new PayoutId(UUID.fromString(value));
     }

@@ -10,6 +10,6 @@ public interface TransactionRepositoryPort {
 
     Optional<Transaction> findById(TransactionId transactionId);
 
-    boolean existsReversalFor(String originalTransactionId);
+    boolean existsReversalFor(TransactionId originalTransactionId);
 
 }

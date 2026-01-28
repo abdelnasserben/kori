@@ -72,12 +72,12 @@ public final class CreateAgentService implements CreateAgentUseCase {
         AccountProfile profile = AccountProfile.activeNew(agentAccount, now);
         accountProfilePort.save(profile);
 
-        CreateAgentResult result = new CreateAgentResult(id.toString(), code.toString());
+        CreateAgentResult result = new CreateAgentResult(id.value().toString(), code.value());
         idempotencyPort.save(command.idempotencyKey(), result);
 
         Map<String, String> metadata = new HashMap<>();
         metadata.put("adminId", actorContext.actorId());
-        metadata.put("agentCode", code.toString());
+        metadata.put("agentCode", code.value());
 
         auditPort.publish(new AuditEvent(
                 "AGENT_CREATED",

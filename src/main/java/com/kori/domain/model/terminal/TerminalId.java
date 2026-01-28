@@ -8,10 +8,6 @@ public record TerminalId(UUID value) {
         this.value = Objects.requireNonNull(value);
     }
 
-    public static TerminalId newId() {
-        return new TerminalId(UUID.randomUUID());
-    }
-
     public static TerminalId of(String value) {
         return new TerminalId(UUID.fromString(value));
     }

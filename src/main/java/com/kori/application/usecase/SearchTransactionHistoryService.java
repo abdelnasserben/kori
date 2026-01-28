@@ -79,7 +79,7 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
             }
 
             // Fetch all ledger entries of this transaction to build counterparties + views
-            var allEntries = ledgerQueryPort.findByTransactionId(txId);
+            var allEntries = ledgerQueryPort.findByTransactionId(TransactionId.of(txId));
 
             // Counterparties
             String clientId = firstOwnerRef(allEntries, LedgerAccountType.CLIENT);

@@ -69,7 +69,7 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
                 now,
                 metadata
         ));
-        return new UpdateClientStatusResult(client.id().toString(), before, cmd.targetStatus());
+        return new UpdateClientStatusResult(cmd.clientId(), before, cmd.targetStatus());
     }
 
     private void requireAdmin(ActorContext actor) {

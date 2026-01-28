@@ -3,6 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.policy.PricingGuards;
 import com.kori.application.port.in.EnrollCardUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.EnrollCardResult;
@@ -16,11 +17,12 @@ import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.client.Client;
+import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.transaction.Transaction;
+import com.kori.domain.model.transaction.TransactionId;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -30,6 +32,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
 
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
+    private final IdGeneratorPort idGeneratorPort;
 
     private final ClientRepositoryPort clientRepositoryPort;
     private final CardRepositoryPort cardRepositoryPort;
@@ -47,7 +50,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
     private final PinHasherPort pinHasherPort;
 
     public EnrollCardService(TimeProviderPort timeProviderPort,
-                             IdempotencyPort idempotencyPort,
+                             IdempotencyPort idempotencyPort, IdGeneratorPort idGeneratorPort,
                              ClientRepositoryPort clientRepositoryPort,
                              CardRepositoryPort cardRepositoryPort,
                              AgentRepositoryPort agentRepositoryPort,
@@ -60,6 +63,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
                              PinHasherPort pinHasherPort) {
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
+        this.idGeneratorPort = idGeneratorPort;
         this.clientRepositoryPort = clientRepositoryPort;
         this.cardRepositoryPort = cardRepositoryPort;
         this.agentRepositoryPort = agentRepositoryPort;
@@ -110,7 +114,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
         Client client = clientRepositoryPort.findByPhoneNumber(command.phoneNumber()).orElse(null);
 
         if (client == null) {
-            client = Client.activeNew(command.phoneNumber());
+            client = Client.activeNew(new ClientId(idGeneratorPort.newUuid()), command.phoneNumber());
             client = clientRepositoryPort.save(client);
             clientCreated = true;
         }
@@ -141,23 +145,13 @@ public final class EnrollCardService implements EnrollCardUseCase {
         Money cardPrice = feePolicyPort.cardEnrollmentPrice();
         Money agentCommission = commissionPolicyPort.cardEnrollmentAgentCommission();
 
-        BigDecimal price = cardPrice.asBigDecimal();
-        BigDecimal commission = agentCommission.asBigDecimal();
+        var breakdown = PricingGuards.feeMinusCommission(cardPrice, agentCommission, "ENROLL_CARD");  // safe due to guards
 
-        if (price.compareTo(BigDecimal.ZERO) < 0) {
-            throw new ForbiddenOperationException("Invalid fee policy: cardEnrollmentPrice cannot be negative");
-        }
-        if (commission.compareTo(BigDecimal.ZERO) < 0) {
-            throw new ForbiddenOperationException("Invalid commission policy: cardEnrollmentAgentCommission cannot be negative");
-        }
-        if (commission.compareTo(price) > 0) {
-            throw new ForbiddenOperationException("Invalid commission policy: agentCommission cannot exceed cardPrice");
-        }
-
-        Money platformRevenue = cardPrice.minus(agentCommission); // safe due to guards
+        Money platformRevenue = breakdown.platformRevenue();
 
         // 8) transaction
-        Transaction tx = Transaction.enrollCard(cardPrice, now);
+        TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
+        Transaction tx = Transaction.enrollCard(txId, cardPrice, now);
         tx = transactionRepositoryPort.save(tx);
 
         // 9) ledger entries (platform revenue + agent commission)
@@ -168,7 +162,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
 
         // 10) audit
         Map<String, String> metadata = new HashMap<>();
-        metadata.put("transactionId", tx.id().toString());
+        metadata.put("transactionId", tx.id().value().toString());
         metadata.put("agentCode", command.agentCode());
         metadata.put("clientPhoneNumber", client.phoneNumber());
         metadata.put("cardUid", card.cardUid());
@@ -183,7 +177,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
         auditPort.publish(event);
 
         EnrollCardResult result = new EnrollCardResult(
-                tx.id().toString(),
+                tx.id().value().toString(),
                 client.phoneNumber(),
                 card.cardUid(),
                 cardPrice.asBigDecimal(),

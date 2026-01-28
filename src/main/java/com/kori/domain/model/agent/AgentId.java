@@ -18,9 +18,4 @@ public record AgentId(UUID value) {
         if (!(o instanceof AgentId other)) return false;
         return value.equals(other.value);
     }
-
-    @Override
-    public String toString() {
-        return value.toString();
-    }
 }

@@ -18,6 +18,7 @@ public class ApplicationWiringConfig {
     public EnrollCardUseCase enrollCardUseCase(
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
+            IdGeneratorPort idGeneratorPort,
             ClientRepositoryPort clientRepositoryPort,
             CardRepositoryPort cardRepositoryPort,
             AgentRepositoryPort agentRepositoryPort,
@@ -31,6 +32,7 @@ public class ApplicationWiringConfig {
         return new EnrollCardService(
                 timeProviderPort,
                 idempotencyPort,
+                idGeneratorPort,
                 clientRepositoryPort,
                 cardRepositoryPort,
                 agentRepositoryPort,
@@ -48,6 +50,7 @@ public class ApplicationWiringConfig {
     public PayByCardUseCase payByCardUseCase(
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
+            IdGeneratorPort idGeneratorPort,
             TerminalRepositoryPort terminalRepositoryPort,
             MerchantRepositoryPort merchantRepositoryPort,
             CardRepositoryPort cardRepositoryPort,
@@ -62,6 +65,7 @@ public class ApplicationWiringConfig {
         return new PayByCardService(
                 timeProviderPort,
                 idempotencyPort,
+                idGeneratorPort,
                 terminalRepositoryPort,
                 merchantRepositoryPort,
                 cardRepositoryPort,
@@ -80,6 +84,7 @@ public class ApplicationWiringConfig {
     public MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase(
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
+            IdGeneratorPort idGeneratorPort,
             MerchantRepositoryPort merchantRepositoryPort,
             AgentRepositoryPort agentRepositoryPort,
             AccountProfilePort accountProfilePort,
@@ -93,6 +98,7 @@ public class ApplicationWiringConfig {
         return new MerchantWithdrawAtAgentService(
                 timeProviderPort,
                 idempotencyPort,
+                idGeneratorPort,
                 merchantRepositoryPort,
                 agentRepositoryPort,
                 accountProfilePort,
@@ -113,7 +119,8 @@ public class ApplicationWiringConfig {
             LedgerQueryPort ledgerQueryPort,
             TransactionRepositoryPort transactionRepositoryPort,
             PayoutRepositoryPort payoutRepositoryPort,
-            AuditPort auditPort
+            AuditPort auditPort,
+            IdGeneratorPort idGeneratorPort
     ) {
         return new RequestAgentPayoutService(
                 timeProviderPort,
@@ -122,7 +129,8 @@ public class ApplicationWiringConfig {
                 ledgerQueryPort,
                 transactionRepositoryPort,
                 payoutRepositoryPort,
-                auditPort
+                auditPort,
+                idGeneratorPort
         );
     }
 
@@ -159,7 +167,8 @@ public class ApplicationWiringConfig {
             TransactionRepositoryPort transactionRepositoryPort,
             LedgerQueryPort ledgerQueryPort,
             LedgerAppendPort ledgerAppendPort,
-            AuditPort auditPort
+            AuditPort auditPort,
+            IdGeneratorPort idGeneratorPort
     ) {
         return new ReversalService(
                 timeProviderPort,
@@ -167,7 +176,8 @@ public class ApplicationWiringConfig {
                 transactionRepositoryPort,
                 ledgerQueryPort,
                 ledgerAppendPort,
-                auditPort
+                auditPort,
+                idGeneratorPort
         );
     }
 

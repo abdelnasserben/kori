@@ -8,10 +8,6 @@ public record ClientId(UUID value) {
         this.value = Objects.requireNonNull(value);
     }
 
-    public static ClientId newId() {
-        return new ClientId(UUID.randomUUID());
-    }
-
     public static ClientId of(String value) {
         Objects.requireNonNull(value);
         return new ClientId(UUID.fromString(value));

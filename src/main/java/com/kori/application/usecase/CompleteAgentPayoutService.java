@@ -53,7 +53,7 @@ public final class CompleteAgentPayoutService implements CompleteAgentPayoutUseC
 
         Instant now = timeProviderPort.now();
 
-        var agentAcc = LedgerAccountRef.agent(payout.agentId().toString());
+        var agentAcc = LedgerAccountRef.agent(payout.agentId().value().toString());
         var clearingAcc = LedgerAccountRef.platformClearing();
 
         ledgerAppendPort.append(List.of(
@@ -69,7 +69,7 @@ public final class CompleteAgentPayoutService implements CompleteAgentPayoutUseC
                 command.actorContext().actorType().name(),
                 command.actorContext().actorId(),
                 now,
-                Map.of("payoutId", payout.id().toString())
+                Map.of("payoutId", payout.id().value().toString())
         ));
     }
 }

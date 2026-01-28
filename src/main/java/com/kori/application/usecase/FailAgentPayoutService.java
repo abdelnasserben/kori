@@ -52,7 +52,7 @@ public final class FailAgentPayoutService implements FailAgentPayoutUseCase {
                 command.actorContext().actorType().name(),
                 command.actorContext().actorId(),
                 now,
-                Map.of("payoutId", payout.id().toString(), "reason", command.reason())
+                Map.of("payoutId", payout.id().value().toString(), "reason", command.reason())
         ));
     }
 }

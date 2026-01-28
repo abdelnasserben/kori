@@ -20,7 +20,7 @@ public class ClientEntity {
     private String phoneNumber;
 
     @Setter
-    @Column(name = "code", nullable = false, length = 16)
+    @Column(name = "status", nullable = false, length = 16)
     private String status;
 
     protected ClientEntity() { }

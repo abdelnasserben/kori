@@ -6,6 +6,7 @@ import com.kori.application.port.out.AgentRepositoryPort;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.agent.AgentId;
+import com.kori.domain.model.common.Status;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,7 +36,7 @@ public class JpaAgentRepositoryAdapter implements AgentRepositoryPort {
                         new AgentId(entity.getId()),
                         AgentCode.of(entity.getCode()),
                         entity.getCreatedAt(),
-                        entity.getStatus()
+                        Status.valueOf(entity.getStatus())
                 ));
     }
 
@@ -44,7 +45,7 @@ public class JpaAgentRepositoryAdapter implements AgentRepositoryPort {
         repo.save(new AgentEntity(
                 agent.id().value(),
                 agent.code().value(),
-                agent.status(),
+                agent.status().name(),
                 agent.createdAt())
         );
     }

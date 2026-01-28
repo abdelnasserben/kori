@@ -8,5 +8,6 @@ import java.util.UUID;
 
 public interface AgentJpaRepository extends JpaRepository<AgentEntity, UUID> {
     Optional<AgentEntity> findByCode(String code);
+
     boolean existsByCode(String code);
 }

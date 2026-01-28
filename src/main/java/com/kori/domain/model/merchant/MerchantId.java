@@ -8,10 +8,6 @@ public record MerchantId(UUID value) {
         this.value = Objects.requireNonNull(value);
     }
 
-    public static MerchantId newId() {
-        return new MerchantId(UUID.randomUUID());
-    }
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

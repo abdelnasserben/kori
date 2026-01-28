@@ -16,8 +16,8 @@ public final class Client {
         this.status = Objects.requireNonNull(status);
     }
 
-    public static Client activeNew(String phoneNumber) {
-        return new Client(ClientId.newId(), phoneNumber, Status.ACTIVE);
+    public static Client activeNew(ClientId clientId, String phoneNumber) {
+        return new Client(clientId, phoneNumber, Status.ACTIVE);
     }
 
     public ClientId id() {

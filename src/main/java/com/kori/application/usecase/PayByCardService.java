@@ -18,7 +18,9 @@ import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.terminal.Terminal;
+import com.kori.domain.model.terminal.TerminalId;
 import com.kori.domain.model.transaction.Transaction;
+import com.kori.domain.model.transaction.TransactionId;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -29,6 +31,7 @@ public final class PayByCardService implements PayByCardUseCase {
 
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
+    private final IdGeneratorPort idGeneratorPort;
 
     private final TerminalRepositoryPort terminalRepositoryPort;
     private final MerchantRepositoryPort merchantRepositoryPort;
@@ -48,7 +51,7 @@ public final class PayByCardService implements PayByCardUseCase {
     private final PinHasherPort pinHasherPort;
 
     public PayByCardService(TimeProviderPort timeProviderPort,
-                            IdempotencyPort idempotencyPort,
+                            IdempotencyPort idempotencyPort, IdGeneratorPort idGeneratorPort,
                             TerminalRepositoryPort terminalRepositoryPort,
                             MerchantRepositoryPort merchantRepositoryPort,
                             CardRepositoryPort cardRepositoryPort,
@@ -62,6 +65,7 @@ public final class PayByCardService implements PayByCardUseCase {
                             PinHasherPort pinHasherPort) {
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
+        this.idGeneratorPort = idGeneratorPort;
         this.terminalRepositoryPort = terminalRepositoryPort;
         this.merchantRepositoryPort = merchantRepositoryPort;
         this.cardRepositoryPort = cardRepositoryPort;
@@ -87,7 +91,7 @@ public final class PayByCardService implements PayByCardUseCase {
         }
 
         // Merchant accountRef must be ACTIVE
-        Terminal terminal = terminalRepositoryPort.findById(command.terminalId())
+        Terminal terminal = terminalRepositoryPort.findById(TerminalId.of(command.terminalId()))
                 .orElseThrow(() -> new NotFoundException("Terminal not found"));
 
         if (terminal.status() != Status.ACTIVE) {
@@ -134,7 +138,7 @@ public final class PayByCardService implements PayByCardUseCase {
         cardRepositoryPort.save(card);
 
         // Client accountRef ref comes from card.cardUid
-        var clientAcc = LedgerAccountRef.client(card.clientId().toString());
+        var clientAcc = LedgerAccountRef.client(card.clientId().value().toString());
 
         // Client accountRef must be ACTIVE (recommended)
         AccountProfile clientProfile = accountProfilePort.findByAccount(clientAcc)
@@ -157,7 +161,8 @@ public final class PayByCardService implements PayByCardUseCase {
             );
         }
 
-        Transaction tx = Transaction.payByCard(amount, now);
+        TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
+        Transaction tx = Transaction.payByCard(txId, amount, now);
         tx = transactionRepositoryPort.save(tx);
 
         var feeAcc = LedgerAccountRef.platformFeeRevenue();
@@ -170,8 +175,8 @@ public final class PayByCardService implements PayByCardUseCase {
 
         Map<String, String> metadata = new HashMap<>();
         metadata.put("terminalId", command.terminalId());
-        metadata.put("merchantCode", merchant.id().toString());
-        metadata.put("transactionId", tx.id().toString());
+        metadata.put("merchantCode", merchant.id().value().toString());
+        metadata.put("transactionId", tx.id().value().toString());
         metadata.put("cardUid", command.cardUid());
 
         auditPort.publish(new AuditEvent(

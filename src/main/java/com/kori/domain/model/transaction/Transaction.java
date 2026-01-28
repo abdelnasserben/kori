@@ -37,25 +37,25 @@ public record Transaction(
         }
     }
 
-    public static Transaction enrollCard(Money cardPrice, Instant createdAt) {
-        return new Transaction(TransactionId.newId(), TransactionType.ENROLL_CARD, cardPrice, createdAt, null);
+    public static Transaction enrollCard(TransactionId id, Money cardPrice, Instant createdAt) {
+        return new Transaction(id, TransactionType.ENROLL_CARD, cardPrice, createdAt, null);
     }
 
-    public static Transaction payByCard(Money amount, Instant createdAt) {
-        return new Transaction(TransactionId.newId(), TransactionType.PAY_BY_CARD, amount, createdAt, null);
+    public static Transaction payByCard(TransactionId id, Money amount, Instant createdAt) {
+        return new Transaction(id, TransactionType.PAY_BY_CARD, amount, createdAt, null);
     }
 
-    public static Transaction merchantWithdrawAtAgent(Money amount, Instant createdAt) {
-        return new Transaction(TransactionId.newId(), TransactionType.MERCHANT_WITHDRAW_AT_AGENT, amount, createdAt, null);
+    public static Transaction merchantWithdrawAtAgent(TransactionId id, Money amount, Instant createdAt) {
+        return new Transaction(id, TransactionType.MERCHANT_WITHDRAW_AT_AGENT, amount, createdAt, null);
     }
 
-    public static Transaction agentPayout(Money amount, Instant createdAt) {
-        return new Transaction(TransactionId.newId(), TransactionType.AGENT_PAYOUT, amount, createdAt, null);
+    public static Transaction agentPayout(TransactionId id, Money amount, Instant createdAt) {
+        return new Transaction(id, TransactionType.AGENT_PAYOUT, amount, createdAt, null);
     }
 
-    public static Transaction reversal(TransactionId originalTransactionId, Money originalAmount, Instant createdAt) {
+    public static Transaction reversal(TransactionId id, TransactionId originalTransactionId, Money originalAmount, Instant createdAt) {
         return new Transaction(
-                TransactionId.newId(),
+                id,
                 TransactionType.REVERSAL,
                 originalAmount,
                 createdAt,

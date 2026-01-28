@@ -1,6 +1,5 @@
 package com.kori.adapters.out.jpa.entity;
 
-import com.kori.domain.model.card.CardStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -32,9 +31,8 @@ public class CardEntity {
     @Column(name = "hashed_pin", nullable = false, length = 255)
     private String hashedPin;
 
-    @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
-    private CardStatus status;
+    private String status;
 
     @Column(name = "failed_pin_attempts", nullable = false)
     private int failedPinAttempts;
@@ -46,7 +44,7 @@ public class CardEntity {
             UUID clientId,
             String cardUid,
             String hashedPin,
-            CardStatus status,
+            String status,
             int failedPinAttempts
     ) {
         this.id = id;

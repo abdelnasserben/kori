@@ -30,14 +30,16 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
     private final CodeGeneratorPort codeGeneratorPort;
+    private final IdGeneratorPort idGeneratorPort;
 
-    public CreateMerchantService(MerchantRepositoryPort merchantRepository, AccountProfilePort accountProfilePort, AuditPort auditPort, TimeProviderPort timeProviderPort, IdempotencyPort idempotencyPort, CodeGeneratorPort codeGeneratorPort) {
+    public CreateMerchantService(MerchantRepositoryPort merchantRepository, AccountProfilePort accountProfilePort, AuditPort auditPort, TimeProviderPort timeProviderPort, IdempotencyPort idempotencyPort, CodeGeneratorPort codeGeneratorPort, IdGeneratorPort idGeneratorPort) {
         this.merchantRepository = merchantRepository;
         this.accountProfilePort = accountProfilePort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
         this.codeGeneratorPort = codeGeneratorPort;
+        this.idGeneratorPort = idGeneratorPort;
     }
 
     @Override
@@ -54,14 +56,14 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
         }
 
         MerchantCode code = generateUniqueMerchantCode();
-        MerchantId id = MerchantId.newId();
+        MerchantId id = new MerchantId(idGeneratorPort.newUuid());
         Instant now = timeProviderPort.now();
 
         Merchant merchant = new Merchant(id, code, Status.ACTIVE, now);
         merchantRepository.save(merchant);
 
         // Create ledger accountRef ref + profile
-        LedgerAccountRef merchantAccount = LedgerAccountRef.merchant(id.toString());
+        LedgerAccountRef merchantAccount = LedgerAccountRef.merchant(id.value().toString());
 
         accountProfilePort.findByAccount(merchantAccount).ifPresent(existing -> {
             throw new ForbiddenOperationException("Merchant account already exists for " + merchantAccount);
@@ -70,7 +72,7 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
         AccountProfile profile = AccountProfile.activeNew(merchantAccount, now);
         accountProfilePort.save(profile);
 
-        CreateMerchantResult result = new CreateMerchantResult(id.toString(), code.value());
+        CreateMerchantResult result = new CreateMerchantResult(id.value().toString(), code.value());
         idempotencyPort.save(command.idempotencyKey(), result);
 
         Map<String, String> metadata = new HashMap<>();

@@ -39,8 +39,8 @@ public final class Payout {
         this.failureReason = failureReason;
     }
 
-    public static Payout requested(AgentId agentId, TransactionId transactionId, Money amount, Instant createdAt) {
-        return new Payout(PayoutId.newId(), agentId, transactionId, amount, PayoutStatus.REQUESTED, createdAt, null, null, null);
+    public static Payout requested(PayoutId payoutId, AgentId agentId, TransactionId transactionId, Money amount, Instant createdAt) {
+        return new Payout(payoutId, agentId, transactionId, amount, PayoutStatus.REQUESTED, createdAt, null, null, null);
     }
 
     public boolean isFinal() {

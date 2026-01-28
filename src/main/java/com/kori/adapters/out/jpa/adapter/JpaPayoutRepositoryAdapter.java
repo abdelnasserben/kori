@@ -14,7 +14,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Objects;
 import java.util.Optional;
-import java.util.UUID;
 
 @Component
 public class JpaPayoutRepositoryAdapter implements PayoutRepositoryPort {
@@ -50,14 +49,14 @@ public class JpaPayoutRepositoryAdapter implements PayoutRepositoryPort {
     @Transactional(readOnly = true)
     public Optional<Payout> findById(PayoutId payoutId) {
         Objects.requireNonNull(payoutId, "payoutId");
-        return repo.findById(UUID.fromString(payoutId.toString())).map(this::toDomain);
+        return repo.findById(payoutId.value()).map(this::toDomain);
     }
 
     @Override
     @Transactional(readOnly = true)
     public boolean existsRequestedForAgent(AgentId agentId) {
         Objects.requireNonNull(agentId, "agentId");
-        return repo.existsRequestedForAgent(agentId.value());
+        return repo.existsByAgentIdAndStatus(agentId.value(), PayoutStatus.REQUESTED.name());
     }
 
     private Payout toDomain(PayoutEntity e) {

@@ -3,6 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.MerchantWithdrawAtAgentCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.InsufficientFundsException;
+import com.kori.application.policy.PricingGuards;
 import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.MerchantWithdrawAtAgentResult;
@@ -18,6 +19,7 @@ import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
 import com.kori.domain.model.transaction.Transaction;
+import com.kori.domain.model.transaction.TransactionId;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -28,6 +30,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
 
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
+    private final IdGeneratorPort idGeneratorPort;
 
     private final MerchantRepositoryPort merchantRepositoryPort;
     private final AgentRepositoryPort agentRepositoryPort;
@@ -43,7 +46,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
     private final AuditPort auditPort;
 
     public MerchantWithdrawAtAgentService(TimeProviderPort timeProviderPort,
-                                          IdempotencyPort idempotencyPort,
+                                          IdempotencyPort idempotencyPort, IdGeneratorPort idGeneratorPort,
                                           MerchantRepositoryPort merchantRepositoryPort,
                                           AgentRepositoryPort agentRepositoryPort,
                                           AccountProfilePort accountProfilePort,
@@ -55,6 +58,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
                                           AuditPort auditPort) {
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
+        this.idGeneratorPort = idGeneratorPort;
         this.merchantRepositoryPort = merchantRepositoryPort;
         this.agentRepositoryPort = agentRepositoryPort;
         this.accountProfilePort = accountProfilePort;
@@ -108,12 +112,8 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         Money fee = feePolicyPort.merchantWithdrawFee(amount);
         Money commission = commissionPolicyPort.merchantWithdrawAgentCommission(fee);
 
-        // Règle métier: commission ≤ fee
-        if (commission.isGreaterThan(fee)) {
-            throw new ForbiddenOperationException("Invalid commission: commission cannot exceed fee");
-        }
-
-        Money platformRevenue = fee.minus(commission);
+        var breakdown = PricingGuards.feeMinusCommission(fee, commission, "MERCHANT_WITHDRAW");
+        Money platformRevenue = breakdown.platformRevenue();
         Money totalDebitedMerchant = amount.plus(fee);
 
         // --- Sufficient funds check (merchant)
@@ -124,7 +124,8 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
             );
         }
 
-        Transaction tx = Transaction.merchantWithdrawAtAgent(amount, now);
+        TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
+        Transaction tx = Transaction.merchantWithdrawAtAgent(txId, amount, now);
         tx = transactionRepositoryPort.save(tx);
 
         var clearingAcc = LedgerAccountRef.platformClearing();
@@ -138,7 +139,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         ));
 
         Map<String, String> metadata = new HashMap<>();
-        metadata.put("transactionId", tx.id().toString());
+        metadata.put("transactionId", tx.id().value().toString());
         metadata.put("merchantCode", command.merchantCode());
         metadata.put("agentCode", command.agentCode());
 
@@ -151,7 +152,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         ));
 
         MerchantWithdrawAtAgentResult result = new MerchantWithdrawAtAgentResult(
-                tx.id().toString(),
+                tx.id().value().toString(),
                 merchant.code().value(),
                 agent.code().value(),
                 amount.asBigDecimal(),

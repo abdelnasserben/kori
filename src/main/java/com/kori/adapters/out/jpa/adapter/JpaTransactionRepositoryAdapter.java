@@ -27,8 +27,8 @@ public class JpaTransactionRepositoryAdapter implements TransactionRepositoryPor
     @Override
     @Transactional
     public Transaction save(Transaction transaction) {
-        UUID id = UUID.fromString(transaction.id().toString());
-        UUID original = transaction.originalTransactionId() == null ? null : UUID.fromString(transaction.originalTransactionId().toString());
+        UUID id = transaction.id().value();
+        UUID original = transaction.originalTransactionId() == null ? null : transaction.originalTransactionId().value();
 
         TransactionEntity entity = new TransactionEntity(
                 id,
@@ -57,10 +57,10 @@ public class JpaTransactionRepositoryAdapter implements TransactionRepositoryPor
     }
 
     @Override
-    public boolean existsReversalFor(String originalTransactionId) {
+    public boolean existsReversalFor(TransactionId originalTransactionId) {
         return repo.existsByTypeAndOriginalTransactionId(
                 "REVERSAL",
-                UUID.fromString(originalTransactionId)
+                originalTransactionId.value()
         );
     }
 }

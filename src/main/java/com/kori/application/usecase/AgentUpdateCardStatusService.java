@@ -82,7 +82,7 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
                 cmd.actorContext().actorId(),
                 now,
                 Map.of(
-                        "cardId", card.id().toString(),
+                        "cardId", card.id().value().toString(),
                         "before", before,
                         "after", card.status().name(),
                         "reason", cmd.reason()

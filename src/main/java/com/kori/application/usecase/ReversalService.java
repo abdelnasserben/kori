@@ -27,42 +27,44 @@ public final class ReversalService implements ReversalUseCase {
     private final LedgerQueryPort ledgerQueryPort;
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
+    private final IdGeneratorPort idGeneratorPort;
 
     public ReversalService(TimeProviderPort timeProviderPort,
                            IdempotencyPort idempotencyPort,
                            TransactionRepositoryPort transactionRepositoryPort,
                            LedgerQueryPort ledgerQueryPort,
                            LedgerAppendPort ledgerAppendPort,
-                           AuditPort auditPort) {
+                           AuditPort auditPort, IdGeneratorPort idGeneratorPort) {
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.ledgerQueryPort = ledgerQueryPort;
         this.ledgerAppendPort = ledgerAppendPort;
         this.auditPort = auditPort;
+        this.idGeneratorPort = idGeneratorPort;
     }
 
     @Override
-    public ReversalResult execute(ReversalCommand command) {
-        var cached = idempotencyPort.find(command.idempotencyKey(), ReversalResult.class);
+    public ReversalResult execute(ReversalCommand cmd) {
+        var cached = idempotencyPort.find(cmd.idempotencyKey(), ReversalResult.class);
         if (cached.isPresent()) {
             return cached.get();
         }
 
         // Admin only
-        if (command.actorContext().actorType() != ActorType.ADMIN) {
+        if (cmd.actorContext().actorType() != ActorType.ADMIN) {
             throw new ForbiddenOperationException("Only ADMIN can initiate reversal");
         }
 
-        TransactionId originalTxId = TransactionId.of(command.originalTransactionId());
+        TransactionId originalTxId = TransactionId.of(cmd.originalTransactionId());
         Transaction originalTx = transactionRepositoryPort.findById(originalTxId)
                 .orElseThrow(() -> new NotFoundException("Original transaction not found"));
 
-        if (transactionRepositoryPort.existsReversalFor(command.originalTransactionId())) {
+        if (transactionRepositoryPort.existsReversalFor(originalTxId)) {
             throw new ForbiddenOperationException("Transaction already reversed");
         }
 
-        List<LedgerEntry> originalEntries = ledgerQueryPort.findByTransactionId(originalTxId.toString());
+        List<LedgerEntry> originalEntries = ledgerQueryPort.findByTransactionId(originalTxId);
         if (originalEntries.isEmpty()) {
             throw new ForbiddenOperationException("Original transaction has no ledger entries");
         }
@@ -75,7 +77,8 @@ public final class ReversalService implements ReversalUseCase {
         Instant now = timeProviderPort.now();
 
         // Create reversal transaction linked to original
-        Transaction reversalTx = Transaction.reversal(originalTxId, originalTx.amount(), now);
+        TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
+        Transaction reversalTx = Transaction.reversal(txId, originalTxId, originalTx.amount(), now);
         transactionRepositoryPort.save(reversalTx);
 
         // Append inverse ledger entries (append-only compensation)
@@ -91,19 +94,19 @@ public final class ReversalService implements ReversalUseCase {
         ledgerAppendPort.append(reversalEntries);
 
         Map<String, String> metadata = new HashMap<>();
-        metadata.put("transactionId", reversalTx.id().toString());
-        metadata.put("originalTransactionId", originalTxId.toString());
+        metadata.put("transactionId", reversalTx.id().value().toString());
+        metadata.put("originalTransactionId", originalTxId.value().toString());
 
         auditPort.publish(new AuditEvent(
                 "REVERSAL",
-                command.actorContext().actorType().name(),
-                command.actorContext().actorId(),
+                cmd.actorContext().actorType().name(),
+                cmd.actorContext().actorId(),
                 now,
                 metadata
         ));
 
-        ReversalResult result = new ReversalResult(reversalTx.id().toString(), originalTxId.toString());
-        idempotencyPort.save(command.idempotencyKey(), result);
+        ReversalResult result = new ReversalResult(reversalTx.id().value().toString(), originalTxId.value().toString());
+        idempotencyPort.save(cmd.idempotencyKey(), result);
         return result;
     }
 }
