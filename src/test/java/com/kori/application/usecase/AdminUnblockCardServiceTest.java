@@ -75,7 +75,8 @@ final class AdminUnblockCardServiceTest {
                 CARD_UID.toString(),
                 new HashedPin("HASHED"),
                 status,
-                failedAttempts
+                failedAttempts,
+                NOW
         );
     }
 

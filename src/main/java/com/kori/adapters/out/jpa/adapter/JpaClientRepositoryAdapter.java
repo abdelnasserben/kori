@@ -9,6 +9,7 @@ import com.kori.domain.model.common.Status;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneOffset;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -39,7 +40,8 @@ public class JpaClientRepositoryAdapter implements ClientRepositoryPort {
         ClientEntity e = new ClientEntity(
                 client.id().value(),
                 client.phoneNumber(),
-                client.status().name()
+                client.status().name(),
+                client.createdAt().atOffset(ZoneOffset.UTC)
         );
         repo.save(e);
         return client;
@@ -49,7 +51,8 @@ public class JpaClientRepositoryAdapter implements ClientRepositoryPort {
         return new Client(
                 new ClientId(e.getId()),
                 e.getPhoneNumber(),
-                Status.valueOf(e.getStatus())
+                Status.valueOf(e.getStatus()),
+                e.getCreatedAt().toInstant()
         );
     }
 }

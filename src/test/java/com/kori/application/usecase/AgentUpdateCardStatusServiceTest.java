@@ -89,7 +89,8 @@ final class AgentUpdateCardStatusServiceTest {
                 CARD_UID.toString(),           // IMPORTANT: repo lookup uses CARD_UID.toString()
                 new HashedPin("HASHED"),
                 status,
-                0
+                0,
+                NOW
         );
     }
 

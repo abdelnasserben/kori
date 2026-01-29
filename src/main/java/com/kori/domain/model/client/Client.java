@@ -3,21 +3,24 @@ package com.kori.domain.model.client;
 import com.kori.domain.common.InvalidStatusTransitionException;
 import com.kori.domain.model.common.Status;
 
+import java.time.Instant;
 import java.util.Objects;
 
 public final class Client {
     private final ClientId id;
     private final String phoneNumber;
     private Status status;
+    private final Instant createdAt;
 
-    public Client(ClientId id, String phoneNumber, Status status) {
+    public Client(ClientId id, String phoneNumber, Status status, Instant createdAt) {
         this.id = Objects.requireNonNull(id);
         this.phoneNumber = Objects.requireNonNull(phoneNumber);
         this.status = Objects.requireNonNull(status);
+        this.createdAt = Objects.requireNonNull(createdAt);
     }
 
-    public static Client activeNew(ClientId clientId, String phoneNumber) {
-        return new Client(clientId, phoneNumber, Status.ACTIVE);
+    public static Client activeNew(ClientId clientId, String phoneNumber, Instant createdAt) {
+        return new Client(clientId, phoneNumber, Status.ACTIVE, createdAt);
     }
 
     public ClientId id() {
@@ -30,6 +33,10 @@ public final class Client {
 
     public Status status() {
         return status;
+    }
+
+    public Instant createdAt() {
+        return createdAt;
     }
 
     // -----------------

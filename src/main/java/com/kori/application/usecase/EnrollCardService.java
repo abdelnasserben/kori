@@ -114,7 +114,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
         Client client = clientRepositoryPort.findByPhoneNumber(command.phoneNumber()).orElse(null);
 
         if (client == null) {
-            client = Client.activeNew(new ClientId(idGeneratorPort.newUuid()), command.phoneNumber());
+            client = Client.activeNew(new ClientId(idGeneratorPort.newUuid()), command.phoneNumber(), now);
             client = clientRepositoryPort.save(client);
             clientCreated = true;
         }
@@ -138,7 +138,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
         PinFormatValidator.validate(command.pin());
         var hashed = pinHasherPort.hash(command.pin());
 
-        Card card = Card.activeNew(client.id(), command.cardUid(), hashed);
+        Card card = Card.activeNew(client.id(), command.cardUid(), hashed, now);
         card = cardRepositoryPort.save(card);
 
         // 7) pricing / commissions policies

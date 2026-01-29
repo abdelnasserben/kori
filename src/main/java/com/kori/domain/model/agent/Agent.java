@@ -57,6 +57,11 @@ public final class Agent {
         status = Status.ACTIVE;
     }
 
+    public void close() {
+        if (status == Status.CLOSED) return; // idempotent
+        status = Status.CLOSED;
+    }
+
     private void ensureNotClosed(String action) {
         if (status == Status.CLOSED) {
             throw new InvalidStatusTransitionException("Cannot " + action + " a CLOSED agent");

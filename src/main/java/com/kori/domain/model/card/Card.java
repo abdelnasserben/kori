@@ -3,6 +3,7 @@ package com.kori.domain.model.card;
 import com.kori.domain.common.InvalidStatusTransitionException;
 import com.kori.domain.model.client.ClientId;
 
+import java.time.Instant;
 import java.util.Objects;
 
 public final class Card {
@@ -14,6 +15,7 @@ public final class Card {
 
     private CardStatus status;
     private int failedPinAttempts;
+    private final Instant createdAt;
 
     public Card(
             CardId id,
@@ -21,21 +23,22 @@ public final class Card {
             String cardUid,
             HashedPin hashedPin,
             CardStatus status,
-            int failedPinAttempts
+            int failedPinAttempts, Instant createdAt
     ) {
         this.id = Objects.requireNonNull(id, "id");
         this.clientId = Objects.requireNonNull(clientId, "cardUid");
         this.cardUid = Objects.requireNonNull(cardUid, "cardUid");
         this.hashedPin = Objects.requireNonNull(hashedPin, "hashedPin");
         this.status = Objects.requireNonNull(status, "status");
+        this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
         if (failedPinAttempts < 0) {
             throw new IllegalArgumentException("failedPinAttempts must be >= 0");
         }
         this.failedPinAttempts = failedPinAttempts;
     }
 
-    public static Card activeNew(ClientId clientId, String cardUid, HashedPin pin) {
-        return new Card(CardId.newId(), clientId, cardUid, pin, CardStatus.ACTIVE, 0);
+    public static Card activeNew(ClientId clientId, String cardUid, HashedPin pin, Instant createdAt) {
+        return new Card(CardId.newId(), clientId, cardUid, pin, CardStatus.ACTIVE, 0, createdAt);
     }
 
     public CardId id() {
@@ -57,6 +60,8 @@ public final class Card {
     public CardStatus status() {
         return status;
     }
+
+    public Instant createdAt() {return createdAt;}
 
     public int failedPinAttempts() {
         return failedPinAttempts;

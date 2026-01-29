@@ -3,6 +3,7 @@ package com.kori.adapters.out.jpa.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Getter
@@ -34,6 +35,9 @@ public class CardEntity {
     @Column(nullable = false, length = 16)
     private String status;
 
+    @Column(name = "created_at", nullable = false)
+    private OffsetDateTime createdAt;
+
     @Column(name = "failed_pin_attempts", nullable = false)
     private int failedPinAttempts;
 
@@ -45,7 +49,8 @@ public class CardEntity {
             String cardUid,
             String hashedPin,
             String status,
-            int failedPinAttempts
+            int failedPinAttempts,
+            OffsetDateTime createdAt
     ) {
         this.id = id;
         this.clientId = clientId;
@@ -53,5 +58,6 @@ public class CardEntity {
         this.hashedPin = hashedPin;
         this.status = status;
         this.failedPinAttempts = failedPinAttempts;
+        this.createdAt = createdAt;
     }
 }

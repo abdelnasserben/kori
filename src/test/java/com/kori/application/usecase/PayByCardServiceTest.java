@@ -142,7 +142,8 @@ final class PayByCardServiceTest {
                 CARD_UID,
                 HASHED_PIN,
                 CardStatus.ACTIVE,
-                failedAttempts
+                failedAttempts,
+                NOW
         );
     }
 
@@ -300,7 +301,8 @@ final class PayByCardServiceTest {
                 CARD_UID,
                 HASHED_PIN,
                 CardStatus.BLOCKED,
-                0
+                0,
+                NOW
         );
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(blocked));
 

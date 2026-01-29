@@ -321,7 +321,7 @@ final class EnrollCardServiceTest {
 
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.empty());
 
-        Client client = new Client(new ClientId(CLIENT_UUID), CLIENT_PHONE, Status.ACTIVE);
+        Client client = new Client(new ClientId(CLIENT_UUID), CLIENT_PHONE, Status.ACTIVE, NOW);
         when(clientRepositoryPort.findByPhoneNumber(CLIENT_PHONE)).thenReturn(Optional.of(client));
 
         LedgerAccountRef clientAccount = LedgerAccountRef.client(CLIENT_UUID.toString());

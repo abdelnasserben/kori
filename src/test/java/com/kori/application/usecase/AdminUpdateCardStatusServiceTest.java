@@ -75,7 +75,8 @@ final class AdminUpdateCardStatusServiceTest {
                 CARD_UID.toString(),
                 new HashedPin("HASHED"),
                 status,
-                0
+                0,
+                NOW
         );
     }
 

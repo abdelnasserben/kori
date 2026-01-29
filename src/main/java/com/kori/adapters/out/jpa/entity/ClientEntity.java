@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Getter
@@ -23,12 +24,16 @@ public class ClientEntity {
     @Column(name = "status", nullable = false, length = 16)
     private String status;
 
+    @Column(name = "created_at", nullable = false)
+    private OffsetDateTime createdAt;
+
     protected ClientEntity() { }
 
-    public ClientEntity(UUID id, String phoneNumber, String status) {
+    public ClientEntity(UUID id, String phoneNumber, String status, OffsetDateTime createdAt) {
         this.id = id;
         this.phoneNumber = phoneNumber;
         this.status = status;
+        this.createdAt = createdAt;
     }
 
 }

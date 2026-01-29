@@ -11,6 +11,7 @@ import com.kori.domain.model.client.ClientId;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.ZoneOffset;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -38,7 +39,8 @@ public class JpaCardRepositoryAdapter implements CardRepositoryPort {
                 card.cardUid(),
                 card.hashedPin().value(),
                 card.status().name(),
-                card.failedPinAttempts()
+                card.failedPinAttempts(),
+                card.createdAt().atOffset(ZoneOffset.UTC)
         );
 
         repo.save(entity);
@@ -52,7 +54,8 @@ public class JpaCardRepositoryAdapter implements CardRepositoryPort {
                 e.getCardUid(),
                 new HashedPin(e.getHashedPin()),
                 CardStatus.valueOf(e.getStatus()),
-                e.getFailedPinAttempts()
+                e.getFailedPinAttempts(),
+                e.getCreatedAt().toInstant()
         );
     }
 }
