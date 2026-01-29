@@ -1,10 +1,12 @@
 package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateAccountProfileStatusCommand;
+import com.kori.application.events.AccountProfileStatusChangedEvent;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.out.AccountProfilePort;
 import com.kori.application.port.out.AuditPort;
+import com.kori.application.port.out.DomainEventPublisherPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateAccountProfileStatusResult;
 import com.kori.application.security.ActorContext;
@@ -28,6 +30,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
@@ -37,6 +40,7 @@ final class UpdateAccountProfileStatusServiceTest {
     @Mock AccountProfilePort accountProfilePort;
     @Mock AuditPort auditPort;
     @Mock TimeProviderPort timeProviderPort;
+    @Mock DomainEventPublisherPort domainEventPublisherPort;
 
     @InjectMocks UpdateAccountProfileStatusService service;
 
@@ -79,7 +83,7 @@ final class UpdateAccountProfileStatusServiceTest {
                 service.execute(cmd(nonAdminActor(), Status.SUSPENDED.name(), REASON))
         );
 
-        verifyNoInteractions(accountProfilePort, auditPort, timeProviderPort);
+        verifyNoInteractions(accountProfilePort, auditPort, timeProviderPort, domainEventPublisherPort);
     }
 
     @Test
@@ -91,12 +95,12 @@ final class UpdateAccountProfileStatusServiceTest {
         );
 
         verify(accountProfilePort).findByAccount(ACCOUNT_REF);
-        verifyNoInteractions(auditPort, timeProviderPort);
+        verifyNoInteractions(auditPort, timeProviderPort, domainEventPublisherPort);
         verify(accountProfilePort, never()).save(any(AccountProfile.class));
     }
 
     @Test
-    void happyPath_suspendsAccountProfile_saves_audits_andReturnsResult() {
+    void happyPath_suspendsAccountProfile_saves_audits_publishesEvent_andReturnsResult() {
         AccountProfile profile = profileWithStatus(Status.ACTIVE);
 
         when(accountProfilePort.findByAccount(ACCOUNT_REF)).thenReturn(Optional.of(profile));
@@ -126,10 +130,12 @@ final class UpdateAccountProfileStatusServiceTest {
         assertEquals(Status.ACTIVE.name(), event.metadata().get("before"));
         assertEquals(Status.SUSPENDED.name(), event.metadata().get("after"));
         assertEquals(REASON, event.metadata().get("reason"));
+
+        verify(domainEventPublisherPort).publish(any(AccountProfileStatusChangedEvent.class));
     }
 
     @Test
-    void happyPath_activatesAccountProfile_saves_audits_andReturnsResult() {
+    void happyPath_activatesAccountProfile_saves_audits_publishesEvent_andReturnsResult() {
         AccountProfile profile = profileWithStatus(Status.SUSPENDED);
 
         when(accountProfilePort.findByAccount(ACCOUNT_REF)).thenReturn(Optional.of(profile));
@@ -143,10 +149,11 @@ final class UpdateAccountProfileStatusServiceTest {
         assertEquals(Status.ACTIVE, profile.status());
         verify(accountProfilePort).save(profile);
         verify(auditPort).publish(any(AuditEvent.class));
+        verify(domainEventPublisherPort).publish(any(AccountProfileStatusChangedEvent.class));
     }
 
     @Test
-    void happyPath_closesAccountProfile_saves_audits_andReturnsResult() {
+    void happyPath_closesAccountProfile_saves_audits_publishesEvent_andReturnsResult() {
         AccountProfile profile = profileWithStatus(Status.SUSPENDED);
 
         when(accountProfilePort.findByAccount(ACCOUNT_REF)).thenReturn(Optional.of(profile));
@@ -160,6 +167,7 @@ final class UpdateAccountProfileStatusServiceTest {
         assertEquals(Status.CLOSED, profile.status());
         verify(accountProfilePort).save(profile);
         verify(auditPort).publish(any(AuditEvent.class));
+        verify(domainEventPublisherPort).publish(any(AccountProfileStatusChangedEvent.class));
     }
 
     @Test
@@ -173,7 +181,7 @@ final class UpdateAccountProfileStatusServiceTest {
         );
 
         verify(accountProfilePort, never()).save(any());
-        verifyNoInteractions(auditPort, timeProviderPort);
+        verifyNoInteractions(auditPort, timeProviderPort, domainEventPublisherPort);
     }
 
     @Test
@@ -189,5 +197,10 @@ final class UpdateAccountProfileStatusServiceTest {
         verify(auditPort).publish(auditCaptor.capture());
 
         assertEquals("N/A", auditCaptor.getValue().metadata().get("reason"));
+
+        ArgumentCaptor<AccountProfileStatusChangedEvent> eventCaptor =
+                ArgumentCaptor.forClass(AccountProfileStatusChangedEvent.class);
+        verify(domainEventPublisherPort).publish(eventCaptor.capture());
+        assertEquals("N/A", eventCaptor.getValue().reason());
     }
 }

@@ -1,10 +1,12 @@
 package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateAgentStatusCommand;
+import com.kori.application.events.AgentStatusChangedEvent;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.out.AgentRepositoryPort;
 import com.kori.application.port.out.AuditPort;
+import com.kori.application.port.out.DomainEventPublisherPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateAgentStatusResult;
 import com.kori.application.security.ActorContext;
@@ -39,6 +41,7 @@ final class UpdateAgentStatusServiceTest {
     @Mock AgentRepositoryPort agentRepositoryPort;
     @Mock AuditPort auditPort;
     @Mock TimeProviderPort timeProviderPort;
+    @Mock DomainEventPublisherPort domainEventPublisherPort;
 
     @InjectMocks UpdateAgentStatusService service;
 
@@ -77,11 +80,11 @@ final class UpdateAgentStatusServiceTest {
                 service.execute(cmd(nonAdminActor(), Status.SUSPENDED.name(), REASON))
         );
 
-        verifyNoInteractions(agentRepositoryPort, auditPort, timeProviderPort);
+        verifyNoInteractions(agentRepositoryPort, auditPort, timeProviderPort, domainEventPublisherPort);
     }
 
     @Test
-    void throwsNotFound_whenMerchantDoesNotExist() {
+    void throwsNotFound_whenAgentDoesNotExist() {
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () ->
@@ -89,12 +92,12 @@ final class UpdateAgentStatusServiceTest {
         );
 
         verify(agentRepositoryPort).findByCode(AGENT_CODE);
-        verifyNoInteractions(auditPort, timeProviderPort);
+        verifyNoInteractions(auditPort, timeProviderPort, domainEventPublisherPort);
         verify(agentRepositoryPort, never()).save(any(Agent.class));
     }
 
     @Test
-    void happyPath_suspendsClient_saves_audits_andReturnsResult() {
+    void happyPath_suspendsAgent_saves_audits_publishesEvent_andReturnsResult() {
         Agent agent = agentWithStatus(Status.ACTIVE);
 
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -122,10 +125,12 @@ final class UpdateAgentStatusServiceTest {
         assertEquals(Status.ACTIVE.name(), event.metadata().get("before"));
         assertEquals(Status.SUSPENDED.name(), event.metadata().get("after"));
         assertEquals(REASON, event.metadata().get("reason"));
+
+        verify(domainEventPublisherPort).publish(any(AgentStatusChangedEvent.class));
     }
 
     @Test
-    void happyPath_activatesClient_saves_audits_andReturnsResult() {
+    void happyPath_activatesAgent_saves_audits_publishesEvent_andReturnsResult() {
         Agent agent = agentWithStatus(Status.SUSPENDED);
 
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -139,10 +144,11 @@ final class UpdateAgentStatusServiceTest {
         assertEquals(Status.ACTIVE, agent.status());
         verify(agentRepositoryPort).save(agent);
         verify(auditPort).publish(any(AuditEvent.class));
+        verify(domainEventPublisherPort).publish(any(AgentStatusChangedEvent.class));
     }
 
     @Test
-    void happyPath_closesClient_saves_audits_andReturnsResult() {
+    void happyPath_closesAgent_saves_audits_publishesEvent_andReturnsResult() {
         Agent agent = agentWithStatus(Status.SUSPENDED);
 
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -156,10 +162,11 @@ final class UpdateAgentStatusServiceTest {
         assertEquals(Status.CLOSED, agent.status());
         verify(agentRepositoryPort).save(agent);
         verify(auditPort).publish(any(AuditEvent.class));
+        verify(domainEventPublisherPort).publish(any(AgentStatusChangedEvent.class));
     }
 
     @Test
-    void throwsInvalidStatusTransition_whenTryingToSuspendClosedClient() {
+    void throwsInvalidStatusTransition_whenTryingToSuspendClosedAgent() {
         Agent agent = agentWithStatus(Status.CLOSED);
 
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -169,7 +176,7 @@ final class UpdateAgentStatusServiceTest {
         );
 
         verify(agentRepositoryPort, never()).save(any());
-        verifyNoInteractions(auditPort, timeProviderPort);
+        verifyNoInteractions(auditPort, timeProviderPort, domainEventPublisherPort);
     }
 
     @Test
@@ -183,7 +190,10 @@ final class UpdateAgentStatusServiceTest {
 
         ArgumentCaptor<AuditEvent> auditCaptor = ArgumentCaptor.forClass(AuditEvent.class);
         verify(auditPort).publish(auditCaptor.capture());
-
         assertEquals("N/A", auditCaptor.getValue().metadata().get("reason"));
+
+        ArgumentCaptor<AgentStatusChangedEvent> eventCaptor = ArgumentCaptor.forClass(AgentStatusChangedEvent.class);
+        verify(domainEventPublisherPort).publish(eventCaptor.capture());
+        assertEquals("N/A", eventCaptor.getValue().reason());
     }
 }

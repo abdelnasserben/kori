@@ -5,6 +5,7 @@ import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.exception.InvalidPinFormatException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.port.out.*;
 import com.kori.application.result.PayByCardResult;
 import com.kori.application.security.ActorContext;
@@ -12,12 +13,12 @@ import com.kori.application.security.ActorType;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.ledger.LedgerEntryType;
-import com.kori.domain.model.account.AccountProfile;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.CardId;
 import com.kori.domain.model.card.CardStatus;
 import com.kori.domain.model.card.HashedPin;
+import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
@@ -57,6 +58,7 @@ final class PayByCardServiceTest {
 
     @Mock TerminalRepositoryPort terminalRepositoryPort;
     @Mock MerchantRepositoryPort merchantRepositoryPort;
+    @Mock ClientRepositoryPort clientRepositoryPort;
     @Mock CardRepositoryPort cardRepositoryPort;
 
     @Mock TransactionRepositoryPort transactionRepositoryPort;
@@ -70,6 +72,8 @@ final class PayByCardServiceTest {
 
     @Mock AuditPort auditPort;
     @Mock PinHasherPort pinHasherPort;
+
+    @Mock OperationStatusGuards operationStatusGuards;
 
     @InjectMocks PayByCardService payByCardService;
 
@@ -131,8 +135,8 @@ final class PayByCardServiceTest {
         return new Merchant(MERCHANT_ID, MERCHANT_CODE, Status.ACTIVE, NOW.minusSeconds(120));
     }
 
-    private static AccountProfile activeAccount(LedgerAccountRef account) {
-        return new AccountProfile(account, NOW.minusSeconds(10), Status.ACTIVE);
+    private static Client activeClient() {
+        return new Client(CLIENT_ID, "+2694001122", Status.ACTIVE, NOW.minusSeconds(180));
     }
 
     private static Card activeCardWithAttempts(int failedAttempts) {
@@ -172,6 +176,7 @@ final class PayByCardServiceTest {
                 idGeneratorPort,
                 terminalRepositoryPort,
                 merchantRepositoryPort,
+                clientRepositoryPort,
                 cardRepositoryPort,
                 transactionRepositoryPort,
                 feePolicyPort,
@@ -181,6 +186,7 @@ final class PayByCardServiceTest {
                 accountProfilePort,
                 auditPort,
                 pinHasherPort,
+                operationStatusGuards,
                 idempotencyPort
         );
     }
@@ -208,6 +214,7 @@ final class PayByCardServiceTest {
                 idGeneratorPort,
                 terminalRepositoryPort,
                 merchantRepositoryPort,
+                clientRepositoryPort,
                 cardRepositoryPort,
                 transactionRepositoryPort,
                 feePolicyPort,
@@ -216,7 +223,8 @@ final class PayByCardServiceTest {
                 ledgerQueryPort,
                 accountProfilePort,
                 auditPort,
-                pinHasherPort
+                pinHasherPort,
+                operationStatusGuards
         );
     }
 
@@ -248,26 +256,15 @@ final class PayByCardServiceTest {
     }
 
     @Test
-    void throwsNotFound_whenMerchantAccountProfileDoesNotExist() {
+    void forbidden_whenMerchantAccountProfileDoesNotExist_orNotActive_isHandledByGuard() {
         when(idempotencyPort.find(IDEM_KEY, PayByCardResult.class)).thenReturn(Optional.empty());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
-        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(activeMerchant()));
 
-        LedgerAccountRef merchantAcc = LedgerAccountRef.merchant(MERCHANT_UUID.toString());
-        when(accountProfilePort.findByAccount(merchantAcc)).thenReturn(Optional.empty());
+        Merchant merchant = activeMerchant();
+        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
 
-        assertThrows(NotFoundException.class, () -> payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal())));
-    }
-
-    @Test
-    void forbidden_whenMerchantAccountProfileIsNotActive() {
-        when(idempotencyPort.find(IDEM_KEY, PayByCardResult.class)).thenReturn(Optional.empty());
-        when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
-        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(activeMerchant()));
-
-        LedgerAccountRef merchantAcc = LedgerAccountRef.merchant(MERCHANT_UUID.toString());
-        when(accountProfilePort.findByAccount(merchantAcc))
-                .thenReturn(Optional.of(new AccountProfile(merchantAcc, NOW.minusSeconds(10), Status.SUSPENDED)));
+        doThrow(new ForbiddenOperationException("MERCHANT_ACCOUNT_NOT_ACTIVE"))
+                .when(operationStatusGuards).requireActiveMerchant(merchant);
 
         assertThrows(ForbiddenOperationException.class, () -> payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal())));
     }
@@ -276,10 +273,10 @@ final class PayByCardServiceTest {
     void throwsNotFound_whenCardDoesNotExist() {
         when(idempotencyPort.find(IDEM_KEY, PayByCardResult.class)).thenReturn(Optional.empty());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
-        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(activeMerchant()));
 
-        LedgerAccountRef merchantAcc = LedgerAccountRef.merchant(MERCHANT_UUID.toString());
-        when(accountProfilePort.findByAccount(merchantAcc)).thenReturn(Optional.of(activeAccount(merchantAcc)));
+        Merchant merchant = activeMerchant();
+        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
+        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
 
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.empty());
 
@@ -287,13 +284,33 @@ final class PayByCardServiceTest {
     }
 
     @Test
+    void forbidden_whenClientNotActive_isHandledByGuard() {
+        when(idempotencyPort.find(IDEM_KEY, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
+
+        Merchant merchant = activeMerchant();
+        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
+        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
+
+        when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(activeCardWithAttempts(0)));
+
+        Client client = activeClient();
+        when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
+
+        doThrow(new ForbiddenOperationException("CLIENT_ACCOUNT_NOT_ACTIVE"))
+                .when(operationStatusGuards).requireActiveClient(client);
+
+        assertThrows(ForbiddenOperationException.class, () -> payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal())));
+    }
+
+    @Test
     void forbidden_whenCardIsNotPayable() {
         when(idempotencyPort.find(IDEM_KEY, PayByCardResult.class)).thenReturn(Optional.empty());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
-        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(activeMerchant()));
 
-        LedgerAccountRef merchantAcc = LedgerAccountRef.merchant(MERCHANT_UUID.toString());
-        when(accountProfilePort.findByAccount(merchantAcc)).thenReturn(Optional.of(activeAccount(merchantAcc)));
+        Merchant merchant = activeMerchant();
+        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
+        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
 
         Card blocked = new Card(
                 new CardId(UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")),
@@ -306,6 +323,10 @@ final class PayByCardServiceTest {
         );
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(blocked));
 
+        Client client = activeClient();
+        when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
+        doNothing().when(operationStatusGuards).requireActiveClient(client);
+
         assertThrows(ForbiddenOperationException.class, () -> payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal())));
     }
 
@@ -313,12 +334,17 @@ final class PayByCardServiceTest {
     void forbidden_whenMaxFailedPinAttemptsPolicyIsInvalid() {
         when(idempotencyPort.find(IDEM_KEY, PayByCardResult.class)).thenReturn(Optional.empty());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
-        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(activeMerchant()));
 
-        LedgerAccountRef merchantAcc = LedgerAccountRef.merchant(MERCHANT_UUID.toString());
-        when(accountProfilePort.findByAccount(merchantAcc)).thenReturn(Optional.of(activeAccount(merchantAcc)));
+        Merchant merchant = activeMerchant();
+        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
+        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
 
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(activeCardWithAttempts(0)));
+
+        Client client = activeClient();
+        when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
+        doNothing().when(operationStatusGuards).requireActiveClient(client);
+
         when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(0);
 
         assertThrows(ForbiddenOperationException.class, () -> payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal())));
@@ -328,12 +354,17 @@ final class PayByCardServiceTest {
     void invalidPinFormat_throws_andDoesNotSaveCard() {
         when(idempotencyPort.find(IDEM_KEY, PayByCardResult.class)).thenReturn(Optional.empty());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
-        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(activeMerchant()));
 
-        LedgerAccountRef merchantAcc = LedgerAccountRef.merchant(MERCHANT_UUID.toString());
-        when(accountProfilePort.findByAccount(merchantAcc)).thenReturn(Optional.of(activeAccount(merchantAcc)));
+        Merchant merchant = activeMerchant();
+        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
+        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
 
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(activeCardWithAttempts(0)));
+
+        Client client = activeClient();
+        when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
+        doNothing().when(operationStatusGuards).requireActiveClient(client);
+
         when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(3);
 
         assertThrows(InvalidPinFormatException.class,
@@ -346,13 +377,17 @@ final class PayByCardServiceTest {
     void invalidPin_incrementsAttempts_savesCard_andThrowsForbidden() {
         when(idempotencyPort.find(IDEM_KEY, PayByCardResult.class)).thenReturn(Optional.empty());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
-        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(activeMerchant()));
 
-        LedgerAccountRef merchantAcc = LedgerAccountRef.merchant(MERCHANT_UUID.toString());
-        when(accountProfilePort.findByAccount(merchantAcc)).thenReturn(Optional.of(activeAccount(merchantAcc)));
+        Merchant merchant = activeMerchant();
+        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
+        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
 
         Card card = activeCardWithAttempts(0);
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(card));
+
+        Client client = activeClient();
+        when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
+        doNothing().when(operationStatusGuards).requireActiveClient(client);
 
         when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(3);
         when(pinHasherPort.matches(GOOD_PIN, HASHED_PIN)).thenReturn(false);
@@ -360,7 +395,6 @@ final class PayByCardServiceTest {
         assertThrows(ForbiddenOperationException.class,
                 () -> payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal())));
 
-        // mutated domain object
         assertEquals(1, card.failedPinAttempts());
         assertEquals(CardStatus.ACTIVE, card.status());
 
@@ -372,19 +406,22 @@ final class PayByCardServiceTest {
     void insufficientFunds_throws_andDoesNotCreateTransactionOrLedger() {
         when(idempotencyPort.find(IDEM_KEY, PayByCardResult.class)).thenReturn(Optional.empty());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
-        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(activeMerchant()));
 
-        LedgerAccountRef merchantAcc = LedgerAccountRef.merchant(MERCHANT_UUID.toString());
-        when(accountProfilePort.findByAccount(merchantAcc)).thenReturn(Optional.of(activeAccount(merchantAcc)));
+        Merchant merchant = activeMerchant();
+        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
+        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
 
         Card card = activeCardWithAttempts(0);
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(card));
+
+        Client client = activeClient();
+        when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
+        doNothing().when(operationStatusGuards).requireActiveClient(client);
 
         when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(3);
         when(pinHasherPort.matches(GOOD_PIN, HASHED_PIN)).thenReturn(true);
 
         LedgerAccountRef clientAcc = LedgerAccountRef.client(CLIENT_UUID.toString());
-        when(accountProfilePort.findByAccount(clientAcc)).thenReturn(Optional.of(activeAccount(clientAcc)));
 
         when(timeProviderPort.now()).thenReturn(NOW);
         when(feePolicyPort.cardPaymentFee(AMOUNT)).thenReturn(FEE);
@@ -393,9 +430,7 @@ final class PayByCardServiceTest {
         assertThrows(InsufficientFundsException.class,
                 () -> payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal())));
 
-        // PIN success path still saves card (attempts reset)
         verify(cardRepositoryPort).save(card);
-
         verifyNoInteractions(transactionRepositoryPort, ledgerAppendPort, auditPort);
     }
 
@@ -403,19 +438,23 @@ final class PayByCardServiceTest {
     void happyPath_createsTx_postsLedger_publishesAudit_andSavesIdempotency() {
         when(idempotencyPort.find(IDEM_KEY, PayByCardResult.class)).thenReturn(Optional.empty());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
-        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(activeMerchant()));
 
-        LedgerAccountRef merchantAcc = LedgerAccountRef.merchant(MERCHANT_UUID.toString());
-        when(accountProfilePort.findByAccount(merchantAcc)).thenReturn(Optional.of(activeAccount(merchantAcc)));
+        Merchant merchant = activeMerchant();
+        when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
+        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
 
-        Card card = activeCardWithAttempts(2); // ensure reset is exercised
+        Card card = activeCardWithAttempts(2);
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(card));
+
+        Client client = activeClient();
+        when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
+        doNothing().when(operationStatusGuards).requireActiveClient(client);
 
         when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(3);
         when(pinHasherPort.matches(GOOD_PIN, HASHED_PIN)).thenReturn(true);
 
         LedgerAccountRef clientAcc = LedgerAccountRef.client(CLIENT_UUID.toString());
-        when(accountProfilePort.findByAccount(clientAcc)).thenReturn(Optional.of(activeAccount(clientAcc)));
+        LedgerAccountRef merchantAcc = LedgerAccountRef.merchant(MERCHANT_UUID.toString());
 
         when(timeProviderPort.now()).thenReturn(NOW);
 
@@ -435,11 +474,9 @@ final class PayByCardServiceTest {
         assertEquals(FEE.asBigDecimal(), out.fee());
         assertEquals(TOTAL_DEBITED.asBigDecimal(), out.totalDebited());
 
-        // card attempts reset
         assertEquals(0, card.failedPinAttempts());
         verify(cardRepositoryPort).save(card);
 
-        // ledger
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<LedgerEntry>> ledgerCaptor = ArgumentCaptor.forClass(List.class);
         verify(ledgerAppendPort).append(ledgerCaptor.capture());
@@ -469,7 +506,6 @@ final class PayByCardServiceTest {
                         && e.amount().equals(FEE)
         ));
 
-        // audit
         ArgumentCaptor<AuditEvent> auditCaptor = ArgumentCaptor.forClass(AuditEvent.class);
         verify(auditPort).publish(auditCaptor.capture());
 

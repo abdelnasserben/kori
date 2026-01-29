@@ -3,19 +3,18 @@ package com.kori.application.usecase;
 import com.kori.application.command.MerchantWithdrawAtAgentCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.InsufficientFundsException;
-import com.kori.application.policy.PricingGuards;
+import com.kori.application.guard.OperationStatusGuards;
+import com.kori.application.guard.PricingGuards;
 import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.MerchantWithdrawAtAgentResult;
 import com.kori.application.security.ActorType;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
-import com.kori.domain.model.account.AccountProfile;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Money;
-import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
 import com.kori.domain.model.transaction.Transaction;
@@ -34,7 +33,6 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
 
     private final MerchantRepositoryPort merchantRepositoryPort;
     private final AgentRepositoryPort agentRepositoryPort;
-    private final AccountProfilePort accountProfilePort;
 
     private final FeePolicyPort feePolicyPort;
     private final CommissionPolicyPort commissionPolicyPort;
@@ -45,29 +43,32 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
 
+    private final OperationStatusGuards operationStatusGuards;
+
     public MerchantWithdrawAtAgentService(TimeProviderPort timeProviderPort,
-                                          IdempotencyPort idempotencyPort, IdGeneratorPort idGeneratorPort,
+                                          IdempotencyPort idempotencyPort,
+                                          IdGeneratorPort idGeneratorPort,
                                           MerchantRepositoryPort merchantRepositoryPort,
                                           AgentRepositoryPort agentRepositoryPort,
-                                          AccountProfilePort accountProfilePort,
                                           FeePolicyPort feePolicyPort,
                                           CommissionPolicyPort commissionPolicyPort,
                                           LedgerQueryPort ledgerQueryPort,
                                           TransactionRepositoryPort transactionRepositoryPort,
                                           LedgerAppendPort ledgerAppendPort,
-                                          AuditPort auditPort) {
+                                          AuditPort auditPort,
+                                          OperationStatusGuards operationStatusGuards) {
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
         this.idGeneratorPort = idGeneratorPort;
         this.merchantRepositoryPort = merchantRepositoryPort;
         this.agentRepositoryPort = agentRepositoryPort;
-        this.accountProfilePort = accountProfilePort;
         this.feePolicyPort = feePolicyPort;
         this.commissionPolicyPort = commissionPolicyPort;
         this.ledgerQueryPort = ledgerQueryPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.ledgerAppendPort = ledgerAppendPort;
         this.auditPort = auditPort;
+        this.operationStatusGuards = operationStatusGuards;
     }
 
     @Override
@@ -86,25 +87,16 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         Agent agent = agentRepositoryPort.findByCode(AgentCode.of(command.agentCode()))
                 .orElseThrow(() -> new ForbiddenOperationException("Agent not found"));
 
+        operationStatusGuards.requireActiveAgent(agent);
+
         // Resolve MERCHANT by code
         Merchant merchant = merchantRepositoryPort.findByCode(MerchantCode.of(command.merchantCode()))
                 .orElseThrow(() -> new ForbiddenOperationException("Merchant not found"));
 
-        // Profiles must be ACTIVE (recommended)
+        operationStatusGuards.requireActiveMerchant(merchant);
+
         var agentAcc = LedgerAccountRef.agent(agent.id().value().toString());
         var merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
-
-        AccountProfile agentProfile = accountProfilePort.findByAccount(agentAcc)
-                .orElseThrow(() -> new ForbiddenOperationException("Agent accountRef profile not found"));
-        if (agentProfile.status() != Status.ACTIVE) {
-            throw new ForbiddenOperationException("Agent is not active");
-        }
-
-        AccountProfile merchantProfile = accountProfilePort.findByAccount(merchantAcc)
-                .orElseThrow(() -> new ForbiddenOperationException("Merchant accountRef profile not found"));
-        if (merchantProfile.status() != Status.ACTIVE) {
-            throw new ForbiddenOperationException("Merchant is not active");
-        }
 
         Instant now = timeProviderPort.now();
 

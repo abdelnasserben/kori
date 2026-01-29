@@ -10,6 +10,7 @@ import com.kori.domain.model.terminal.TerminalId;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -27,13 +28,7 @@ public class JpaTerminalRepositoryAdapter implements TerminalRepositoryPort {
     public Optional<Terminal> findById(TerminalId terminalId) {
         Objects.requireNonNull(terminalId, "terminalUid must not be null");
         return repo.findById(terminalId.value().toString())
-                .map(e -> new Terminal(
-                        new TerminalId(e.getId()),
-                        new MerchantId(e.getMerchantId()),
-                        Status.valueOf(e.getStatus()),
-                        e.getCreatedAt()
-                )
-        );
+                .map(this::toDomain);
     }
 
     @Override
@@ -45,4 +40,23 @@ public class JpaTerminalRepositoryAdapter implements TerminalRepositoryPort {
                 terminal.createdAt()
         ));
     }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Terminal> findByMerchantId(MerchantId merchantId) {
+        return repo.findAllByMerchantId(merchantId.value())
+                .stream()
+                .map(this::toDomain)
+                .toList();
+    }
+
+    private Terminal toDomain(TerminalEntity entity) {
+        return new Terminal(
+                new TerminalId(entity.getId()),
+                new MerchantId(entity.getMerchantId()),
+                Status.valueOf(entity.getStatus()),
+                entity.getCreatedAt()
+        );
+    }
+
 }

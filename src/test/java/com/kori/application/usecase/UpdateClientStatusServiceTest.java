@@ -1,10 +1,12 @@
 package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateClientStatusCommand;
+import com.kori.application.events.ClientStatusChangedEvent;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.ClientRepositoryPort;
+import com.kori.application.port.out.DomainEventPublisherPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateClientStatusResult;
 import com.kori.application.security.ActorContext;
@@ -37,6 +39,7 @@ final class UpdateClientStatusServiceTest {
     @Mock ClientRepositoryPort clientRepositoryPort;
     @Mock AuditPort auditPort;
     @Mock TimeProviderPort timeProviderPort;
+    @Mock DomainEventPublisherPort domainEventPublisherPort;
 
     @InjectMocks UpdateClientStatusService service;
 
@@ -76,27 +79,27 @@ final class UpdateClientStatusServiceTest {
                 service.execute(cmd(nonAdminActor(), Status.SUSPENDED.name(), REASON))
         );
 
-        verifyNoInteractions(clientRepositoryPort, auditPort, timeProviderPort);
+        verifyNoInteractions(clientRepositoryPort, auditPort, timeProviderPort, domainEventPublisherPort);
     }
 
     @Test
     void throwsNotFound_whenClientDoesNotExist() {
-        when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.empty());
+        when(clientRepositoryPort.findById(ClientId.of(CLIENT_ID_RAW))).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () ->
                 service.execute(cmd(adminActor(), Status.SUSPENDED.name(), REASON))
         );
 
-        verify(clientRepositoryPort).findById(CLIENT_ID);
-        verifyNoInteractions(auditPort, timeProviderPort);
+        verify(clientRepositoryPort).findById(ClientId.of(CLIENT_ID_RAW));
+        verifyNoInteractions(auditPort, timeProviderPort, domainEventPublisherPort);
         verify(clientRepositoryPort, never()).save(any(Client.class));
     }
 
     @Test
-    void happyPath_suspendsClient_saves_audits_andReturnsResult() {
+    void happyPath_suspendsClient_saves_audits_publishesEvent_andReturnsResult() {
         Client client = clientWithStatus(Status.ACTIVE);
 
-        when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
+        when(clientRepositoryPort.findById(ClientId.of(CLIENT_ID_RAW))).thenReturn(Optional.of(client));
         when(timeProviderPort.now()).thenReturn(NOW);
 
         UpdateClientStatusResult out = service.execute(cmd(adminActor(), Status.SUSPENDED.name(), REASON));
@@ -121,13 +124,15 @@ final class UpdateClientStatusServiceTest {
         assertEquals(Status.ACTIVE.name(), event.metadata().get("before"));
         assertEquals(Status.SUSPENDED.name(), event.metadata().get("after"));
         assertEquals(REASON, event.metadata().get("reason"));
+
+        verify(domainEventPublisherPort).publish(any(ClientStatusChangedEvent.class));
     }
 
     @Test
-    void happyPath_activatesClient_saves_audits_andReturnsResult() {
+    void happyPath_activatesClient_saves_audits_publishesEvent_andReturnsResult() {
         Client client = clientWithStatus(Status.SUSPENDED);
 
-        when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
+        when(clientRepositoryPort.findById(ClientId.of(CLIENT_ID_RAW))).thenReturn(Optional.of(client));
         when(timeProviderPort.now()).thenReturn(NOW);
 
         UpdateClientStatusResult out = service.execute(cmd(adminActor(), Status.ACTIVE.name(), REASON));
@@ -138,13 +143,14 @@ final class UpdateClientStatusServiceTest {
         assertEquals(Status.ACTIVE, client.status());
         verify(clientRepositoryPort).save(client);
         verify(auditPort).publish(any(AuditEvent.class));
+        verify(domainEventPublisherPort).publish(any(ClientStatusChangedEvent.class));
     }
 
     @Test
-    void happyPath_closesClient_saves_audits_andReturnsResult() {
+    void happyPath_closesClient_saves_audits_publishesEvent_andReturnsResult() {
         Client client = clientWithStatus(Status.SUSPENDED);
 
-        when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
+        when(clientRepositoryPort.findById(ClientId.of(CLIENT_ID_RAW))).thenReturn(Optional.of(client));
         when(timeProviderPort.now()).thenReturn(NOW);
 
         UpdateClientStatusResult out = service.execute(cmd(adminActor(), Status.CLOSED.name(), REASON));
@@ -155,27 +161,28 @@ final class UpdateClientStatusServiceTest {
         assertEquals(Status.CLOSED, client.status());
         verify(clientRepositoryPort).save(client);
         verify(auditPort).publish(any(AuditEvent.class));
+        verify(domainEventPublisherPort).publish(any(ClientStatusChangedEvent.class));
     }
 
     @Test
     void throwsInvalidStatusTransition_whenTryingToSuspendClosedClient() {
         Client client = clientWithStatus(Status.CLOSED);
 
-        when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
+        when(clientRepositoryPort.findById(ClientId.of(CLIENT_ID_RAW))).thenReturn(Optional.of(client));
 
         assertThrows(InvalidStatusTransitionException.class, () ->
                 service.execute(cmd(adminActor(), Status.SUSPENDED.name(), REASON))
         );
 
         verify(clientRepositoryPort, never()).save(any());
-        verifyNoInteractions(auditPort, timeProviderPort);
+        verifyNoInteractions(auditPort, timeProviderPort, domainEventPublisherPort);
     }
 
     @Test
     void reasonDefaultsToNA_whenBlank() {
         Client client = clientWithStatus(Status.ACTIVE);
 
-        when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
+        when(clientRepositoryPort.findById(ClientId.of(CLIENT_ID_RAW))).thenReturn(Optional.of(client));
         when(timeProviderPort.now()).thenReturn(NOW);
 
         service.execute(cmd(adminActor(), Status.SUSPENDED.name(), "   "));
@@ -184,5 +191,10 @@ final class UpdateClientStatusServiceTest {
         verify(auditPort).publish(auditCaptor.capture());
 
         assertEquals("N/A", auditCaptor.getValue().metadata().get("reason"));
+
+        // event reason normalized as well
+        ArgumentCaptor<ClientStatusChangedEvent> eventCaptor = ArgumentCaptor.forClass(ClientStatusChangedEvent.class);
+        verify(domainEventPublisherPort).publish(eventCaptor.capture());
+        assertEquals("N/A", eventCaptor.getValue().reason());
     }
 }

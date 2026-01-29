@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 
@@ -45,6 +46,15 @@ public class JpaCardRepositoryAdapter implements CardRepositoryPort {
 
         repo.save(entity);
         return card;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<Card> findByClientId(ClientId clientId) {
+        return repo.findAllByClientId(clientId.value())
+                .stream()
+                .map(this::toDomain)
+                .toList();
     }
 
     private Card toDomain(CardEntity e) {

@@ -1,5 +1,9 @@
 package com.kori.bootstrap.config;
 
+import com.kori.application.guard.OperationStatusGuards;
+import com.kori.application.handler.OnAgentStatusChangedHandler;
+import com.kori.application.handler.OnClientStatusChangedHandler;
+import com.kori.application.handler.OnMerchantStatusChangedHandler;
 import com.kori.application.port.in.*;
 import com.kori.application.port.out.*;
 import com.kori.application.security.LedgerAccessPolicy;
@@ -28,7 +32,8 @@ public class ApplicationWiringConfig {
             CommissionPolicyPort commissionPolicyPort,
             LedgerAppendPort ledgerAppendPort,
             AuditPort auditPort,
-            PinHasherPort pinHasherPort) {
+            PinHasherPort pinHasherPort,
+            OperationStatusGuards operationStatusGuards) {
         return new EnrollCardService(
                 timeProviderPort,
                 idempotencyPort,
@@ -42,7 +47,8 @@ public class ApplicationWiringConfig {
                 commissionPolicyPort,
                 ledgerAppendPort,
                 auditPort,
-                pinHasherPort
+                pinHasherPort,
+                operationStatusGuards
         );
     }
 
@@ -53,6 +59,7 @@ public class ApplicationWiringConfig {
             IdGeneratorPort idGeneratorPort,
             TerminalRepositoryPort terminalRepositoryPort,
             MerchantRepositoryPort merchantRepositoryPort,
+            ClientRepositoryPort clientRepositoryPort,
             CardRepositoryPort cardRepositoryPort,
             TransactionRepositoryPort transactionRepositoryPort,
             FeePolicyPort feePolicyPort,
@@ -61,22 +68,24 @@ public class ApplicationWiringConfig {
             LedgerQueryPort ledgerQueryPort,
             AccountProfilePort accountProfilePort,
             AuditPort auditPort,
-            PinHasherPort pinHasherPort) {
+            PinHasherPort pinHasherPort,
+            OperationStatusGuards operationStatusGuards) {
         return new PayByCardService(
                 timeProviderPort,
                 idempotencyPort,
                 idGeneratorPort,
                 terminalRepositoryPort,
                 merchantRepositoryPort,
+                clientRepositoryPort,
                 cardRepositoryPort,
                 transactionRepositoryPort,
                 feePolicyPort,
                 cardSecurityPolicyPort,
                 ledgerAppendPort,
                 ledgerQueryPort,
-                accountProfilePort,
                 auditPort,
-                pinHasherPort
+                pinHasherPort,
+                operationStatusGuards
         );
     }
 
@@ -93,7 +102,8 @@ public class ApplicationWiringConfig {
             LedgerQueryPort ledgerQueryPort,
             TransactionRepositoryPort transactionRepositoryPort,
             LedgerAppendPort ledgerAppendPort,
-            AuditPort auditPort
+            AuditPort auditPort,
+            OperationStatusGuards operationStatusGuards
     ) {
         return new MerchantWithdrawAtAgentService(
                 timeProviderPort,
@@ -101,13 +111,13 @@ public class ApplicationWiringConfig {
                 idGeneratorPort,
                 merchantRepositoryPort,
                 agentRepositoryPort,
-                accountProfilePort,
                 feePolicyPort,
                 commissionPolicyPort,
                 ledgerQueryPort,
                 transactionRepositoryPort,
                 ledgerAppendPort,
-                auditPort
+                auditPort,
+                operationStatusGuards
         );
     }
 
@@ -227,12 +237,14 @@ public class ApplicationWiringConfig {
     public UpdateAccountProfileStatusUseCase updateAccountProfileStatusUseCase(
             AccountProfilePort accountProfilePort,
             AuditPort auditPort,
-            TimeProviderPort timeProviderPort
+            TimeProviderPort timeProviderPort,
+            DomainEventPublisherPort domainEventPublisherPort
     ) {
         return new UpdateAccountProfileStatusService(
                 accountProfilePort,
                 auditPort,
-                timeProviderPort
+                timeProviderPort,
+                domainEventPublisherPort
         );
     }
 
@@ -240,23 +252,34 @@ public class ApplicationWiringConfig {
     public UpdateClientStatusUseCase updateClientStatusUseCase(
             ClientRepositoryPort clientRepositoryPort,
             AuditPort auditPort,
-            TimeProviderPort timeProviderPort
+            TimeProviderPort timeProviderPort,
+            DomainEventPublisherPort domainEventPublisherPort
     ) {
         return new UpdateClientStatusService(
                 clientRepositoryPort,
                 auditPort,
-                timeProviderPort
+                timeProviderPort,
+                domainEventPublisherPort
         );
     }
 
     // -----------------------------
-    // Read-side (Phase 1 services reused)
+    // Policy and Guard
     // -----------------------------
 
     @Bean
     public LedgerAccessPolicy ledgerAccessPolicy() {
         return new LedgerAccessPolicy();
     }
+
+    @Bean
+    public OperationStatusGuards operationStatusGuards(AccountProfilePort accountProfilePort) {
+        return new OperationStatusGuards(accountProfilePort);
+    }
+
+    // -----------------------------
+    // Read-side (Phase 1 services reused)
+    // -----------------------------
 
     @Bean
     public GetBalanceUseCase getBalanceUseCase(
@@ -277,6 +300,33 @@ public class ApplicationWiringConfig {
                 transactionRepositoryPort,
                 ledgerAccessPolicy
         );
+    }
+
+    // -----------------------------
+    // Handlers
+    // -----------------------------
+
+    @Bean
+    public OnClientStatusChangedHandler onClientStatusChangedHandler(
+            AccountProfilePort accountProfilePort,
+            CardRepositoryPort cardRepositoryPort
+    ) {
+        return new OnClientStatusChangedHandler(accountProfilePort, cardRepositoryPort);
+    }
+
+    @Bean
+    public OnMerchantStatusChangedHandler onMerchantStatusChangedHandler(
+            AccountProfilePort accountProfilePort,
+            TerminalRepositoryPort terminalRepositoryPort
+    ) {
+        return new OnMerchantStatusChangedHandler(accountProfilePort, terminalRepositoryPort);
+    }
+
+    @Bean
+    public OnAgentStatusChangedHandler onAgentStatusChangedHandler(
+            AccountProfilePort accountProfilePort
+    ) {
+        return new OnAgentStatusChangedHandler(accountProfilePort);
     }
 
 }

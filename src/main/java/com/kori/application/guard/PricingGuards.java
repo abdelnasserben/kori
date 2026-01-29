@@ -1,4 +1,4 @@
-package com.kori.application.policy;
+package com.kori.application.guard;
 
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.domain.model.common.Money;

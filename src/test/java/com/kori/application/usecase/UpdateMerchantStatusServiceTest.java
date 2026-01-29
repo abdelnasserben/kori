@@ -1,9 +1,11 @@
 package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateMerchantStatusCommand;
+import com.kori.application.events.MerchantStatusChangedEvent;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.out.AuditPort;
+import com.kori.application.port.out.DomainEventPublisherPort;
 import com.kori.application.port.out.MerchantRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateMerchantStatusResult;
@@ -39,6 +41,7 @@ final class UpdateMerchantStatusServiceTest {
     @Mock MerchantRepositoryPort merchantRepositoryPort;
     @Mock AuditPort auditPort;
     @Mock TimeProviderPort timeProviderPort;
+    @Mock DomainEventPublisherPort domainEventPublisherPort;
 
     @InjectMocks UpdateMerchantStatusService service;
 
@@ -77,7 +80,7 @@ final class UpdateMerchantStatusServiceTest {
                 service.execute(cmd(nonAdminActor(), Status.SUSPENDED.name(), REASON))
         );
 
-        verifyNoInteractions(merchantRepositoryPort, auditPort, timeProviderPort);
+        verifyNoInteractions(merchantRepositoryPort, auditPort, timeProviderPort, domainEventPublisherPort);
     }
 
     @Test
@@ -89,12 +92,12 @@ final class UpdateMerchantStatusServiceTest {
         );
 
         verify(merchantRepositoryPort).findByCode(MERCHANT_CODE);
-        verifyNoInteractions(auditPort, timeProviderPort);
+        verifyNoInteractions(auditPort, timeProviderPort, domainEventPublisherPort);
         verify(merchantRepositoryPort, never()).save(any(Merchant.class));
     }
 
     @Test
-    void happyPath_suspendsClient_saves_audits_andReturnsResult() {
+    void happyPath_suspendsMerchant_saves_audits_publishesEvent_andReturnsResult() {
         Merchant merchant = merchantWithStatus(Status.ACTIVE);
 
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(merchant));
@@ -122,10 +125,12 @@ final class UpdateMerchantStatusServiceTest {
         assertEquals(Status.ACTIVE.name(), event.metadata().get("before"));
         assertEquals(Status.SUSPENDED.name(), event.metadata().get("after"));
         assertEquals(REASON, event.metadata().get("reason"));
+
+        verify(domainEventPublisherPort).publish(any(MerchantStatusChangedEvent.class));
     }
 
     @Test
-    void happyPath_activatesClient_saves_audits_andReturnsResult() {
+    void happyPath_activatesMerchant_saves_audits_publishesEvent_andReturnsResult() {
         Merchant merchant = merchantWithStatus(Status.SUSPENDED);
 
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(merchant));
@@ -139,10 +144,11 @@ final class UpdateMerchantStatusServiceTest {
         assertEquals(Status.ACTIVE, merchant.status());
         verify(merchantRepositoryPort).save(merchant);
         verify(auditPort).publish(any(AuditEvent.class));
+        verify(domainEventPublisherPort).publish(any(MerchantStatusChangedEvent.class));
     }
 
     @Test
-    void happyPath_closesClient_saves_audits_andReturnsResult() {
+    void happyPath_closesMerchant_saves_audits_publishesEvent_andReturnsResult() {
         Merchant merchant = merchantWithStatus(Status.SUSPENDED);
 
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(merchant));
@@ -156,10 +162,11 @@ final class UpdateMerchantStatusServiceTest {
         assertEquals(Status.CLOSED, merchant.status());
         verify(merchantRepositoryPort).save(merchant);
         verify(auditPort).publish(any(AuditEvent.class));
+        verify(domainEventPublisherPort).publish(any(MerchantStatusChangedEvent.class));
     }
 
     @Test
-    void throwsInvalidStatusTransition_whenTryingToSuspendClosedClient() {
+    void throwsInvalidStatusTransition_whenTryingToSuspendClosedMerchant() {
         Merchant merchant = merchantWithStatus(Status.CLOSED);
 
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(merchant));
@@ -169,7 +176,7 @@ final class UpdateMerchantStatusServiceTest {
         );
 
         verify(merchantRepositoryPort, never()).save(any());
-        verifyNoInteractions(auditPort, timeProviderPort);
+        verifyNoInteractions(auditPort, timeProviderPort, domainEventPublisherPort);
     }
 
     @Test
@@ -183,7 +190,10 @@ final class UpdateMerchantStatusServiceTest {
 
         ArgumentCaptor<AuditEvent> auditCaptor = ArgumentCaptor.forClass(AuditEvent.class);
         verify(auditPort).publish(auditCaptor.capture());
-
         assertEquals("N/A", auditCaptor.getValue().metadata().get("reason"));
+
+        ArgumentCaptor<MerchantStatusChangedEvent> eventCaptor = ArgumentCaptor.forClass(MerchantStatusChangedEvent.class);
+        verify(domainEventPublisherPort).publish(eventCaptor.capture());
+        assertEquals("N/A", eventCaptor.getValue().reason());
     }
 }

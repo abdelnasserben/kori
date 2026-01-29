@@ -3,6 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.port.out.*;
 import com.kori.application.result.EnrollCardResult;
 import com.kori.application.security.ActorContext;
@@ -62,6 +63,8 @@ final class EnrollCardServiceTest {
     @Mock AuditPort auditPort;
     @Mock PinHasherPort pinHasherPort;
 
+    @Mock OperationStatusGuards operationStatusGuards;
+
     @InjectMocks EnrollCardService enrollCardService;
 
     // ======= constants (single source of truth) =======
@@ -120,8 +123,8 @@ final class EnrollCardServiceTest {
                 "tx-1",
                 CLIENT_PHONE,
                 CARD_UID,
-                new BigDecimal("100.00"),
-                new BigDecimal("10.00"),
+                CARD_PRICE.asBigDecimal(),
+                AGENT_COMMISSION.asBigDecimal(),
                 false,
                 false
         );
@@ -146,6 +149,7 @@ final class EnrollCardServiceTest {
                 ledgerAppendPort,
                 auditPort,
                 pinHasherPort,
+                operationStatusGuards,
                 idempotencyPort
         );
     }
@@ -171,7 +175,8 @@ final class EnrollCardServiceTest {
                 commissionPolicyPort,
                 ledgerAppendPort,
                 auditPort,
-                pinHasherPort
+                pinHasherPort,
+                operationStatusGuards
         );
     }
 
@@ -197,7 +202,8 @@ final class EnrollCardServiceTest {
                 commissionPolicyPort,
                 ledgerAppendPort,
                 auditPort,
-                pinHasherPort
+                pinHasherPort,
+                operationStatusGuards
         );
     }
 
@@ -205,14 +211,15 @@ final class EnrollCardServiceTest {
     void happyPath_createsClientAndAccountProfile_postsLedger_andAudits() {
         when(idempotencyPort.find(IDEM_KEY, EnrollCardResult.class)).thenReturn(Optional.empty());
         when(timeProviderPort.now()).thenReturn(NOW);
+
+        // create client + tx ids
         when(idGeneratorPort.newUuid()).thenReturn(CLIENT_UUID, TX_UUID);
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
+        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
 
         LedgerAccountRef agentAccount = LedgerAccountRef.agent(agent.id().value().toString());
-        when(accountProfilePort.findByAccount(agentAccount)).thenReturn(Optional.of(activeAccount(agentAccount)));
-
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.empty());
 
         when(clientRepositoryPort.findByPhoneNumber(CLIENT_PHONE)).thenReturn(Optional.empty());
@@ -282,9 +289,7 @@ final class EnrollCardServiceTest {
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
-
-        LedgerAccountRef agentAccount = LedgerAccountRef.agent(agent.id().value().toString());
-        when(accountProfilePort.findByAccount(agentAccount)).thenReturn(Optional.of(activeAccount(agentAccount)));
+        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
 
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(mock(Card.class)));
 
@@ -292,15 +297,15 @@ final class EnrollCardServiceTest {
 
         verify(idempotencyPort).find(IDEM_KEY, EnrollCardResult.class);
         verify(agentRepositoryPort).findByCode(AGENT_CODE);
-        verify(accountProfilePort).findByAccount(agentAccount);
         verify(cardRepositoryPort).findByCardUid(CARD_UID);
-        verifyNoMoreInteractions(idempotencyPort, agentRepositoryPort, accountProfilePort, cardRepositoryPort);
+        verifyNoMoreInteractions(idempotencyPort, agentRepositoryPort, cardRepositoryPort);
 
         verifyNoInteractions(
                 timeProviderPort,
                 idGeneratorPort,
                 clientRepositoryPort,
                 transactionRepositoryPort,
+                accountProfilePort,
                 feePolicyPort,
                 commissionPolicyPort,
                 ledgerAppendPort,
@@ -312,17 +317,17 @@ final class EnrollCardServiceTest {
     @Test
     void forbidden_whenClientAccountProfileIsNotActive() {
         when(idempotencyPort.find(IDEM_KEY, EnrollCardResult.class)).thenReturn(Optional.empty());
+        when(timeProviderPort.now()).thenReturn(NOW);
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
-
-        LedgerAccountRef agentAccount = LedgerAccountRef.agent(agent.id().value().toString());
-        when(accountProfilePort.findByAccount(agentAccount)).thenReturn(Optional.of(activeAccount(agentAccount)));
+        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
 
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.empty());
 
         Client client = new Client(new ClientId(CLIENT_UUID), CLIENT_PHONE, Status.ACTIVE, NOW);
         when(clientRepositoryPort.findByPhoneNumber(CLIENT_PHONE)).thenReturn(Optional.of(client));
+        doNothing().when(operationStatusGuards).requireClientEligibleForEnroll(client);
 
         LedgerAccountRef clientAccount = LedgerAccountRef.client(CLIENT_UUID.toString());
         when(accountProfilePort.findByAccount(clientAccount))

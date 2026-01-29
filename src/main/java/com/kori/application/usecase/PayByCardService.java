@@ -4,6 +4,7 @@ import com.kori.application.command.PayByCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.port.in.PayByCardUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.PayByCardResult;
@@ -11,9 +12,9 @@ import com.kori.application.security.ActorType;
 import com.kori.application.security.PinFormatValidator;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
-import com.kori.domain.model.account.AccountProfile;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
+import com.kori.domain.model.client.Client;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
@@ -36,6 +37,7 @@ public final class PayByCardService implements PayByCardUseCase {
 
     private final TerminalRepositoryPort terminalRepositoryPort;
     private final MerchantRepositoryPort merchantRepositoryPort;
+    private final ClientRepositoryPort clientRepositoryPort;
 
     private final CardRepositoryPort cardRepositoryPort;
 
@@ -46,38 +48,41 @@ public final class PayByCardService implements PayByCardUseCase {
 
     private final LedgerAppendPort ledgerAppendPort;
     private final LedgerQueryPort ledgerQueryPort;
-    private final AccountProfilePort accountProfilePort;
 
     private final AuditPort auditPort;
     private final PinHasherPort pinHasherPort;
+    private final OperationStatusGuards operationStatusGuards;
 
     public PayByCardService(TimeProviderPort timeProviderPort,
-                            IdempotencyPort idempotencyPort, IdGeneratorPort idGeneratorPort,
+                            IdempotencyPort idempotencyPort,
+                            IdGeneratorPort idGeneratorPort,
                             TerminalRepositoryPort terminalRepositoryPort,
                             MerchantRepositoryPort merchantRepositoryPort,
+                            ClientRepositoryPort clientRepositoryPort,
                             CardRepositoryPort cardRepositoryPort,
                             TransactionRepositoryPort transactionRepositoryPort,
                             FeePolicyPort feePolicyPort,
                             CardSecurityPolicyPort cardSecurityPolicyPort,
                             LedgerAppendPort ledgerAppendPort,
                             LedgerQueryPort ledgerQueryPort,
-                            AccountProfilePort accountProfilePort,
                             AuditPort auditPort,
-                            PinHasherPort pinHasherPort) {
+                            PinHasherPort pinHasherPort,
+                            OperationStatusGuards operationStatusGuards) {
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
         this.idGeneratorPort = idGeneratorPort;
         this.terminalRepositoryPort = terminalRepositoryPort;
         this.merchantRepositoryPort = merchantRepositoryPort;
+        this.clientRepositoryPort = clientRepositoryPort;
         this.cardRepositoryPort = cardRepositoryPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.feePolicyPort = feePolicyPort;
         this.cardSecurityPolicyPort = cardSecurityPolicyPort;
         this.ledgerAppendPort = ledgerAppendPort;
         this.ledgerQueryPort = ledgerQueryPort;
-        this.accountProfilePort = accountProfilePort;
         this.auditPort = auditPort;
         this.pinHasherPort = pinHasherPort;
+        this.operationStatusGuards = operationStatusGuards;
     }
 
     @Override
@@ -91,7 +96,6 @@ public final class PayByCardService implements PayByCardUseCase {
             throw new ForbiddenOperationException("Only TERMINAL can initiate PayByCard");
         }
 
-        // Merchant accountRef must be ACTIVE
         TerminalId terminalId = new TerminalId(UUID.fromString(command.terminalUid()));
         Terminal terminal = terminalRepositoryPort.findById(terminalId)
                 .orElseThrow(() -> new NotFoundException("Terminal not found"));
@@ -100,33 +104,32 @@ public final class PayByCardService implements PayByCardUseCase {
             throw new ForbiddenOperationException("Terminal is not active");
         }
 
-        // Merchant accountRef must be ACTIVE
         Merchant merchant = merchantRepositoryPort.findById(terminal.merchantId())
                 .orElseThrow(() -> new NotFoundException("Merchant not found"));
 
+        // Merchant status + merchant account profile status
+        operationStatusGuards.requireActiveMerchant(merchant);
+
         var merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
-        AccountProfile merchantProfile = accountProfilePort.findByAccount(merchantAcc)
-                .orElseThrow(() -> new NotFoundException("Merchant account not found"));
 
-        if (merchantProfile.status() != Status.ACTIVE) {
-            throw new ForbiddenOperationException("Merchant account is not active");
-        }
-
-        // CARD
         Card card = cardRepositoryPort.findByCardUid(command.cardUid())
                 .orElseThrow(() -> new NotFoundException("Card not found"));
+
+        Client client = clientRepositoryPort.findById(card.clientId())
+                .orElseThrow(() -> new NotFoundException("Client not found"));
+
+        // Client status + client account profile status
+        operationStatusGuards.requireActiveClient(client);
 
         if (!card.isPayable()) {
             throw new ForbiddenOperationException("Card not payable");
         }
 
-        // Check max pin policy defined
         int maxAttempts = cardSecurityPolicyPort.maxFailedPinAttempts();
         if (maxAttempts <= 0) {
             throw new ForbiddenOperationException("Invalid maxFailedPinAttempts policy value");
         }
 
-        // PIN check -> increment attempts and possibly block
         PinFormatValidator.validate(command.pin());
 
         if (!pinHasherPort.matches(command.pin(), card.hashedPin())) {
@@ -135,19 +138,11 @@ public final class PayByCardService implements PayByCardUseCase {
             throw new ForbiddenOperationException("Invalid PIN");
         }
 
-        // Reset attempts on success
         card.onPinSuccess();
         cardRepositoryPort.save(card);
 
-        // Client accountRef ref comes from card.cardUid
+        // accountRef client
         var clientAcc = LedgerAccountRef.client(card.clientId().value().toString());
-
-        // Client accountRef must be ACTIVE (recommended)
-        AccountProfile clientProfile = accountProfilePort.findByAccount(clientAcc)
-                .orElseThrow(() -> new NotFoundException("Client account not found"));
-        if (clientProfile.status() != Status.ACTIVE) {
-            throw new ForbiddenOperationException("Client account is not active");
-        }
 
         Instant now = timeProviderPort.now();
 
@@ -155,7 +150,6 @@ public final class PayByCardService implements PayByCardUseCase {
         Money fee = feePolicyPort.cardPaymentFee(amount);
         Money totalDebited = amount.plus(fee);
 
-        // Sufficient funds check (ledger-driven)
         Money available = ledgerQueryPort.netBalance(clientAcc);
         if (totalDebited.isGreaterThan(available)) {
             throw new InsufficientFundsException(

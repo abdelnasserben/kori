@@ -1,11 +1,13 @@
 package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateClientStatusCommand;
+import com.kori.application.events.ClientStatusChangedEvent;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.in.UpdateClientStatusUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.ClientRepositoryPort;
+import com.kori.application.port.out.DomainEventPublisherPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateClientStatusResult;
 import com.kori.application.security.ActorContext;
@@ -18,39 +20,51 @@ import com.kori.domain.model.common.Status;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 public class UpdateClientStatusService implements UpdateClientStatusUseCase {
 
     private final ClientRepositoryPort clientRepositoryPort;
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
+    private final DomainEventPublisherPort domainEventPublisherPort;
 
     public UpdateClientStatusService(
             ClientRepositoryPort clientRepositoryPort,
             AuditPort auditPort,
-            TimeProviderPort timeProviderPort) {
+            TimeProviderPort timeProviderPort,
+            DomainEventPublisherPort domainEventPublisherPort
+    ) {
         this.clientRepositoryPort = clientRepositoryPort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
+        this.domainEventPublisherPort = domainEventPublisherPort;
     }
 
     @Override
     public UpdateClientStatusResult execute(UpdateClientStatusCommand cmd) {
         requireAdmin(cmd.actorContext());
 
-        Client client = clientRepositoryPort.findById(ClientId.of(cmd.clientId()))
+        ClientId clientId = ClientId.of(cmd.clientId());
+        Client client = clientRepositoryPort.findById(clientId)
                 .orElseThrow(() -> new NotFoundException("Client not found"));
 
-        // For audit
-        String before = client.status().name();
+        Status beforeStatus = client.status();
+        String before = beforeStatus.name();
 
-        // Apply updating
-        switch (Status.valueOf(cmd.targetStatus())) {
+        Status afterStatus = Status.valueOf(cmd.targetStatus());
+
+        // Apply updating (domain validates transitions)
+        switch (afterStatus) {
             case ACTIVE -> client.activate();
             case SUSPENDED -> client.suspend();
             case CLOSED -> client.close();
         }
+
         clientRepositoryPort.save(client);
+
+        // Normalize reason (blank => N/A)
+        String reason = normalizeReason(cmd.reason());
 
         // Audit
         String auditAction = "ADMIN_UPDATE_CLIENT_STATUS_" + cmd.targetStatus();
@@ -60,7 +74,7 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
         metadata.put("clientId", cmd.clientId());
         metadata.put("before", before);
         metadata.put("after", cmd.targetStatus());
-        metadata.put("reason", cmd.reason());
+        metadata.put("reason", reason);
 
         auditPort.publish(new AuditEvent(
                 auditAction,
@@ -69,6 +83,19 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
                 now,
                 metadata
         ));
+
+        // Publish event
+        if (beforeStatus != afterStatus) {
+            domainEventPublisherPort.publish(new ClientStatusChangedEvent(
+                    UUID.randomUUID().toString(),
+                    now,
+                    client.id(),
+                    beforeStatus,
+                    afterStatus,
+                    reason
+            ));
+        }
+
         return new UpdateClientStatusResult(cmd.clientId(), before, cmd.targetStatus());
     }
 
@@ -76,5 +103,11 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
         if (actor == null || actor.actorType() != ActorType.ADMIN) {
             throw new ForbiddenOperationException("Only ADMIN can update client status");
         }
+    }
+
+    private String normalizeReason(String reason) {
+        if (reason == null) return "N/A";
+        String trimmed = reason.trim();
+        return trimmed.isBlank() ? "N/A" : trimmed;
     }
 }
