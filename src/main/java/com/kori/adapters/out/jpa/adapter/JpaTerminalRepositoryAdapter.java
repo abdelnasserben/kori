@@ -27,7 +27,7 @@ public class JpaTerminalRepositoryAdapter implements TerminalRepositoryPort {
     @Transactional(readOnly = true)
     public Optional<Terminal> findById(TerminalId terminalId) {
         Objects.requireNonNull(terminalId, "terminalUid must not be null");
-        return repo.findById(terminalId.value().toString())
+        return repo.findById(terminalId.value())
                 .map(this::toDomain);
     }
 

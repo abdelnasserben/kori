@@ -45,7 +45,7 @@ public class JpaTransactionRepositoryAdapter implements TransactionRepositoryPor
     @Override
     @Transactional(readOnly = true)
     public Optional<Transaction> findById(TransactionId transactionId) {
-        return repo.findById(UUID.fromString(transactionId.toString())).map(e ->
+        return repo.findById(transactionId.value()).map(e ->
                 new Transaction(
                         TransactionId.of(e.getId().toString()),
                         TransactionType.valueOf(e.getType()),

@@ -113,10 +113,6 @@ final class EnrollCardServiceTest {
         return new Agent(new AgentId(AGENT_UUID), AGENT_CODE, NOW.minusSeconds(60), Status.ACTIVE);
     }
 
-    private static AccountProfile activeAccount(LedgerAccountRef account) {
-        return new AccountProfile(account, NOW.minusSeconds(10), Status.ACTIVE);
-    }
-
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         EnrollCardResult cached = new EnrollCardResult(

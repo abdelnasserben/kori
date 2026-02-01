@@ -96,7 +96,6 @@ public class ApplicationWiringConfig {
             IdGeneratorPort idGeneratorPort,
             MerchantRepositoryPort merchantRepositoryPort,
             AgentRepositoryPort agentRepositoryPort,
-            AccountProfilePort accountProfilePort,
             FeePolicyPort feePolicyPort,
             CommissionPolicyPort commissionPolicyPort,
             LedgerQueryPort ledgerQueryPort,
@@ -232,6 +231,21 @@ public class ApplicationWiringConfig {
         );
     }
 
+    @Bean
+    public UpdateAgentStatusUseCase updateAgentStatusUseCase(
+            AgentRepositoryPort agentRepositoryPort,
+            AuditPort auditPort,
+            TimeProviderPort timeProviderPort,
+            DomainEventPublisherPort domainEventPublisherPort
+    ) {
+        return new UpdateAgentStatusService(
+                agentRepositoryPort,
+                auditPort,
+                timeProviderPort,
+                domainEventPublisherPort
+        ) {
+        };
+    }
 
     @Bean
     public UpdateAccountProfileStatusUseCase updateAccountProfileStatusUseCase(
@@ -257,6 +271,21 @@ public class ApplicationWiringConfig {
     ) {
         return new UpdateClientStatusService(
                 clientRepositoryPort,
+                auditPort,
+                timeProviderPort,
+                domainEventPublisherPort
+        );
+    }
+
+    @Bean
+    public UpdateMerchantStatusUseCase updateMerchantStatusUseCase(
+            MerchantRepositoryPort merchantRepositoryPort,
+            AuditPort auditPort,
+            TimeProviderPort timeProviderPort,
+            DomainEventPublisherPort domainEventPublisherPort
+    ) {
+        return new UpdateMerchantStatusService(
+                merchantRepositoryPort,
                 auditPort,
                 timeProviderPort,
                 domainEventPublisherPort
