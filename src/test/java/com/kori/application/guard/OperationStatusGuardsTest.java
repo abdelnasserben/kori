@@ -73,7 +73,7 @@ class OperationStatusGuardsTest {
                 assertThrows(ForbiddenOperationException.class,
                         () -> guards.requireActiveClient(client));
 
-        assertEquals("CLIENT_ACCOUNT_NOT_ACTIVE", ex.getMessage());
+        assertEquals("CLIENT_ACCOUNT_INACTIVE_OR_MISSING", ex.getMessage());
     }
 
     @Test
@@ -88,7 +88,7 @@ class OperationStatusGuardsTest {
                 assertThrows(ForbiddenOperationException.class,
                         () -> guards.requireActiveClient(client));
 
-        assertEquals("CLIENT_ACCOUNT_NOT_ACTIVE", ex.getMessage());
+        assertEquals("CLIENT_ACCOUNT_INACTIVE_OR_MISSING", ex.getMessage());
     }
 
     // MERCHANT

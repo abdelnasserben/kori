@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.RequestAgentPayoutCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.out.*;
 import com.kori.application.result.AgentPayoutResult;
 import com.kori.application.security.ActorContext;
@@ -144,7 +145,7 @@ final class RequestAgentPayoutServiceTest {
         when(idempotencyPort.find(IDEM_KEY, AgentPayoutResult.class)).thenReturn(Optional.empty());
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.empty());
 
-        assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(adminActor())));
+        assertThrows(NotFoundException.class, () -> service.execute(cmd(adminActor())));
 
         verify(agentRepositoryPort).findByCode(AGENT_CODE);
         verifyNoInteractions(ledgerQueryPort, payoutRepositoryPort, transactionRepositoryPort, auditPort, idGeneratorPort);

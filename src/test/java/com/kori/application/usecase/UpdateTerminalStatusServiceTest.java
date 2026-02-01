@@ -113,7 +113,7 @@ final class UpdateTerminalStatusServiceTest {
         verify(auditPort).publish(auditCaptor.capture());
         AuditEvent event = auditCaptor.getValue();
 
-        assertEquals("ADMIN_UPDATE_TERMINAL_STATUS_" + Status.SUSPENDED.name(), event.action());
+        assertEquals("ADMIN_UPDATE_TERMINAL_STATUS", event.action());
         assertEquals(ActorType.ADMIN.name(), event.actorType());
         assertEquals(ADMIN_ID, event.actorId());
         assertEquals(NOW, event.occurredAt());
