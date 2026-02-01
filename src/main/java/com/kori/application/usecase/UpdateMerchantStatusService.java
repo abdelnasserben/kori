@@ -2,24 +2,21 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateMerchantStatusCommand;
 import com.kori.application.events.MerchantStatusChangedEvent;
-import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateMerchantStatusUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.DomainEventPublisherPort;
 import com.kori.application.port.out.MerchantRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateMerchantStatusResult;
-import com.kori.application.security.ActorContext;
-import com.kori.application.security.ActorType;
-import com.kori.domain.model.audit.AuditEvent;
+import com.kori.application.utils.AuditBuilder;
+import com.kori.application.utils.ReasonNormalizer;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 public class UpdateMerchantStatusService implements UpdateMerchantStatusUseCase {
@@ -43,7 +40,7 @@ public class UpdateMerchantStatusService implements UpdateMerchantStatusUseCase 
 
     @Override
     public UpdateMerchantStatusResult execute(UpdateMerchantStatusCommand cmd) {
-        requireAdmin(cmd.actorContext());
+        ActorGuards.requireAdmin(cmd.actorContext(), "update merchant status");
 
         Merchant merchant = merchantRepositoryPort.findByCode(MerchantCode.of(cmd.merchantCode()))
                 .orElseThrow(() -> new NotFoundException("Merchant not found"));
@@ -51,7 +48,7 @@ public class UpdateMerchantStatusService implements UpdateMerchantStatusUseCase 
         Status beforeStatus = merchant.status();
         String before = beforeStatus.name();
 
-        Status afterStatus = Status.valueOf(cmd.targetStatus());
+        Status afterStatus = Status.parseStatus(cmd.targetStatus());
 
         switch (afterStatus) {
             case ACTIVE -> merchant.activate();
@@ -61,23 +58,19 @@ public class UpdateMerchantStatusService implements UpdateMerchantStatusUseCase 
 
         merchantRepositoryPort.save(merchant);
 
-        String reason = normalizeReason(cmd.reason());
-
-        String auditAction = "ADMIN_UPDATE_MERCHANT_STATUS_" + cmd.targetStatus();
+        String reason = ReasonNormalizer.normalize(cmd.reason());
         Instant now = timeProviderPort.now();
 
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("merchantCode", cmd.merchantCode());
-        metadata.put("before", before);
-        metadata.put("after", cmd.targetStatus());
-        metadata.put("reason", reason);
-
-        auditPort.publish(new AuditEvent(
-                auditAction,
-                cmd.actorContext().actorType().name(),
-                cmd.actorContext().actorId(),
+        // Audit
+        auditPort.publish(AuditBuilder.buildStatusChangeAudit(
+                "ADMIN_UPDATE_MERCHANT_STATUS",
+                cmd.actorContext(),
                 now,
-                metadata
+                "merchantCode",
+                cmd.merchantCode(),
+                before,
+                cmd.targetStatus(),
+                reason
         ));
 
         if (beforeStatus != afterStatus) {
@@ -92,17 +85,5 @@ public class UpdateMerchantStatusService implements UpdateMerchantStatusUseCase 
         }
 
         return new UpdateMerchantStatusResult(cmd.merchantCode(), before, cmd.targetStatus());
-    }
-
-    private void requireAdmin(ActorContext actor) {
-        if (actor == null || actor.actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Only ADMIN can update merchant status");
-        }
-    }
-
-    private String normalizeReason(String reason) {
-        if (reason == null) return "N/A";
-        String trimmed = reason.trim();
-        return trimmed.isBlank() ? "N/A" : trimmed;
     }
 }

@@ -3,12 +3,12 @@ package com.kori.application.usecase;
 import com.kori.application.command.FailAgentPayoutCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.FailAgentPayoutUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.PayoutRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
-import com.kori.application.security.ActorType;
-import com.kori.domain.model.audit.AuditEvent;
+import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.model.payout.Payout;
 import com.kori.domain.model.payout.PayoutId;
 import com.kori.domain.model.payout.PayoutStatus;
@@ -32,9 +32,7 @@ public final class FailAgentPayoutService implements FailAgentPayoutUseCase {
 
     @Override
     public void execute(FailAgentPayoutCommand command) {
-        if (command.actorContext().actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Only ADMIN can fail payouts");
-        }
+        ActorGuards.requireAdmin(command.actorContext(), "fail payouts");
 
         Payout payout = payoutRepositoryPort.findById(PayoutId.of(command.payoutId()))
                 .orElseThrow(() -> new NotFoundException("Payout not found"));
@@ -47,10 +45,9 @@ public final class FailAgentPayoutService implements FailAgentPayoutUseCase {
         payout.fail(now, command.reason());
         payoutRepositoryPort.save(payout);
 
-        auditPort.publish(new AuditEvent(
+        auditPort.publish(AuditBuilder.buildBasicAudit(
                 "AGENT_PAYOUT_FAILED",
-                command.actorContext().actorType().name(),
-                command.actorContext().actorId(),
+                command.actorContext(),
                 now,
                 Map.of("payoutId", payout.id().value().toString(), "reason", command.reason())
         ));

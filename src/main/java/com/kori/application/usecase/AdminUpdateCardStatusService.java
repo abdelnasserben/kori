@@ -3,13 +3,12 @@ package com.kori.application.usecase;
 import com.kori.application.command.AdminUpdateCardStatusCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.AdminUpdateCardStatusUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.CardRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateCardStatusResult;
-import com.kori.application.security.ActorContext;
-import com.kori.application.security.ActorType;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.CardStatus;
@@ -37,7 +36,7 @@ public final class AdminUpdateCardStatusService implements AdminUpdateCardStatus
     @Override
     public UpdateCardStatusResult execute(AdminUpdateCardStatusCommand cmd) {
 
-        requireAdminActor(cmd.actorContext());
+        ActorGuards.requireAdmin(cmd.actorContext(), "update card status");
 
         if (!Objects.equals(cmd.targetStatus(), CardStatus.ACTIVE.name())
                 && !Objects.equals(cmd.targetStatus(), CardStatus.INACTIVE.name())
@@ -82,11 +81,5 @@ public final class AdminUpdateCardStatusService implements AdminUpdateCardStatus
     private Card getCard(UUID cardUid) {
         return cardRepositoryPort.findByCardUid(cardUid.toString())
                 .orElseThrow(() -> new NotFoundException("Card not found"));
-    }
-
-    private void requireAdminActor(ActorContext ctx) {
-        if (ctx.actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Actor must be an ADMIN");
-        }
     }
 }

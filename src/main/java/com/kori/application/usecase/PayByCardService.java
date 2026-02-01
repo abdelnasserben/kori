@@ -4,15 +4,16 @@ import com.kori.application.command.PayByCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.port.in.PayByCardUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.PayByCardResult;
-import com.kori.application.security.ActorType;
 import com.kori.application.security.PinFormatValidator;
+import com.kori.application.utils.AuditBuilder;
+import com.kori.application.utils.UuidParser;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
-import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.client.Client;
 import com.kori.domain.model.common.Money;
@@ -27,7 +28,6 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 public final class PayByCardService implements PayByCardUseCase {
 
@@ -92,11 +92,9 @@ public final class PayByCardService implements PayByCardUseCase {
             return cached.get();
         }
 
-        if (command.actorContext().actorType() != ActorType.TERMINAL) {
-            throw new ForbiddenOperationException("Only TERMINAL can initiate PayByCard");
-        }
+        ActorGuards.requireTerminal(command.actorContext(), "initiate PayByCard");
 
-        TerminalId terminalId = new TerminalId(UUID.fromString(command.terminalUid()));
+        TerminalId terminalId = new TerminalId(UuidParser.parse(command.terminalUid(), "terminalId"));
         Terminal terminal = terminalRepositoryPort.findById(terminalId)
                 .orElseThrow(() -> new NotFoundException("Terminal not found"));
 
@@ -175,10 +173,9 @@ public final class PayByCardService implements PayByCardUseCase {
         metadata.put("transactionId", tx.id().value().toString());
         metadata.put("cardUid", command.cardUid());
 
-        auditPort.publish(new AuditEvent(
+        auditPort.publish(AuditBuilder.buildBasicAudit(
                 "PAY_BY_CARD",
-                command.actorContext().actorType().name(),
-                command.actorContext().actorId(),
+                command.actorContext(),
                 now,
                 metadata
         ));

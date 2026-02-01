@@ -2,15 +2,16 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.RequestAgentPayoutCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.RequestAgentPayoutUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.AgentPayoutResult;
-import com.kori.application.security.ActorType;
+import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.agent.AgentId;
-import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.payout.Payout;
@@ -61,13 +62,11 @@ public final class RequestAgentPayoutService implements RequestAgentPayoutUseCas
         }
 
         // ADMIN only
-        if (command.actorContext().actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Only ADMIN can initiate agent payout");
-        }
+        ActorGuards.requireAdmin(command.actorContext(), "initiate agent payout");
 
         // Agent must exist and active
         Agent agent = agentRepositoryPort.findByCode(AgentCode.of(command.agentCode()))
-                .orElseThrow(() -> new ForbiddenOperationException("Agent not found"));
+                .orElseThrow(() -> new NotFoundException("Agent not found"));
 
         if (!agent.status().equals(Status.ACTIVE)) {
             throw new ForbiddenOperationException("Agent is not active");
@@ -100,10 +99,9 @@ public final class RequestAgentPayoutService implements RequestAgentPayoutUseCas
         metadata.put("agentCode", command.agentCode());
         metadata.put("payoutId", payout.id().value().toString());
 
-        auditPort.publish(new AuditEvent(
+        auditPort.publish(AuditBuilder.buildBasicAudit(
                 "AGENT_PAYOUT_REQUESTED",
-                command.actorContext().actorType().name(),
-                command.actorContext().actorId(),
+                command.actorContext(),
                 now,
                 metadata
         ));

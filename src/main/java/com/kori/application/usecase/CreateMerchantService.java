@@ -3,13 +3,13 @@ package com.kori.application.usecase;
 import com.kori.application.command.CreateMerchantCommand;
 import com.kori.application.exception.ApplicationException;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.CreateMerchantUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CreateMerchantResult;
-import com.kori.application.security.ActorType;
+import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.account.AccountProfile;
-import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
@@ -45,9 +45,7 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
     public CreateMerchantResult execute(CreateMerchantCommand command) {
         var actorContext = command.actorContext();
 
-        if (actorContext.actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Only ADMIN can create a merchant.");
-        }
+        ActorGuards.requireAdmin(actorContext, "create a merchant.");
 
         // Idempotency first (same key => same result, no side effects)
         var cached = idempotencyPort.find(command.idempotencyKey(), CreateMerchantResult.class);
@@ -79,10 +77,9 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
         metadata.put("adminId", actorContext.actorId());
         metadata.put("merchantCode", merchant.code().value());
 
-        auditPort.publish(new AuditEvent(
+        auditPort.publish(AuditBuilder.buildBasicAudit(
                 "MERCHANT_CREATED",
-                actorContext.actorType().name(),
-                actorContext.actorId(),
+                actorContext,
                 now,
                 metadata
         ));

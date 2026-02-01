@@ -3,17 +3,17 @@ package com.kori.application.usecase;
 import com.kori.application.command.MerchantWithdrawAtAgentCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.InsufficientFundsException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.guard.PricingGuards;
 import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.MerchantWithdrawAtAgentResult;
-import com.kori.application.security.ActorType;
+import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
-import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
@@ -79,9 +79,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         }
 
         // Initié par AGENT uniquement
-        if (command.actorContext().actorType() != ActorType.AGENT) {
-            throw new ForbiddenOperationException("Only AGENT can initiate MerchantWithdrawAtAgent");
-        }
+        ActorGuards.requireAgent(command.actorContext(), "initiate MerchantWithdrawAtAgent");
 
         // Resolve AGENT by code
         Agent agent = agentRepositoryPort.findByCode(AgentCode.of(command.agentCode()))
@@ -135,10 +133,9 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         metadata.put("merchantCode", command.merchantCode());
         metadata.put("agentCode", command.agentCode());
 
-        auditPort.publish(new AuditEvent(
+        auditPort.publish(AuditBuilder.buildBasicAudit(
                 "MERCHANT_WITHDRAW_AT_AGENT",
-                command.actorContext().actorType().name(),
-                command.actorContext().actorId(),
+                command.actorContext(),
                 now,
                 metadata
         ));

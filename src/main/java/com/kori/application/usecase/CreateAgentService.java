@@ -3,16 +3,16 @@ package com.kori.application.usecase;
 import com.kori.application.command.CreateAgentCommand;
 import com.kori.application.exception.ApplicationException;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.CreateAgentUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CreateAgentResult;
-import com.kori.application.security.ActorType;
+import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.account.AccountProfile;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.agent.AgentId;
-import com.kori.domain.model.audit.AuditEvent;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -46,9 +46,7 @@ public final class CreateAgentService implements CreateAgentUseCase {
         Objects.requireNonNull(command, "command");
         var actorContext = command.actorContext();
 
-        if (actorContext.actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Only ADMIN can create an agent.");
-        }
+        ActorGuards.requireAdmin(actorContext, "create agent");
 
         // Idempotency first: same key => same result, no side effects
         var cached = idempotencyPort.find(command.idempotencyKey(), CreateAgentResult.class);
@@ -80,12 +78,12 @@ public final class CreateAgentService implements CreateAgentUseCase {
         metadata.put("adminId", actorContext.actorId());
         metadata.put("agentCode", code.value());
 
-        auditPort.publish(new AuditEvent(
+        auditPort.publish(AuditBuilder.buildBasicAudit(
                 "AGENT_CREATED",
-                actorContext.actorType().name(),
-                actorContext.actorId(),
+                actorContext,
                 now,
-                metadata));
+                metadata
+        ));
 
         return result;
     }

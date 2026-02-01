@@ -3,14 +3,13 @@ package com.kori.application.usecase;
 import com.kori.application.command.AgentUpdateCardStatusCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.AgentUpdateCardStatusUseCase;
 import com.kori.application.port.out.AgentRepositoryPort;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.CardRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateCardStatusResult;
-import com.kori.application.security.ActorContext;
-import com.kori.application.security.ActorType;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.audit.AuditEvent;
@@ -44,7 +43,7 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
     @Override
     public UpdateCardStatusResult execute(AgentUpdateCardStatusCommand cmd) {
 
-        requireAgentActor(cmd.actorContext());
+        ActorGuards.requireAgent(cmd.actorContext(), "update card status");
 
         if (!Objects.equals(cmd.targetStatus(), CardStatus.BLOCKED.name())
                 && !Objects.equals(cmd.targetStatus(), CardStatus.LOST.name())) {
@@ -95,11 +94,5 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
     private Card getCard(UUID cardUid) {
         return cardRepositoryPort.findByCardUid(cardUid.toString())
                 .orElseThrow(() -> new NotFoundException("Card not found"));
-    }
-
-    private static void requireAgentActor(ActorContext ctx) {
-        if (ctx.actorType() != ActorType.AGENT) {
-            throw new ForbiddenOperationException("Actor must be an AGENT");
-        }
     }
 }

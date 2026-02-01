@@ -3,13 +3,13 @@ package com.kori.application.usecase;
 import com.kori.application.command.ReversalCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.ReversalUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.ReversalResult;
-import com.kori.application.security.ActorType;
+import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.ledger.LedgerEntryType;
-import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
 
@@ -52,9 +52,7 @@ public final class ReversalService implements ReversalUseCase {
         }
 
         // Admin only
-        if (cmd.actorContext().actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Only ADMIN can initiate reversal");
-        }
+        ActorGuards.requireAdmin(cmd.actorContext(), "initiate reversal");
 
         TransactionId originalTxId = TransactionId.of(cmd.originalTransactionId());
         Transaction originalTx = transactionRepositoryPort.findById(originalTxId)
@@ -97,10 +95,9 @@ public final class ReversalService implements ReversalUseCase {
         metadata.put("transactionId", reversalTx.id().value().toString());
         metadata.put("originalTransactionId", originalTxId.value().toString());
 
-        auditPort.publish(new AuditEvent(
+        auditPort.publish(AuditBuilder.buildBasicAudit(
                 "REVERSAL",
-                cmd.actorContext().actorType().name(),
-                cmd.actorContext().actorId(),
+                cmd.actorContext(),
                 now,
                 metadata
         ));

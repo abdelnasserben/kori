@@ -3,11 +3,11 @@ package com.kori.application.usecase;
 import com.kori.application.command.CreateTerminalCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.CreateTerminalUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CreateTerminalResult;
-import com.kori.application.security.ActorType;
-import com.kori.domain.model.audit.AuditEvent;
+import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
@@ -40,9 +40,7 @@ public class CreateTerminalService implements CreateTerminalUseCase {
     public CreateTerminalResult execute(CreateTerminalCommand command) {
         var actorContext = command.actorContext();
 
-        if (actorContext.actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Only ADMIN can create a terminal.");
-        }
+        ActorGuards.requireAdmin(command.actorContext(), "create a terminal.");
 
         // Idempotency first (same key => same result, no side effects)
         var cached = idempotencyPort.find(command.idempotencyKey(), CreateTerminalResult.class);
@@ -72,10 +70,9 @@ public class CreateTerminalService implements CreateTerminalUseCase {
         metadata.put("terminalId", terminalId.value().toString());
         metadata.put("merchantCode", merchant.code().value());
 
-        auditPort.publish(new AuditEvent(
+        auditPort.publish(AuditBuilder.buildBasicAudit(
                 "TERMINAL_CREATED",
-                actorContext.actorType().name(),
-                actorContext.actorId(),
+                actorContext,
                 now,
                 metadata
         ));

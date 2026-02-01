@@ -3,19 +3,19 @@ package com.kori.application.usecase;
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.guard.PricingGuards;
 import com.kori.application.port.in.EnrollCardUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.EnrollCardResult;
-import com.kori.application.security.ActorType;
 import com.kori.application.security.PinFormatValidator;
+import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.account.AccountProfile;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
-import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientId;
@@ -92,9 +92,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
         }
 
         // 1) Authorization: enrollment must be initiated by an AGENT
-        if (command.actorContext().actorType() != ActorType.AGENT) {
-            throw new ForbiddenOperationException("Only AGENT can enroll a card");
-        }
+        ActorGuards.requireAgent(command.actorContext(), "enroll a card");
 
         // 2) Agent must exist (by code) + must be ACTIVE
         Agent agent = agentRepositoryPort.findByCode(AgentCode.of(command.agentCode()))
@@ -171,14 +169,12 @@ public final class EnrollCardService implements EnrollCardUseCase {
         metadata.put("clientPhoneNumber", client.phoneNumber());
         metadata.put("cardUid", card.cardUid());
 
-        AuditEvent event = new AuditEvent(
+        auditPort.publish(AuditBuilder.buildBasicAudit(
                 "ENROLL_CARD",
-                command.actorContext().actorType().name(),
-                command.actorContext().actorId(),
+                command.actorContext(),
                 now,
                 metadata
-        );
-        auditPort.publish(event);
+        ));
 
         EnrollCardResult result = new EnrollCardResult(
                 tx.id().value().toString(),

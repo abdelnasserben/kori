@@ -2,24 +2,21 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateAgentStatusCommand;
 import com.kori.application.events.AgentStatusChangedEvent;
-import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateAgentStatusUseCase;
 import com.kori.application.port.out.AgentRepositoryPort;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.DomainEventPublisherPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateAgentStatusResult;
-import com.kori.application.security.ActorContext;
-import com.kori.application.security.ActorType;
+import com.kori.application.utils.AuditBuilder;
+import com.kori.application.utils.ReasonNormalizer;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
-import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Status;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.UUID;
 
 public class UpdateAgentStatusService implements UpdateAgentStatusUseCase {
@@ -43,14 +40,14 @@ public class UpdateAgentStatusService implements UpdateAgentStatusUseCase {
 
     @Override
     public UpdateAgentStatusResult execute(UpdateAgentStatusCommand cmd) {
-        requireAdmin(cmd.actorContext());
+        ActorGuards.requireAdmin(cmd.actorContext(), "update agent status");
 
         Agent agent = agentRepositoryPort.findByCode(AgentCode.of(cmd.agentCode()))
                 .orElseThrow(() -> new NotFoundException("Agent not found"));
 
         Status beforeStatus = agent.status();
         String before = beforeStatus.name();
-        Status afterStatus = Status.valueOf(cmd.targetStatus());
+        Status afterStatus = Status.parseStatus(cmd.targetStatus());
 
         switch (afterStatus) {
             case ACTIVE -> agent.activate();
@@ -60,23 +57,20 @@ public class UpdateAgentStatusService implements UpdateAgentStatusUseCase {
 
         agentRepositoryPort.save(agent);
 
-        String reason = normalizeReason(cmd.reason());
+        String reason = ReasonNormalizer.normalize(cmd.reason());
 
-        String auditAction = "ADMIN_UPDATE_AGENT_STATUS_" + cmd.targetStatus();
         Instant now = timeProviderPort.now();
 
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("agentCode", cmd.agentCode());
-        metadata.put("before", before);
-        metadata.put("after", cmd.targetStatus());
-        metadata.put("reason", reason);
-
-        auditPort.publish(new AuditEvent(
-                auditAction,
-                cmd.actorContext().actorType().name(),
-                cmd.actorContext().actorId(),
+        // Audit
+        auditPort.publish(AuditBuilder.buildStatusChangeAudit(
+                "ADMIN_UPDATE_AGENT_STATUS",
+                cmd.actorContext(),
                 now,
-                metadata
+                "agentCode",
+                cmd.agentCode(),
+                before,
+                cmd.targetStatus(),
+                reason
         ));
 
         if (beforeStatus != afterStatus) {
@@ -91,17 +85,5 @@ public class UpdateAgentStatusService implements UpdateAgentStatusUseCase {
         }
 
         return new UpdateAgentStatusResult(cmd.agentCode(), before, cmd.targetStatus());
-    }
-
-    private void requireAdmin(ActorContext actor) {
-        if (actor == null || actor.actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Only ADMIN can update agent status");
-        }
-    }
-
-    private String normalizeReason(String reason) {
-        if (reason == null) return "N/A";
-        String trimmed = reason.trim();
-        return trimmed.isBlank() ? "N/A" : trimmed;
     }
 }

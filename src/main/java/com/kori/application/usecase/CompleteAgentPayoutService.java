@@ -3,15 +3,15 @@ package com.kori.application.usecase;
 import com.kori.application.command.CompleteAgentPayoutCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.CompleteAgentPayoutUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.LedgerAppendPort;
 import com.kori.application.port.out.PayoutRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
-import com.kori.application.security.ActorType;
+import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
-import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.payout.Payout;
 import com.kori.domain.model.payout.PayoutId;
 import com.kori.domain.model.payout.PayoutStatus;
@@ -40,9 +40,7 @@ public final class CompleteAgentPayoutService implements CompleteAgentPayoutUseC
 
     @Override
     public void execute(CompleteAgentPayoutCommand command) {
-        if (command.actorContext().actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Only ADMIN can complete agent payout");
-        }
+        ActorGuards.requireAdmin(command.actorContext(), "complete agent payout");
 
         Payout payout = payoutRepositoryPort.findById(PayoutId.of(command.payoutId()))
                 .orElseThrow(() -> new NotFoundException("Payout not found"));
@@ -64,10 +62,9 @@ public final class CompleteAgentPayoutService implements CompleteAgentPayoutUseC
         payout.complete(now);
         payoutRepositoryPort.save(payout);
 
-        auditPort.publish(new AuditEvent(
+        auditPort.publish(AuditBuilder.buildBasicAudit(
                 "AGENT_PAYOUT_COMPLETED",
-                command.actorContext().actorType().name(),
-                command.actorContext().actorId(),
+                command.actorContext(),
                 now,
                 Map.of("payoutId", payout.id().value().toString())
         ));

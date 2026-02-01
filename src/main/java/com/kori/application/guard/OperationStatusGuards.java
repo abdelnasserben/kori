@@ -37,7 +37,7 @@ public class OperationStatusGuards {
 
         accountProfilePort.findByAccount(ref)
                 .filter(p -> p.status() == Status.ACTIVE)
-                .orElseThrow(() -> new ForbiddenOperationException("CLIENT_ACCOUNT_NOT_ACTIVE"));
+                .orElseThrow(() -> new ForbiddenOperationException("CLIENT_ACCOUNT_INACTIVE_OR_MISSING"));
 
     }
 
@@ -51,7 +51,7 @@ public class OperationStatusGuards {
 
         accountProfilePort.findByAccount(ref)
                 .filter(p -> p.status() == Status.ACTIVE)
-                .orElseThrow(() -> new ForbiddenOperationException("MERCHANT_ACCOUNT_NOT_ACTIVE"));
+                .orElseThrow(() -> new ForbiddenOperationException("MERCHANT_ACCOUNT_INACTIVE_OR_MISSING"));
 
     }
 
@@ -69,7 +69,7 @@ public class OperationStatusGuards {
 
         accountProfilePort.findByAccount(ref)
                 .filter(p -> p.status() == Status.ACTIVE)
-                .orElseThrow(() -> new ForbiddenOperationException("AGENT_ACCOUNT_NOT_ACTIVE"));
+                .orElseThrow(() -> new ForbiddenOperationException("AGENT_ACCOUNT_INACTIVE_OR_MISSING"));
 
     }
 

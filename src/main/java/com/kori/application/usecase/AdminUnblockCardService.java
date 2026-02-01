@@ -1,15 +1,13 @@
 package com.kori.application.usecase;
 
 import com.kori.application.command.AdminUnblockCardCommand;
-import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.AdminUnblockCardUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.CardRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateCardStatusResult;
-import com.kori.application.security.ActorContext;
-import com.kori.application.security.ActorType;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
 
@@ -34,7 +32,7 @@ public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
     @Override
     public UpdateCardStatusResult execute(AdminUnblockCardCommand cmd) {
 
-        requireAdminActor(cmd.actorContext());
+        ActorGuards.requireAdmin(cmd.actorContext(), "unblock card");
 
         Card card = getCard(cmd.cardUid());
         String before = card.status().name(); // for audit
@@ -65,11 +63,5 @@ public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
     private Card getCard(UUID cardUid) {
         return cardRepositoryPort.findByCardUid(cardUid.toString())
                 .orElseThrow(() -> new NotFoundException("Card not found"));
-    }
-
-    private void requireAdminActor(ActorContext ctx) {
-        if (ctx.actorType() != ActorType.ADMIN) {
-            throw new ForbiddenOperationException("Actor must be an ADMIN");
-        }
     }
 }

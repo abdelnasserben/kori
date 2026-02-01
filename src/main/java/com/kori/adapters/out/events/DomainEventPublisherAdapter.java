@@ -12,11 +12,11 @@ import java.util.Objects;
  * {@link ApplicationEventPublisher}.
  */
 @Component
-public class SpringDomainEventPublisherAdapter implements DomainEventPublisherPort {
+public class DomainEventPublisherAdapter implements DomainEventPublisherPort {
 
     private final ApplicationEventPublisher publisher;
 
-    public SpringDomainEventPublisherAdapter(ApplicationEventPublisher publisher) {
+    public DomainEventPublisherAdapter(ApplicationEventPublisher publisher) {
         this.publisher = Objects.requireNonNull(publisher);
     }
 
