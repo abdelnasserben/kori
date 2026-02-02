@@ -1,5 +1,6 @@
 package com.kori.application.command;
 
+import com.kori.application.exception.ValidationException;
 import com.kori.application.security.ActorContext;
 import com.kori.domain.ledger.LedgerAccountRef;
 
@@ -39,18 +40,18 @@ public record SearchTransactionHistoryCommand(
 
         // Cursor must be fully defined or fully null
         if ((beforeCreatedAt == null) != (beforeTransactionId == null)) {
-            throw new IllegalArgumentException("beforeCreatedAt and beforeTransactionId must be both null or both non-null");
+            throw new ValidationException("beforeCreatedAt and beforeTransactionId must be both null or both non-null");
         }
 
         if (minAmount != null && minAmount.signum() < 0) {
-            throw new IllegalArgumentException("minAmount must be >= 0");
+            throw new ValidationException("minAmount must be >= 0");
         }
         if (maxAmount != null && maxAmount.signum() < 0) {
-            throw new IllegalArgumentException("maxAmount must be >= 0");
+            throw new ValidationException("maxAmount must be >= 0");
         }
 
         if (minAmount != null && maxAmount != null && minAmount.compareTo(maxAmount) > 0) {
-            throw new IllegalArgumentException("minAmount must be <= maxAmount");
+            throw new ValidationException("minAmount must be <= maxAmount");
         }
     }
 }

@@ -1,6 +1,6 @@
 package com.kori.application.utils;
 
-import com.kori.application.exception.ApplicationException;
+import com.kori.application.exception.ValidationException;
 
 import java.util.UUID;
 
@@ -11,7 +11,7 @@ public final class UuidParser {
         try {
             return UUID.fromString(value);
         } catch (IllegalArgumentException ex) {
-            throw new ApplicationException("Invalid " + field + ": " + value);
+            throw new ValidationException("Invalid " + field + ": " + value);
         }
     }
 

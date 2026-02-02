@@ -1,10 +1,7 @@
 package com.kori.application.usecase;
 
 import com.kori.application.command.PayByCardCommand;
-import com.kori.application.exception.ForbiddenOperationException;
-import com.kori.application.exception.InsufficientFundsException;
-import com.kori.application.exception.InvalidPinFormatException;
-import com.kori.application.exception.NotFoundException;
+import com.kori.application.exception.*;
 import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.port.out.*;
 import com.kori.application.result.PayByCardResult;
@@ -331,7 +328,7 @@ final class PayByCardServiceTest {
     }
 
     @Test
-    void forbidden_whenMaxFailedPinAttemptsPolicyIsInvalid() {
+    void validation_whenMaxFailedPinAttemptsPolicyIsInvalid() {
         when(idempotencyPort.find(IDEM_KEY, PayByCardResult.class)).thenReturn(Optional.empty());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
 
@@ -347,7 +344,7 @@ final class PayByCardServiceTest {
 
         when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(0);
 
-        assertThrows(ForbiddenOperationException.class, () -> payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal())));
+        assertThrows(ValidationException.class, () -> payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal())));
     }
 
     @Test

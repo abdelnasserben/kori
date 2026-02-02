@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.GetBalanceCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.exception.ValidationException;
 import com.kori.application.port.out.LedgerQueryPort;
 import com.kori.application.result.BalanceResult;
 import com.kori.application.security.ActorContext;
@@ -124,10 +125,10 @@ final class GetBalanceServiceTest {
     }
 
     @Test
-    void agent_throwsIllegalArgument_whenProvidesPartialScope() {
+    void agent_throwsValidation_whenProvidesPartialScope() {
         GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY);
 
-        assertThrows(IllegalArgumentException.class, () -> service.execute(new GetBalanceCommand(
+        assertThrows(ValidationException.class, () -> service.execute(new GetBalanceCommand(
                 agentActor("A-123456"),
                 LedgerAccountType.AGENT.name(),
                 null

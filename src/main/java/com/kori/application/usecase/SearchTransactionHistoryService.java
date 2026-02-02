@@ -50,7 +50,7 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
         // Group scope entries by tx (preserve order)
         var byTx = new LinkedHashMap<String, List<LedgerEntry>>();
         for (var e : scopeEntries) {
-            byTx.computeIfAbsent(e.transactionId().toString(), __ -> new ArrayList<>()).add(e);
+            byTx.computeIfAbsent(e.transactionId().value().toString(), __ -> new ArrayList<>()).add(e);
         }
 
         List<TransactionHistoryItem> items = new ArrayList<>();
@@ -126,7 +126,7 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
             }
 
             var built = new TransactionHistoryItem(
-                    tx.id().toString(),
+                    tx.id().value().toString(),
                     tx.type(),
                     tx.createdAt(),
                     clientId,

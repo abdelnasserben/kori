@@ -1,6 +1,8 @@
 package com.kori.application.usecase;
 
 import com.kori.application.command.CreateAgentCommand;
+import com.kori.application.exception.ApplicationErrorCategory;
+import com.kori.application.exception.ApplicationErrorCode;
 import com.kori.application.exception.ApplicationException;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.guard.ActorGuards;
@@ -96,6 +98,11 @@ public final class CreateAgentService implements CreateAgentUseCase {
                 return candidate;
             }
         }
-        throw new ApplicationException("Unable to generate unique agentCode.");
+
+        throw new ApplicationException(
+                ApplicationErrorCode.TECHNICAL_FAILURE,
+                ApplicationErrorCategory.TECHNICAL,
+                "Unable to generate unique agentCode."
+        );
     }
 }

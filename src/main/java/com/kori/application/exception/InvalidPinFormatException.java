@@ -1,7 +1,13 @@
 package com.kori.application.exception;
 
-public class InvalidPinFormatException extends RuntimeException {
+import java.util.Map;
+
+public class InvalidPinFormatException extends ValidationException {
     public InvalidPinFormatException(String message) {
-        super(message);
+        super(ApplicationErrorCode.INVALID_PIN_FORMAT, message);
+    }
+
+    public InvalidPinFormatException(String message, Map<String, Object> metadata) {
+        super(ApplicationErrorCode.INVALID_PIN_FORMAT, message, metadata);
     }
 }

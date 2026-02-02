@@ -1,5 +1,6 @@
 package com.kori.application.command;
 
+import com.kori.application.exception.ValidationException;
 import com.kori.application.security.ActorContext;
 
 import java.util.Objects;
@@ -21,7 +22,7 @@ public record GetBalanceCommand(
         boolean typeNull = (accountType == null);
         boolean ownerNull = (ownerRef == null);
         if (typeNull != ownerNull) {
-            throw new IllegalArgumentException("accountType and ownerRef must be provided together or both omitted");
+            throw new ValidationException("accountType and ownerRef must be provided together or both omitted");
         }
 
         if (accountType != null) {

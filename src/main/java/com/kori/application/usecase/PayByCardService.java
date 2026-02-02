@@ -4,6 +4,7 @@ import com.kori.application.command.PayByCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.exception.ValidationException;
 import com.kori.application.guard.ActorGuards;
 import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.port.in.PayByCardUseCase;
@@ -125,7 +126,10 @@ public final class PayByCardService implements PayByCardUseCase {
 
         int maxAttempts = cardSecurityPolicyPort.maxFailedPinAttempts();
         if (maxAttempts <= 0) {
-            throw new ForbiddenOperationException("Invalid maxFailedPinAttempts policy value");
+            throw new ValidationException(
+                    "Invalid maxFailedPinAttempts policy value",
+                    Map.of("maxFailedPinAttempts", maxAttempts)
+            );
         }
 
         PinFormatValidator.validate(command.pin());
