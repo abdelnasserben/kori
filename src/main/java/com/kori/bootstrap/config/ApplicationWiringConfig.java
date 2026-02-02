@@ -191,6 +191,67 @@ public class ApplicationWiringConfig {
     }
 
     @Bean
+    public CreateAgentUseCase createAgentUseCase(
+            AgentRepositoryPort agentRepositoryPort,
+            AccountProfilePort accountProfilePort,
+            IdempotencyPort idempotencyPort,
+            AuditPort auditPort,
+            TimeProviderPort timeProviderPort,
+            CodeGeneratorPort codeGeneratorPort,
+            IdGeneratorPort idGeneratorPort
+    ) {
+        return new CreateAgentService(
+                agentRepositoryPort,
+                accountProfilePort,
+                idempotencyPort,
+                auditPort,
+                timeProviderPort,
+                codeGeneratorPort,
+                idGeneratorPort
+        );
+    }
+
+    @Bean
+    public CreateMerchantUseCase createMerchantUseCase(
+            MerchantRepositoryPort merchantRepositoryPort,
+            AccountProfilePort accountProfilePort,
+            AuditPort auditPort,
+            TimeProviderPort timeProviderPort,
+            IdempotencyPort idempotencyPort,
+            CodeGeneratorPort codeGeneratorPort,
+            IdGeneratorPort idGeneratorPort
+    ) {
+        return new CreateMerchantService(
+                merchantRepositoryPort,
+                accountProfilePort,
+                auditPort,
+                timeProviderPort,
+                idempotencyPort,
+                codeGeneratorPort,
+                idGeneratorPort
+        );
+    }
+
+    @Bean
+    public CreateTerminalUseCase createTerminalUseCase(
+            TerminalRepositoryPort terminalRepositoryPort,
+            MerchantRepositoryPort merchantRepositoryPort,
+            TimeProviderPort timeProviderPort,
+            IdempotencyPort idempotencyPort,
+            IdGeneratorPort idGeneratorPort,
+            AuditPort auditPort
+    ) {
+        return new CreateTerminalService(
+                terminalRepositoryPort,
+                merchantRepositoryPort,
+                idempotencyPort,
+                timeProviderPort,
+                idGeneratorPort,
+                auditPort
+        );
+    }
+
+    @Bean
     public AgentUpdateCardStatusUseCase agentUpdateCardStatusUseCase(
             TimeProviderPort timeProviderPort,
             AgentRepositoryPort agentRepositoryPort,
@@ -289,6 +350,19 @@ public class ApplicationWiringConfig {
                 auditPort,
                 timeProviderPort,
                 domainEventPublisherPort
+        );
+    }
+
+    @Bean
+    public UpdateTerminalStatusUseCase updateTerminalStatusUseCase(
+            TerminalRepositoryPort terminalRepositoryPort,
+            AuditPort auditPort,
+            TimeProviderPort timeProviderPort
+    ) {
+        return new UpdateTerminalStatusService(
+                terminalRepositoryPort,
+                auditPort,
+                timeProviderPort
         );
     }
 

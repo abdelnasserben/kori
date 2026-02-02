@@ -149,17 +149,28 @@ public abstract class IntegrationTestBase {
         return card;
     }
 
-    protected AccountProfile createActiveAccountProfile(LedgerAccountRef accountRef) {
-        AccountProfile profile = AccountProfile.activeNew(accountRef, NOW.minusSeconds(500));
-        accountProfilePort.save(profile);
-        return profile;
+    protected void createCardWithStatus(Client client, String cardUid, String pin, CardStatus status, int failedAttempts) {
+        Card card = new Card(
+                new CardId(UUID.randomUUID()),
+                client.id(),
+                cardUid,
+                pinHasherPort.hash(pin),
+                status,
+                failedAttempts,
+                NOW.minusSeconds(60)
+        );
+        cardRepositoryPort.save(card);
     }
 
-    protected Transaction seedLedgerCredit(LedgerAccountRef accountRef, BigDecimal amount) {
+    protected void createActiveAccountProfile(LedgerAccountRef accountRef) {
+        AccountProfile profile = AccountProfile.activeNew(accountRef, NOW.minusSeconds(500));
+        accountProfilePort.save(profile);
+    }
+
+    protected void seedLedgerCredit(LedgerAccountRef accountRef, BigDecimal amount) {
         TransactionId txId = new TransactionId(UUID.randomUUID());
         Transaction tx = new Transaction(txId, TransactionType.PAY_BY_CARD, Money.of(amount), NOW.minusSeconds(720), null);
         transactionRepositoryPort.save(tx);
         ledgerAppendPort.append(List.of(LedgerEntry.credit(tx.id(), accountRef, Money.of(amount))));
-        return tx;
     }
 }
