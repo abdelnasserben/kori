@@ -366,6 +366,32 @@ public class ApplicationWiringConfig {
         );
     }
 
+    @Bean
+    public UpdateFeeConfigUseCase updateFeeConfigUseCase(
+            FeeConfigPort feeConfigPort,
+            AuditPort auditPort,
+            TimeProviderPort timeProviderPort
+    ) {
+        return new UpdateFeeConfigService(
+                feeConfigPort,
+                auditPort,
+                timeProviderPort
+        );
+    }
+
+    @Bean
+    public UpdateCommissionConfigUseCase updateCommissionConfigUseCase(
+            CommissionConfigPort commissionConfigPort,
+            AuditPort auditPort,
+            TimeProviderPort timeProviderPort
+    ) {
+        return new UpdateCommissionConfigService(
+                commissionConfigPort,
+                auditPort,
+                timeProviderPort
+        );
+    }
+
     // -----------------------------
     // Policy and Guard
     // -----------------------------

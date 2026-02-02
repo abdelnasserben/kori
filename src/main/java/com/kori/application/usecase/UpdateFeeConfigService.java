@@ -1,0 +1,134 @@
+package com.kori.application.usecase;
+
+import com.kori.application.command.UpdateFeeConfigCommand;
+import com.kori.application.exception.ValidationException;
+import com.kori.application.guard.ActorGuards;
+import com.kori.application.port.in.UpdateFeeConfigUseCase;
+import com.kori.application.port.out.AuditPort;
+import com.kori.application.port.out.FeeConfigPort;
+import com.kori.application.port.out.TimeProviderPort;
+import com.kori.application.result.UpdateFeeConfigResult;
+import com.kori.application.utils.AuditBuilder;
+import com.kori.application.utils.ReasonNormalizer;
+import com.kori.domain.model.config.FeeConfig;
+
+import java.math.BigDecimal;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
+
+public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
+
+    private final FeeConfigPort feeConfigPort;
+    private final AuditPort auditPort;
+    private final TimeProviderPort timeProviderPort;
+
+    public UpdateFeeConfigService(
+            FeeConfigPort feeConfigPort,
+            AuditPort auditPort,
+            TimeProviderPort timeProviderPort
+    ) {
+        this.feeConfigPort = feeConfigPort;
+        this.auditPort = auditPort;
+        this.timeProviderPort = timeProviderPort;
+    }
+
+    @Override
+    public UpdateFeeConfigResult execute(UpdateFeeConfigCommand cmd) {
+        ActorGuards.requireAdmin(cmd.actorContext(), "update fee config");
+
+        validate(cmd);
+
+        Optional<FeeConfig> previous = feeConfigPort.get();
+
+        FeeConfig updated = new FeeConfig(
+                cmd.cardEnrollmentPrice(),
+                cmd.cardPaymentFeeRate(),
+                cmd.cardPaymentFeeMin(),
+                cmd.cardPaymentFeeMax(),
+                cmd.merchantWithdrawFeeRate(),
+                cmd.merchantWithdrawFeeMin(),
+                cmd.merchantWithdrawFeeMax()
+        );
+
+        feeConfigPort.upsert(updated);
+
+        String reason = ReasonNormalizer.normalize(cmd.reason());
+        Instant now = timeProviderPort.now();
+
+        Map<String, String> metadata = new HashMap<>();
+        metadata.put("reason", reason);
+        metadata.put("cardEnrollmentPrice", cmd.cardEnrollmentPrice().toPlainString());
+        metadata.put("cardPaymentFeeRate", cmd.cardPaymentFeeRate().toPlainString());
+        metadata.put("cardPaymentFeeMin", cmd.cardPaymentFeeMin().toPlainString());
+        metadata.put("cardPaymentFeeMax", cmd.cardPaymentFeeMax().toPlainString());
+        metadata.put("merchantWithdrawFeeRate", cmd.merchantWithdrawFeeRate().toPlainString());
+        metadata.put("merchantWithdrawFeeMin", cmd.merchantWithdrawFeeMin().toPlainString());
+        metadata.put("merchantWithdrawFeeMax", cmd.merchantWithdrawFeeMax().toPlainString());
+
+        previous.ifPresent(cfg -> {
+            metadata.put("previousCardEnrollmentPrice", cfg.cardEnrollmentPrice().toPlainString());
+            metadata.put("previousCardPaymentFeeRate", cfg.cardPaymentFeeRate().toPlainString());
+            metadata.put("previousCardPaymentFeeMin", cfg.cardPaymentFeeMin().toPlainString());
+            metadata.put("previousCardPaymentFeeMax", cfg.cardPaymentFeeMax().toPlainString());
+            metadata.put("previousMerchantWithdrawFeeRate", cfg.merchantWithdrawFeeRate().toPlainString());
+            metadata.put("previousMerchantWithdrawFeeMin", cfg.merchantWithdrawFeeMin().toPlainString());
+            metadata.put("previousMerchantWithdrawFeeMax", cfg.merchantWithdrawFeeMax().toPlainString());
+        });
+
+        auditPort.publish(AuditBuilder.buildBasicAudit(
+                "ADMIN_UPDATE_FEE_CONFIG",
+                cmd.actorContext(),
+                now,
+                metadata
+        ));
+
+        return new UpdateFeeConfigResult(
+                cmd.cardEnrollmentPrice(),
+                cmd.cardPaymentFeeRate(),
+                cmd.cardPaymentFeeMin(),
+                cmd.cardPaymentFeeMax(),
+                cmd.merchantWithdrawFeeRate(),
+                cmd.merchantWithdrawFeeMin(),
+                cmd.merchantWithdrawFeeMax()
+        );
+    }
+
+    private void validate(UpdateFeeConfigCommand cmd) {
+        Map<String, Object> errors = new HashMap<>();
+
+        validateNonNegative(cmd.cardEnrollmentPrice(), "cardEnrollmentPrice", errors);
+        validateRate(cmd.cardPaymentFeeRate(), "cardPaymentFeeRate", errors);
+        validateNonNegative(cmd.cardPaymentFeeMin(), "cardPaymentFeeMin", errors);
+        validateNonNegative(cmd.cardPaymentFeeMax(), "cardPaymentFeeMax", errors);
+        validateMinMax(cmd.cardPaymentFeeMin(), cmd.cardPaymentFeeMax(), "cardPaymentFee", errors);
+
+        validateRate(cmd.merchantWithdrawFeeRate(), "merchantWithdrawFeeRate", errors);
+        validateNonNegative(cmd.merchantWithdrawFeeMin(), "merchantWithdrawFeeMin", errors);
+        validateNonNegative(cmd.merchantWithdrawFeeMax(), "merchantWithdrawFeeMax", errors);
+        validateMinMax(cmd.merchantWithdrawFeeMin(), cmd.merchantWithdrawFeeMax(), "merchantWithdrawFee", errors);
+
+        if (!errors.isEmpty()) {
+            throw new ValidationException("Invalid fee configuration", errors);
+        }
+    }
+
+    private void validateNonNegative(BigDecimal value, String field, Map<String, Object> errors) {
+        if (value.compareTo(BigDecimal.ZERO) < 0) {
+            errors.put(field, "must be >= 0");
+        }
+    }
+
+    private void validateRate(BigDecimal rate, String field, Map<String, Object> errors) {
+        if (rate.compareTo(BigDecimal.ZERO) < 0 || rate.compareTo(BigDecimal.ONE) > 0) {
+            errors.put(field, "must be between 0 and 1");
+        }
+    }
+
+    private void validateMinMax(BigDecimal min, BigDecimal max, String field, Map<String, Object> errors) {
+        if (min.compareTo(max) > 0) {
+            errors.put(field, "min must be <= max");
+        }
+    }
+}
