@@ -9,6 +9,7 @@ import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.LedgerAppendPort;
 import com.kori.application.port.out.PayoutRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
+import com.kori.application.result.AgentPayoutResult;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
@@ -39,7 +40,7 @@ public final class CompleteAgentPayoutService implements CompleteAgentPayoutUseC
     }
 
     @Override
-    public void execute(CompleteAgentPayoutCommand command) {
+    public AgentPayoutResult execute(CompleteAgentPayoutCommand command) {
         ActorGuards.requireAdmin(command.actorContext(), "complete agent payout");
 
         Payout payout = payoutRepositoryPort.findById(PayoutId.of(command.payoutId()))
@@ -68,5 +69,6 @@ public final class CompleteAgentPayoutService implements CompleteAgentPayoutUseC
                 now,
                 Map.of("payoutId", payout.id().value().toString())
         ));
+        return null;
     }
 }

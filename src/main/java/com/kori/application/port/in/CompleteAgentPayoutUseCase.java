@@ -1,7 +1,8 @@
 package com.kori.application.port.in;
 
 import com.kori.application.command.CompleteAgentPayoutCommand;
+import com.kori.application.result.AgentPayoutResult;
 
 public interface CompleteAgentPayoutUseCase {
-    void execute(CompleteAgentPayoutCommand command);
+    AgentPayoutResult execute(CompleteAgentPayoutCommand command);
 }

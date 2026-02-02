@@ -7,6 +7,8 @@ import com.kori.application.security.ActorType;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.account.AccountProfile;
+import com.kori.domain.model.admin.Admin;
+import com.kori.domain.model.admin.AdminId;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.agent.AgentId;
@@ -49,6 +51,7 @@ public abstract class IntegrationTestBase {
     @Autowired protected ClientRepositoryPort clientRepositoryPort;
     @Autowired protected CardRepositoryPort cardRepositoryPort;
     @Autowired protected AgentRepositoryPort agentRepositoryPort;
+    @Autowired protected AdminRepositoryPort adminRepositoryPort;
     @Autowired protected TransactionRepositoryPort transactionRepositoryPort;
     @Autowired protected LedgerAppendPort ledgerAppendPort;
     @Autowired protected LedgerQueryPort ledgerQueryPort;
@@ -70,6 +73,7 @@ public abstract class IntegrationTestBase {
                 + "terminals, "
                 + "merchants, "
                 + "agents, "
+                + "admins, "
                 + "account_profiles, "
                 + "fee_config, "
                 + "commission_config, "
@@ -113,6 +117,12 @@ public abstract class IntegrationTestBase {
         agentRepositoryPort.save(agent);
         createActiveAccountProfile(LedgerAccountRef.agent(agent.id().value().toString()));
         return agent;
+    }
+
+    protected Admin createActiveAdmin() {
+        Admin admin = Admin.activeNew(new AdminId(UUID.randomUUID()), NOW.minusSeconds(240));
+        adminRepositoryPort.save(admin);
+        return admin;
     }
 
     protected Merchant createActiveMerchant(String code) {

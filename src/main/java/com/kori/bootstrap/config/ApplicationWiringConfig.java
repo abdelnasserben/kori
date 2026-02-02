@@ -252,6 +252,23 @@ public class ApplicationWiringConfig {
     }
 
     @Bean
+    public CreateAdminUseCase createAdminUseCase(
+            AdminRepositoryPort adminRepositoryPort,
+            IdempotencyPort idempotencyPort,
+            TimeProviderPort timeProviderPort,
+            IdGeneratorPort idGeneratorPort,
+            AuditPort auditPort
+    ) {
+        return new CreateAdminService(
+                adminRepositoryPort,
+                idempotencyPort,
+                timeProviderPort,
+                idGeneratorPort,
+                auditPort
+        );
+    }
+
+    @Bean
     public AgentUpdateCardStatusUseCase agentUpdateCardStatusUseCase(
             TimeProviderPort timeProviderPort,
             AgentRepositoryPort agentRepositoryPort,
@@ -361,6 +378,19 @@ public class ApplicationWiringConfig {
     ) {
         return new UpdateTerminalStatusService(
                 terminalRepositoryPort,
+                auditPort,
+                timeProviderPort
+        );
+    }
+
+    @Bean
+    public UpdateAdminStatusUseCase updateAdminStatusUseCase(
+            AdminRepositoryPort adminRepositoryPort,
+            AuditPort auditPort,
+            TimeProviderPort timeProviderPort
+    ) {
+        return new UpdateAdminStatusService(
+                adminRepositoryPort,
                 auditPort,
                 timeProviderPort
         );

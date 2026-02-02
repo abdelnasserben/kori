@@ -8,6 +8,7 @@ import com.kori.application.port.in.FailAgentPayoutUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.PayoutRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
+import com.kori.application.result.AgentPayoutResult;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.model.payout.Payout;
 import com.kori.domain.model.payout.PayoutId;
@@ -31,7 +32,7 @@ public final class FailAgentPayoutService implements FailAgentPayoutUseCase {
     }
 
     @Override
-    public void execute(FailAgentPayoutCommand command) {
+    public AgentPayoutResult execute(FailAgentPayoutCommand command) {
         ActorGuards.requireAdmin(command.actorContext(), "fail payouts");
 
         Payout payout = payoutRepositoryPort.findById(PayoutId.of(command.payoutId()))
@@ -51,5 +52,6 @@ public final class FailAgentPayoutService implements FailAgentPayoutUseCase {
                 now,
                 Map.of("payoutId", payout.id().value().toString(), "reason", command.reason())
         ));
+        return null;
     }
 }
