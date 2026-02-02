@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 
 @Getter
 @Entity
@@ -28,5 +29,25 @@ public class CommissionConfigEntity {
     private BigDecimal merchantWithdrawCommissionMax;
 
     protected CommissionConfigEntity() { }
+
+    public CommissionConfigEntity(
+            Integer id,
+            BigDecimal cardEnrollmentAgentCommission,
+            BigDecimal merchantWithdrawCommissionRate,
+            BigDecimal merchantWithdrawCommissionMin,
+            BigDecimal merchantWithdrawCommissionMax
+    ) {
+        this.id = Objects.requireNonNull(id, "id");
+        this.cardEnrollmentAgentCommission = Objects.requireNonNull(
+                cardEnrollmentAgentCommission,
+                "cardEnrollmentAgentCommission"
+        );
+        this.merchantWithdrawCommissionRate = Objects.requireNonNull(
+                merchantWithdrawCommissionRate,
+                "merchantWithdrawCommissionRate"
+        );
+        this.merchantWithdrawCommissionMin = merchantWithdrawCommissionMin;
+        this.merchantWithdrawCommissionMax = merchantWithdrawCommissionMax;
+    }
 
 }

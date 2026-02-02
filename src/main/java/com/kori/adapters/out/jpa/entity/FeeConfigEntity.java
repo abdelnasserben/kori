@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.Getter;
 
 import java.math.BigDecimal;
+import java.util.Objects;
 
 @Getter
 @Entity
@@ -38,4 +39,23 @@ public class FeeConfigEntity {
 
     protected FeeConfigEntity() { }
 
+    public FeeConfigEntity(
+            Integer id,
+            BigDecimal cardEnrollmentPrice,
+            BigDecimal cardPaymentFeeRate,
+            BigDecimal cardPaymentFeeMin,
+            BigDecimal cardPaymentFeeMax,
+            BigDecimal merchantWithdrawFeeRate,
+            BigDecimal merchantWithdrawFeeMin,
+            BigDecimal merchantWithdrawFeeMax
+    ) {
+        this.id = Objects.requireNonNull(id, "id");
+        this.cardEnrollmentPrice = Objects.requireNonNull(cardEnrollmentPrice, "cardEnrollmentPrice");
+        this.cardPaymentFeeRate = Objects.requireNonNull(cardPaymentFeeRate, "cardPaymentFeeRate");
+        this.cardPaymentFeeMin = Objects.requireNonNull(cardPaymentFeeMin, "cardPaymentFeeMin");
+        this.cardPaymentFeeMax = Objects.requireNonNull(cardPaymentFeeMax, "cardPaymentFeeMax");
+        this.merchantWithdrawFeeRate = Objects.requireNonNull(merchantWithdrawFeeRate, "merchantWithdrawFeeRate");
+        this.merchantWithdrawFeeMin = Objects.requireNonNull(merchantWithdrawFeeMin, "merchantWithdrawFeeMin");
+        this.merchantWithdrawFeeMax = Objects.requireNonNull(merchantWithdrawFeeMax, "merchantWithdrawFeeMax");
+    }
 }
