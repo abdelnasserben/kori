@@ -43,7 +43,7 @@ public class CreateTerminalService implements CreateTerminalUseCase {
         ActorGuards.requireAdmin(command.actorContext(), "create a terminal.");
 
         // Idempotency first (same key => same result, no side effects)
-        var cached = idempotencyPort.find(command.idempotencyKey(), CreateTerminalResult.class);
+        var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), CreateTerminalResult.class);
         if (cached.isPresent()) {
             return cached.get();
         }
@@ -63,7 +63,7 @@ public class CreateTerminalService implements CreateTerminalUseCase {
         terminalRepositoryPort.save(terminal);
 
         CreateTerminalResult result = new CreateTerminalResult(terminalId.value().toString(), command.merchantCode());
-        idempotencyPort.save(command.idempotencyKey(), result);
+        idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
 
         Map<String, String> metadata = new HashMap<>();
         metadata.put("adminId", actorContext.actorId());

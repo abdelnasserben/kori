@@ -1,6 +1,7 @@
 package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
+import com.kori.adapters.in.rest.IdempotencyRequestHasher;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.dto.Responses.CreateAdminResponse;
@@ -19,10 +20,12 @@ public class AdminController {
 
     private final CreateAdminUseCase createAdminUseCase;
     private final UpdateAdminStatusUseCase updateAdminStatusUseCase;
+    private final IdempotencyRequestHasher idempotencyRequestHasher;
 
-    public AdminController(CreateAdminUseCase createAdminUseCase, UpdateAdminStatusUseCase updateAdminStatusUseCase) {
+    public AdminController(CreateAdminUseCase createAdminUseCase, UpdateAdminStatusUseCase updateAdminStatusUseCase, IdempotencyRequestHasher idempotencyRequestHasher) {
         this.createAdminUseCase = createAdminUseCase;
         this.updateAdminStatusUseCase = updateAdminStatusUseCase;
+        this.idempotencyRequestHasher = idempotencyRequestHasher;
     }
 
     @PostMapping
@@ -33,7 +36,9 @@ public class AdminController {
             @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId
     ) {
         var actorContext = RestActorContextResolver.resolve(actorType, actorId);
-        var result = createAdminUseCase.execute(new CreateAdminCommand(idempotencyKey, actorContext));
+        var result = createAdminUseCase.execute(
+                new CreateAdminCommand(idempotencyKey, idempotencyRequestHasher.hashPayload(null), actorContext)
+        );
         return new CreateAdminResponse(result.adminId());
     }
 

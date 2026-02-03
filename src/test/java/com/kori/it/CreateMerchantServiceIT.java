@@ -22,6 +22,7 @@ class CreateMerchantServiceIT extends IntegrationTestBase {
     void createMerchant_happyPath_persistsMerchantProfileAndAudit() {
         CreateMerchantResult result = createMerchantUseCase.execute(new CreateMerchantCommand(
                 "idem-create-merchant-1",
+                "request-hash",
                 adminActor()
         ));
 

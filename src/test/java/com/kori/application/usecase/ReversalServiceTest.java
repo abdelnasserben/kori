@@ -49,6 +49,7 @@ final class ReversalServiceTest {
 
     // ======= constants =======
     private static final String IDEM_KEY = "idem-1";
+    private static final String REQUEST_HASH = "request-hash";
     private static final String ADMIN_ACTOR_ID = "admin-actor";
     private static final String NON_ADMIN_ACTOR_ID = "agent-actor";
 
@@ -77,7 +78,7 @@ final class ReversalServiceTest {
     }
 
     private static ReversalCommand cmd(ActorContext actor) {
-        return new ReversalCommand(IDEM_KEY, actor, ORIGINAL_TX_UUID.toString());
+        return new ReversalCommand(IDEM_KEY, REQUEST_HASH, actor, ORIGINAL_TX_UUID.toString());
     }
 
     private static Transaction originalTx() {
@@ -89,12 +90,12 @@ final class ReversalServiceTest {
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         ReversalResult cached = new ReversalResult("tx-1", ORIGINAL_TX_UUID.toString());
-        when(idempotencyPort.find(IDEM_KEY, ReversalResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.of(cached));
 
         ReversalResult out = reversalService.execute(cmd(adminActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, ReversalResult.class);
+        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, ReversalResult.class);
 
         verifyNoMoreInteractions(
                 timeProviderPort,
@@ -109,11 +110,11 @@ final class ReversalServiceTest {
 
     @Test
     void forbidden_whenActorIsNotAdmin() {
-        when(idempotencyPort.find(IDEM_KEY, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
 
         assertThrows(ForbiddenOperationException.class, () -> reversalService.execute(cmd(nonAdminActor())));
 
-        verify(idempotencyPort).find(IDEM_KEY, ReversalResult.class);
+        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, ReversalResult.class);
         verifyNoMoreInteractions(idempotencyPort);
 
         verifyNoInteractions(
@@ -128,7 +129,7 @@ final class ReversalServiceTest {
 
     @Test
     void throwsNotFound_whenOriginalTransactionDoesNotExist() {
-        when(idempotencyPort.find(IDEM_KEY, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
         when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> reversalService.execute(cmd(adminActor())));
@@ -139,7 +140,7 @@ final class ReversalServiceTest {
 
     @Test
     void forbidden_whenTransactionAlreadyReversed() {
-        when(idempotencyPort.find(IDEM_KEY, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
         when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalTx()));
         when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(true);
 
@@ -151,7 +152,7 @@ final class ReversalServiceTest {
 
     @Test
     void forbidden_whenOriginalTransactionHasNoLedgerEntries() {
-        when(idempotencyPort.find(IDEM_KEY, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
         when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalTx()));
         when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
         when(ledgerQueryPort.findByTransactionId(ORIGINAL_TX_ID)).thenReturn(List.of());
@@ -164,7 +165,7 @@ final class ReversalServiceTest {
 
     @Test
     void happyPath_createsReversalTx_appendsInverseLedger_audits_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
         when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalTx()));
         when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
 
@@ -238,6 +239,6 @@ final class ReversalServiceTest {
         assertEquals(REVERSAL_TX_UUID.toString(), event.metadata().get("transactionId"));
         assertEquals(ORIGINAL_TX_UUID.toString(), event.metadata().get("originalTransactionId"));
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), any(ReversalResult.class));
+        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(ReversalResult.class));
     }
 }

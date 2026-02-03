@@ -1,6 +1,7 @@
 package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
+import com.kori.adapters.in.rest.IdempotencyRequestHasher;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.AgentCardStatusRequest;
 import com.kori.adapters.in.rest.dto.Requests.EnrollCardRequest;
@@ -29,15 +30,17 @@ public class CardController {
     private final AdminUpdateCardStatusUseCase adminUpdateCardStatusUseCase;
     private final AdminUnblockCardUseCase adminUnblockCardUseCase;
     private final AgentUpdateCardStatusUseCase agentUpdateCardStatusUseCase;
+    private final IdempotencyRequestHasher idempotencyRequestHasher;
 
     public CardController(EnrollCardUseCase enrollCardUseCase,
                           AdminUpdateCardStatusUseCase adminUpdateCardStatusUseCase,
                           AdminUnblockCardUseCase adminUnblockCardUseCase,
-                          AgentUpdateCardStatusUseCase agentUpdateCardStatusUseCase) {
+                          AgentUpdateCardStatusUseCase agentUpdateCardStatusUseCase, IdempotencyRequestHasher idempotencyRequestHasher) {
         this.enrollCardUseCase = enrollCardUseCase;
         this.adminUpdateCardStatusUseCase = adminUpdateCardStatusUseCase;
         this.adminUnblockCardUseCase = adminUnblockCardUseCase;
         this.agentUpdateCardStatusUseCase = agentUpdateCardStatusUseCase;
+        this.idempotencyRequestHasher = idempotencyRequestHasher;
     }
 
     @PostMapping("/enroll")
@@ -52,6 +55,7 @@ public class CardController {
         var result = enrollCardUseCase.execute(
                 new EnrollCardCommand(
                         idempotencyKey,
+                        idempotencyRequestHasher.hashPayload(request),
                         actorContext,
                         request.phoneNumber(),
                         request.cardUid(),

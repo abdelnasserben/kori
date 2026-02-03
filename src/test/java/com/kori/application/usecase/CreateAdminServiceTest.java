@@ -38,6 +38,7 @@ final class CreateAdminServiceTest {
     @InjectMocks CreateAdminService service;
 
     private static final String IDEM_KEY = "idem-1";
+    private static final String REQUEST_HASH = "request-hash";
     private static final String ADMIN_ID = "admin-actor";
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
@@ -52,7 +53,7 @@ final class CreateAdminServiceTest {
     }
 
     private static CreateAdminCommand cmd(ActorContext actor) {
-        return new CreateAdminCommand(IDEM_KEY, actor);
+        return new CreateAdminCommand(IDEM_KEY, REQUEST_HASH, actor);
     }
 
     @Test
@@ -65,19 +66,19 @@ final class CreateAdminServiceTest {
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         CreateAdminResult cached = new CreateAdminResult("admin-1");
-        when(idempotencyPort.find(IDEM_KEY, CreateAdminResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAdminResult.class)).thenReturn(Optional.of(cached));
 
         CreateAdminResult out = service.execute(cmd(adminActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, CreateAdminResult.class);
+        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, CreateAdminResult.class);
 
         verifyNoMoreInteractions(idGeneratorPort, timeProviderPort, adminRepositoryPort, auditPort, idempotencyPort);
     }
 
     @Test
     void happyPath_createsAdmin_audits_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, CreateAdminResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAdminResult.class)).thenReturn(Optional.empty());
         when(idGeneratorPort.newUuid()).thenReturn(ADMIN_UUID);
         when(timeProviderPort.now()).thenReturn(NOW);
 
@@ -104,6 +105,6 @@ final class CreateAdminServiceTest {
         assertEquals(ADMIN_ID, event.metadata().get("adminId"));
         assertEquals(ADMIN_UUID.toString(), event.metadata().get("createdAdminId"));
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), any(CreateAdminResult.class));
+        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateAdminResult.class));
     }
 }

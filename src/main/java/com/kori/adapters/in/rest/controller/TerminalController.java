@@ -1,6 +1,7 @@
 package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
+import com.kori.adapters.in.rest.IdempotencyRequestHasher;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.CreateTerminalRequest;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
@@ -20,11 +21,13 @@ public class TerminalController {
 
     private final CreateTerminalUseCase createTerminalUseCase;
     private final UpdateTerminalStatusUseCase updateTerminalStatusUseCase;
+    private final IdempotencyRequestHasher idempotencyRequestHasher;
 
     public TerminalController(CreateTerminalUseCase createTerminalUseCase,
-                              UpdateTerminalStatusUseCase updateTerminalStatusUseCase) {
+                              UpdateTerminalStatusUseCase updateTerminalStatusUseCase, IdempotencyRequestHasher idempotencyRequestHasher) {
         this.createTerminalUseCase = createTerminalUseCase;
         this.updateTerminalStatusUseCase = updateTerminalStatusUseCase;
+        this.idempotencyRequestHasher = idempotencyRequestHasher;
     }
 
     @PostMapping
@@ -37,7 +40,12 @@ public class TerminalController {
     ) {
         var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = createTerminalUseCase.execute(
-                new CreateTerminalCommand(idempotencyKey, actorContext, request.merchantCode())
+                new CreateTerminalCommand(
+                        idempotencyKey,
+                        idempotencyRequestHasher.hashPayload(request),
+                        actorContext,
+                        request.merchantCode()
+                )
         );
         return new CreateTerminalResponse(result.terminalId(), result.merchantCode());
     }

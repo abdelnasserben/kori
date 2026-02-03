@@ -46,6 +46,7 @@ final class CreateMerchantServiceTest {
 
     // ======= constants =======
     private static final String IDEM_KEY = "idem-1";
+    private static final String REQUEST_HASH = "request-hash";
     private static final String ADMIN_ID = "admin-actor";
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
@@ -69,7 +70,7 @@ final class CreateMerchantServiceTest {
     }
 
     private static CreateMerchantCommand cmd(ActorContext actor) {
-        return new CreateMerchantCommand(IDEM_KEY, actor);
+        return new CreateMerchantCommand(IDEM_KEY, REQUEST_HASH, actor);
     }
 
     @Test
@@ -91,12 +92,12 @@ final class CreateMerchantServiceTest {
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         CreateMerchantResult cached = new CreateMerchantResult("m-1", "M-000001");
-        when(idempotencyPort.find(IDEM_KEY, CreateMerchantResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(Optional.of(cached));
 
         CreateMerchantResult out = service.execute(cmd(adminActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, CreateMerchantResult.class);
+        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class);
 
         verifyNoMoreInteractions(
                 merchantRepositoryPort,
@@ -111,7 +112,7 @@ final class CreateMerchantServiceTest {
 
     @Test
     void happyPath_createsMerchantAndAccountProfile_audits_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, CreateMerchantResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(Optional.empty());
 
         when(codeGeneratorPort.next6Digits()).thenReturn(DIGITS_1);
         when(merchantRepositoryPort.existsByCode(MERCHANT_CODE_1)).thenReturn(false);
@@ -159,12 +160,12 @@ final class CreateMerchantServiceTest {
         assertEquals(MERCHANT_CODE_1_RAW, event.metadata().get("merchantCode"));
 
         // idempotency saved
-        verify(idempotencyPort).save(eq(IDEM_KEY), any(CreateMerchantResult.class));
+        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateMerchantResult.class));
     }
 
     @Test
     void codeGeneration_retriesOnCollision_thenSucceeds() {
-        when(idempotencyPort.find(IDEM_KEY, CreateMerchantResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(Optional.empty());
 
         when(codeGeneratorPort.next6Digits()).thenReturn(DIGITS_1, DIGITS_2);
         when(merchantRepositoryPort.existsByCode(MERCHANT_CODE_1)).thenReturn(true);
@@ -186,7 +187,7 @@ final class CreateMerchantServiceTest {
 
     @Test
     void throwsApplicationException_whenCannotGenerateUniqueCode_afterMaxAttempts() {
-        when(idempotencyPort.find(IDEM_KEY, CreateMerchantResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(Optional.empty());
 
         when(codeGeneratorPort.next6Digits()).thenReturn("000001");
         when(merchantRepositoryPort.existsByCode(any(MerchantCode.class))).thenReturn(true);
@@ -197,12 +198,12 @@ final class CreateMerchantServiceTest {
         verify(merchantRepositoryPort, times(20)).existsByCode(any(MerchantCode.class));
 
         verifyNoInteractions(idGeneratorPort, timeProviderPort, accountProfilePort, auditPort);
-        verify(idempotencyPort, never()).save(anyString(), any());
+        verify(idempotencyPort, never()).save(anyString(), anyString(), any());
     }
 
     @Test
     void forbidden_whenAccountProfileAlreadyExists() {
-        when(idempotencyPort.find(IDEM_KEY, CreateMerchantResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(Optional.empty());
 
         when(codeGeneratorPort.next6Digits()).thenReturn(DIGITS_1);
         when(merchantRepositoryPort.existsByCode(MERCHANT_CODE_1)).thenReturn(false);
@@ -219,7 +220,7 @@ final class CreateMerchantServiceTest {
         verify(merchantRepositoryPort).save(any(Merchant.class));
 
         verify(accountProfilePort, never()).save(any(AccountProfile.class));
-        verify(idempotencyPort, never()).save(anyString(), any());
+        verify(idempotencyPort, never()).save(anyString(), anyString(), any());
         verifyNoInteractions(auditPort);
     }
 }

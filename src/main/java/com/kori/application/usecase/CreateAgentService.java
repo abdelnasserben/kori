@@ -51,7 +51,7 @@ public final class CreateAgentService implements CreateAgentUseCase {
         ActorGuards.requireAdmin(actorContext, "create agent");
 
         // Idempotency first: same key => same result, no side effects
-        var cached = idempotencyPort.find(command.idempotencyKey(), CreateAgentResult.class);
+        var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), CreateAgentResult.class);
         if (cached.isPresent()) {
             return cached.get();
         }
@@ -74,7 +74,7 @@ public final class CreateAgentService implements CreateAgentUseCase {
         accountProfilePort.save(profile);
 
         CreateAgentResult result = new CreateAgentResult(id.value().toString(), code.value());
-        idempotencyPort.save(command.idempotencyKey(), result);
+        idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
 
         Map<String, String> metadata = new HashMap<>();
         metadata.put("adminId", actorContext.actorId());

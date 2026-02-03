@@ -66,6 +66,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     // ======= constants (single source of truth) =======
     private static final String IDEM_KEY = "idem-1";
+    private static final String REQUEST_HASH = "request-hash";
     private static final String ACTOR_ID = "agent-actor";
 
     // IMPORTANT formats
@@ -101,6 +102,7 @@ final class MerchantWithdrawAtAgentServiceTest {
     private static MerchantWithdrawAtAgentCommand cmd(ActorContext actor) {
         return new MerchantWithdrawAtAgentCommand(
                 IDEM_KEY,
+                REQUEST_HASH,
                 actor,
                 MERCHANT_CODE_RAW,
                 AGENT_CODE_RAW,
@@ -130,12 +132,12 @@ final class MerchantWithdrawAtAgentServiceTest {
                 new BigDecimal("110.00")
         );
 
-        when(idempotencyPort.find(IDEM_KEY, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.of(cached));
 
         MerchantWithdrawAtAgentResult out = service.execute(cmd(agentActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, MerchantWithdrawAtAgentResult.class);
+        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class);
 
         verifyNoMoreInteractions(
                 timeProviderPort,
@@ -155,11 +157,11 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void forbidden_whenActorIsNotAgent() {
-        when(idempotencyPort.find(IDEM_KEY, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(adminActor())));
 
-        verify(idempotencyPort).find(IDEM_KEY, MerchantWithdrawAtAgentResult.class);
+        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class);
         verifyNoMoreInteractions(idempotencyPort);
 
         verifyNoInteractions(
@@ -179,7 +181,6 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void forbidden_whenAgentNotFound() {
-        when(idempotencyPort.find(IDEM_KEY, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.empty());
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(agentActor())));
@@ -190,7 +191,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void forbidden_whenMerchantNotFound() {
-        when(idempotencyPort.find(IDEM_KEY, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -206,7 +207,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void forbidden_whenAgentNotActive_orAgentAccountNotActive_isHandledByGuard() {
-        when(idempotencyPort.find(IDEM_KEY, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -221,7 +222,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void forbidden_whenMerchantNotActive_orMerchantAccountNotActive_isHandledByGuard() {
-        when(idempotencyPort.find(IDEM_KEY, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -240,7 +241,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void forbidden_whenCommissionExceedsFee() {
-        when(idempotencyPort.find(IDEM_KEY, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -262,7 +263,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void insufficientFunds_whenMerchantBalanceTooLow() {
-        when(idempotencyPort.find(IDEM_KEY, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -287,7 +288,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void happyPath_createsTx_postsLedger_audits_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -383,6 +384,6 @@ final class MerchantWithdrawAtAgentServiceTest {
         assertEquals(MERCHANT_CODE_RAW, md.get("merchantCode"));
         assertEquals(AGENT_CODE_RAW, md.get("agentCode"));
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), any(MerchantWithdrawAtAgentResult.class));
+        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(MerchantWithdrawAtAgentResult.class));
     }
 }

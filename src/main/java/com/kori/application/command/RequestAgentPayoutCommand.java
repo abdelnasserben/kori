@@ -10,13 +10,17 @@ import java.util.Objects;
  */
 public record RequestAgentPayoutCommand(
         String idempotencyKey,
+        String idempotencyRequestHash,
         ActorContext actorContext,
         String agentCode) {
 
-    public RequestAgentPayoutCommand(String idempotencyKey,
-                                     ActorContext actorContext,
-                                     String agentCode) {
+    public RequestAgentPayoutCommand(
+            String idempotencyKey,
+            String idempotencyRequestHash,
+            ActorContext actorContext,
+            String agentCode) {
         this.idempotencyKey = Objects.requireNonNull(idempotencyKey);
+        this.idempotencyRequestHash = Objects.requireNonNull(idempotencyRequestHash, "idempotencyRequestHash");
         this.actorContext = Objects.requireNonNull(actorContext);
         this.agentCode = Objects.requireNonNull(agentCode);
     }

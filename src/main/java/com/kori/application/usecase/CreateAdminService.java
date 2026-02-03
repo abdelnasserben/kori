@@ -37,7 +37,7 @@ public final class CreateAdminService implements CreateAdminUseCase {
 
         ActorGuards.requireAdmin(actorContext, "create admin");
 
-        var cached = idempotencyPort.find(command.idempotencyKey(), CreateAdminResult.class);
+        var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), CreateAdminResult.class);
         if (cached.isPresent()) {
             return cached.get();
         }
@@ -48,7 +48,7 @@ public final class CreateAdminService implements CreateAdminUseCase {
         adminRepositoryPort.save(admin);
 
         CreateAdminResult result = new CreateAdminResult(adminId.value().toString());
-        idempotencyPort.save(command.idempotencyKey(), result);
+        idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
 
         Map<String, String> metadata = new HashMap<>();
         metadata.put("adminId", actorContext.actorId());

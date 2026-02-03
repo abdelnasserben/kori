@@ -25,6 +25,7 @@ class CreateTerminalServiceIT extends IntegrationTestBase {
 
         CreateTerminalResult result = createTerminalUseCase.execute(new CreateTerminalCommand(
                 "idem-create-terminal-1",
+                "request-hash",
                 adminActor(),
                 merchant.code().value()
         ));

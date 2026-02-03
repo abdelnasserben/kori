@@ -1,6 +1,7 @@
 package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
+import com.kori.adapters.in.rest.IdempotencyRequestHasher;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.dto.Responses.CreateMerchantResponse;
@@ -19,11 +20,13 @@ public class MerchantController {
 
     private final CreateMerchantUseCase createMerchantUseCase;
     private final UpdateMerchantStatusUseCase updateMerchantStatusUseCase;
+    private final IdempotencyRequestHasher idempotencyRequestHasher;
 
     public MerchantController(CreateMerchantUseCase createMerchantUseCase,
-                             UpdateMerchantStatusUseCase updateMerchantStatusUseCase) {
+                              UpdateMerchantStatusUseCase updateMerchantStatusUseCase, IdempotencyRequestHasher idempotencyRequestHasher) {
         this.createMerchantUseCase = createMerchantUseCase;
         this.updateMerchantStatusUseCase = updateMerchantStatusUseCase;
+        this.idempotencyRequestHasher = idempotencyRequestHasher;
     }
 
     @PostMapping
@@ -34,7 +37,9 @@ public class MerchantController {
             @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId
     ) {
         var actorContext = RestActorContextResolver.resolve(actorType, actorId);
-        var result = createMerchantUseCase.execute(new CreateMerchantCommand(idempotencyKey, actorContext));
+        var result = createMerchantUseCase.execute(
+                new CreateMerchantCommand(idempotencyKey, idempotencyRequestHasher.hashPayload(null), actorContext)
+        );
         return new CreateMerchantResponse(result.merchantId(), result.code());
     }
 

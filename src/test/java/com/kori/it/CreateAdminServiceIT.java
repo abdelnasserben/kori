@@ -22,6 +22,7 @@ class CreateAdminServiceIT extends IntegrationTestBase {
     void createAdmin_happyPath_persistsAdminAndAudit() {
         CreateAdminResult result = createAdminUseCase.execute(new CreateAdminCommand(
                 "idem-create-admin-1",
+                "request-hash",
                 adminActor()
         ));
 

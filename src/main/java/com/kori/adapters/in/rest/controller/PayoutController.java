@@ -1,6 +1,7 @@
 package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
+import com.kori.adapters.in.rest.IdempotencyRequestHasher;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.FailPayoutRequest;
 import com.kori.adapters.in.rest.dto.Requests.RequestAgentPayoutRequest;
@@ -22,13 +23,15 @@ public class PayoutController {
     private final RequestAgentPayoutUseCase requestAgentPayoutUseCase;
     private final CompleteAgentPayoutUseCase completeAgentPayoutUseCase;
     private final FailAgentPayoutUseCase failAgentPayoutUseCase;
+    private final IdempotencyRequestHasher idempotencyRequestHasher;
 
     public PayoutController(RequestAgentPayoutUseCase requestAgentPayoutUseCase,
                             CompleteAgentPayoutUseCase completeAgentPayoutUseCase,
-                            FailAgentPayoutUseCase failAgentPayoutUseCase) {
+                            FailAgentPayoutUseCase failAgentPayoutUseCase, IdempotencyRequestHasher idempotencyRequestHasher) {
         this.requestAgentPayoutUseCase = requestAgentPayoutUseCase;
         this.completeAgentPayoutUseCase = completeAgentPayoutUseCase;
         this.failAgentPayoutUseCase = failAgentPayoutUseCase;
+        this.idempotencyRequestHasher = idempotencyRequestHasher;
     }
 
     @PostMapping("/requests")
@@ -41,7 +44,12 @@ public class PayoutController {
     ) {
         var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = requestAgentPayoutUseCase.execute(
-                new RequestAgentPayoutCommand(idempotencyKey, actorContext, request.agentCode())
+                new RequestAgentPayoutCommand(
+                        idempotencyKey,
+                        idempotencyRequestHasher.hashPayload(request),
+                        actorContext,
+                        request.agentCode()
+                )
         );
         return new AgentPayoutResponse(
                 result.transactionId(),

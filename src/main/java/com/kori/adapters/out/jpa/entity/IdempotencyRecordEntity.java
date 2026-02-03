@@ -23,15 +23,25 @@ public class IdempotencyRecordEntity {
     @Column(name = "result_json", nullable = false, columnDefinition = "text")
     private String resultJson;
 
+    @Getter
+    @Column(name = "request_hash", nullable = false, length = 64)
+    private String requestHash;
+
+    @Getter
+    @Column(name = "expires_at")
+    private OffsetDateTime expiresAt;
+
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
     protected IdempotencyRecordEntity() { }
 
-    public IdempotencyRecordEntity(String idempotencyKey, String resultType, String resultJson) {
+    public IdempotencyRecordEntity(String idempotencyKey, String resultType, String resultJson, String requestHash, OffsetDateTime expiresAt) {
         this.idempotencyKey = idempotencyKey;
         this.resultType = resultType;
         this.resultJson = resultJson;
+        this.requestHash = requestHash;
+        this.expiresAt = expiresAt;
     }
 
 }

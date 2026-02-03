@@ -1,6 +1,7 @@
 package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
+import com.kori.adapters.in.rest.IdempotencyRequestHasher;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.MerchantWithdrawAtAgentRequest;
 import com.kori.adapters.in.rest.dto.Requests.PayByCardRequest;
@@ -25,13 +26,15 @@ public class PaymentController {
     private final PayByCardUseCase payByCardUseCase;
     private final MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase;
     private final ReversalUseCase reversalUseCase;
+    private final IdempotencyRequestHasher idempotencyRequestHasher;
 
     public PaymentController(PayByCardUseCase payByCardUseCase,
                              MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase,
-                             ReversalUseCase reversalUseCase) {
+                             ReversalUseCase reversalUseCase, IdempotencyRequestHasher idempotencyRequestHasher) {
         this.payByCardUseCase = payByCardUseCase;
         this.merchantWithdrawAtAgentUseCase = merchantWithdrawAtAgentUseCase;
         this.reversalUseCase = reversalUseCase;
+        this.idempotencyRequestHasher = idempotencyRequestHasher;
     }
 
     @PostMapping("/card")
@@ -46,6 +49,7 @@ public class PaymentController {
         var result = payByCardUseCase.execute(
                 new PayByCardCommand(
                         idempotencyKey,
+                        idempotencyRequestHasher.hashPayload(request),
                         actorContext,
                         request.terminalUid(),
                         request.cardUid(),
@@ -75,6 +79,7 @@ public class PaymentController {
         var result = merchantWithdrawAtAgentUseCase.execute(
                 new MerchantWithdrawAtAgentCommand(
                         idempotencyKey,
+                        idempotencyRequestHasher.hashPayload(request),
                         actorContext,
                         request.merchantCode(),
                         request.agentCode(),
@@ -102,7 +107,12 @@ public class PaymentController {
     ) {
         var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = reversalUseCase.execute(
-                new ReversalCommand(idempotencyKey, actorContext, request.originalTransactionId())
+                new ReversalCommand(
+                        idempotencyKey,
+                        idempotencyRequestHasher.hashPayload(request),
+                        actorContext,
+                        request.originalTransactionId()
+                )
         );
         return new ReversalResponse(result.reversalTransactionId(), result.originalTransactionId());
     }

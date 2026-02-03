@@ -55,6 +55,7 @@ final class RequestAgentPayoutServiceTest {
 
     // ======= constants =======
     private static final String IDEM_KEY = "idem-1";
+    private static final String REQUEST_HASH = "request-hash";
     private static final String ADMIN_ACTOR_ID = "admin-actor";
     private static final String NON_ADMIN_ACTOR_ID = "agent-actor";
 
@@ -84,7 +85,7 @@ final class RequestAgentPayoutServiceTest {
     }
 
     private static RequestAgentPayoutCommand cmd(ActorContext actor) {
-        return new RequestAgentPayoutCommand(IDEM_KEY, actor, AGENT_CODE_RAW);
+        return new RequestAgentPayoutCommand(IDEM_KEY, REQUEST_HASH, actor, AGENT_CODE_RAW);
     }
 
     private static Agent activeAgent() {
@@ -101,12 +102,11 @@ final class RequestAgentPayoutServiceTest {
                 PayoutStatus.REQUESTED.name()
         );
 
-        when(idempotencyPort.find(IDEM_KEY, AgentPayoutResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.of(cached));
 
         AgentPayoutResult out = service.execute(cmd(adminActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, AgentPayoutResult.class);
 
         verifyNoMoreInteractions(
                 timeProviderPort,
@@ -122,11 +122,11 @@ final class RequestAgentPayoutServiceTest {
 
     @Test
     void forbidden_whenActorIsNotAdmin() {
-        when(idempotencyPort.find(IDEM_KEY, AgentPayoutResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.empty());
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(nonAdminActor())));
 
-        verify(idempotencyPort).find(IDEM_KEY, AgentPayoutResult.class);
+        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class);
         verifyNoMoreInteractions(idempotencyPort);
 
         verifyNoInteractions(
@@ -142,7 +142,7 @@ final class RequestAgentPayoutServiceTest {
 
     @Test
     void forbidden_whenAgentNotFound() {
-        when(idempotencyPort.find(IDEM_KEY, AgentPayoutResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.empty());
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> service.execute(cmd(adminActor())));
@@ -153,7 +153,7 @@ final class RequestAgentPayoutServiceTest {
 
     @Test
     void forbidden_whenAgentNotActive() {
-        when(idempotencyPort.find(IDEM_KEY, AgentPayoutResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.empty());
 
         Agent inactive = new Agent(AGENT_ID, AGENT_CODE, NOW.minusSeconds(60), Status.SUSPENDED);
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(inactive));
@@ -165,7 +165,7 @@ final class RequestAgentPayoutServiceTest {
 
     @Test
     void forbidden_whenPayoutAlreadyRequestedForAgent() {
-        when(idempotencyPort.find(IDEM_KEY, AgentPayoutResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.empty());
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(activeAgent()));
         when(payoutRepositoryPort.existsRequestedForAgent(AGENT_ID)).thenReturn(true);
 
@@ -177,7 +177,7 @@ final class RequestAgentPayoutServiceTest {
 
     @Test
     void forbidden_whenNoPayoutDue() {
-        when(idempotencyPort.find(IDEM_KEY, AgentPayoutResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.empty());
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(activeAgent()));
         when(payoutRepositoryPort.existsRequestedForAgent(AGENT_ID)).thenReturn(false);
 
@@ -192,7 +192,7 @@ final class RequestAgentPayoutServiceTest {
 
     @Test
     void happyPath_createsTransactionAndRequestedPayout_audits_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, AgentPayoutResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.empty());
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(activeAgent()));
         when(payoutRepositoryPort.existsRequestedForAgent(AGENT_ID)).thenReturn(false);
 
@@ -243,6 +243,6 @@ final class RequestAgentPayoutServiceTest {
         assertEquals(AGENT_CODE_RAW, event.metadata().get("agentCode"));
         assertEquals(PAYOUT_UUID.toString(), event.metadata().get("payoutId"));
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), any(AgentPayoutResult.class));
+        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(AgentPayoutResult.class));
     }
 }

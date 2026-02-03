@@ -1,6 +1,7 @@
 package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
+import com.kori.adapters.in.rest.IdempotencyRequestHasher;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.dto.Responses.CreateAgentResponse;
@@ -19,10 +20,12 @@ public class AgentController {
 
     private final CreateAgentUseCase createAgentUseCase;
     private final UpdateAgentStatusUseCase updateAgentStatusUseCase;
+    private final IdempotencyRequestHasher idempotencyRequestHasher;
 
-    public AgentController(CreateAgentUseCase createAgentUseCase, UpdateAgentStatusUseCase updateAgentStatusUseCase) {
+    public AgentController(CreateAgentUseCase createAgentUseCase, UpdateAgentStatusUseCase updateAgentStatusUseCase, IdempotencyRequestHasher idempotencyRequestHasher) {
         this.createAgentUseCase = createAgentUseCase;
         this.updateAgentStatusUseCase = updateAgentStatusUseCase;
+        this.idempotencyRequestHasher = idempotencyRequestHasher;
     }
 
     @PostMapping
@@ -33,7 +36,9 @@ public class AgentController {
             @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId
     ) {
         var actorContext = RestActorContextResolver.resolve(actorType, actorId);
-        var result = createAgentUseCase.execute(new CreateAgentCommand(idempotencyKey, actorContext));
+        var result = createAgentUseCase.execute(
+                new CreateAgentCommand(idempotencyKey, idempotencyRequestHasher.hashPayload(null), actorContext)
+        );
         return new CreateAgentResponse(result.agentId(), result.agentCode());
     }
 

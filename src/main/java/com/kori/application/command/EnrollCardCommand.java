@@ -4,15 +4,24 @@ import com.kori.application.security.ActorContext;
 
 import java.util.Objects;
 
-public record EnrollCardCommand(String idempotencyKey, ActorContext actorContext, String phoneNumber, String cardUid,
-                                String pin, String agentCode) {
-    public EnrollCardCommand(String idempotencyKey,
-                             ActorContext actorContext,
-                             String phoneNumber,
-                             String cardUid,
-                             String pin,
-                             String agentCode) {
+public record EnrollCardCommand(
+        String idempotencyKey,
+        String idempotencyRequestHash,
+        ActorContext actorContext,
+        String phoneNumber,
+        String cardUid,
+        String pin,
+        String agentCode) {
+    public EnrollCardCommand(
+            String idempotencyKey,
+            String idempotencyRequestHash,
+            ActorContext actorContext,
+            String phoneNumber,
+            String cardUid,
+            String pin,
+            String agentCode) {
         this.idempotencyKey = Objects.requireNonNull(idempotencyKey);
+        this.idempotencyRequestHash = Objects.requireNonNull(idempotencyRequestHash, "idempotencyRequestHash");
         this.actorContext = Objects.requireNonNull(actorContext);
         this.phoneNumber = Objects.requireNonNull(phoneNumber);
         this.cardUid = Objects.requireNonNull(cardUid);

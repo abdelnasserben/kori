@@ -32,6 +32,7 @@ class RequestAgentPayoutServiceIT extends IntegrationTestBase {
 
         AgentPayoutResult result = requestAgentPayoutUseCase.execute(new RequestAgentPayoutCommand(
                 "idem-payout-1",
+                "request-hash",
                 adminActor(),
                 AGENT_CODE
         ));

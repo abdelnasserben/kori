@@ -22,6 +22,7 @@ class CreateAgentServiceIT extends IntegrationTestBase {
     void createAgent_happyPath_persistsAgentProfileAndAudit() {
         CreateAgentResult result = createAgentUseCase.execute(new CreateAgentCommand(
                 "idem-create-agent-1",
+                "request-hash",
                 adminActor()
         ));
 

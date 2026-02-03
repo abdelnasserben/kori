@@ -40,6 +40,7 @@ class PayByCardServiceIT extends IntegrationTestBase {
 
         PayByCardResult result = payByCardUseCase.execute(new PayByCardCommand(
                 "idem-pay-1",
+                "request-hash",
                 terminalActor("terminal-actor"),
                 terminal.id().value().toString(),
                 CARD_UID,

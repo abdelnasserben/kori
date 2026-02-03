@@ -50,7 +50,7 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
         ActorGuards.requireAdmin(actorContext, "create a merchant.");
 
         // Idempotency first (same key => same result, no side effects)
-        var cached = idempotencyPort.find(command.idempotencyKey(), CreateMerchantResult.class);
+        var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), CreateMerchantResult.class);
         if (cached.isPresent()) {
             return cached.get();
         }
@@ -73,7 +73,7 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
         accountProfilePort.save(profile);
 
         CreateMerchantResult result = new CreateMerchantResult(id.value().toString(), code.value());
-        idempotencyPort.save(command.idempotencyKey(), result);
+        idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
 
         Map<String, String> metadata = new HashMap<>();
         metadata.put("adminId", actorContext.actorId());

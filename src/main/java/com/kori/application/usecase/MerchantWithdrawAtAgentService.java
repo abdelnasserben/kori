@@ -26,7 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtAgentUseCase {
+public class MerchantWithdrawAtAgentService implements MerchantWithdrawAtAgentUseCase {
 
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
@@ -75,7 +75,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
     @Override
     @Transactional
     public MerchantWithdrawAtAgentResult execute(MerchantWithdrawAtAgentCommand command) {
-        var cached = idempotencyPort.find(command.idempotencyKey(), MerchantWithdrawAtAgentResult.class);
+        var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), MerchantWithdrawAtAgentResult.class);
         if (cached.isPresent()) {
             return cached.get();
         }
@@ -152,7 +152,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
                 totalDebitedMerchant.asBigDecimal()
         );
 
-        idempotencyPort.save(command.idempotencyKey(), result);
+        idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
         return result;
     }
 }

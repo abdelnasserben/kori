@@ -45,6 +45,7 @@ final class CreateAgentServiceTest {
 
     // ======= constants =======
     private static final String IDEM_KEY = "idem-1";
+    private static final String REQUEST_HASH = "request-hash";
     private static final String ADMIN_ID = "admin-actor";
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
@@ -64,7 +65,7 @@ final class CreateAgentServiceTest {
     }
 
     private static CreateAgentCommand cmd(ActorContext actor) {
-        return new CreateAgentCommand(IDEM_KEY, actor);
+        return new CreateAgentCommand(IDEM_KEY, REQUEST_HASH, actor);
     }
 
     @Test
@@ -78,12 +79,11 @@ final class CreateAgentServiceTest {
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         CreateAgentResult cached = new CreateAgentResult("agent-1", "A-000001");
-        when(idempotencyPort.find(IDEM_KEY, CreateAgentResult.class)).thenReturn(Optional.of(cached));
-
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(Optional.of(cached));
         CreateAgentResult out = service.execute(cmd(adminActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, CreateAgentResult.class);
+        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class);
 
         verifyNoMoreInteractions(
                 idGeneratorPort,
@@ -98,7 +98,7 @@ final class CreateAgentServiceTest {
 
     @Test
     void happyPath_createsAgentAndAccountProfile_audits_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, CreateAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(Optional.empty());
 
         when(codeGeneratorPort.next6Digits()).thenReturn(DIGITS_1);
         when(agentRepositoryPort.existsByCode(AgentCode.of(AGENT_CODE_1))).thenReturn(false);
@@ -145,12 +145,12 @@ final class CreateAgentServiceTest {
         assertEquals(ADMIN_ID, event.metadata().get("adminId"));
         assertEquals(AGENT_CODE_1, event.metadata().get("agentCode"));
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), any(CreateAgentResult.class));
+        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateAgentResult.class));
     }
 
     @Test
     void codeGeneration_retriesOnCollision_thenSucceeds() {
-        when(idempotencyPort.find(IDEM_KEY, CreateAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(Optional.empty());
 
         when(codeGeneratorPort.next6Digits()).thenReturn(DIGITS_1, DIGITS_2);
         when(agentRepositoryPort.existsByCode(AgentCode.of(AGENT_CODE_1))).thenReturn(true);
@@ -170,7 +170,7 @@ final class CreateAgentServiceTest {
 
     @Test
     void throwsApplicationException_whenCannotGenerateUniqueCode_afterMaxAttempts() {
-        when(idempotencyPort.find(IDEM_KEY, CreateAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(Optional.empty());
 
         when(codeGeneratorPort.next6Digits()).thenReturn("000001");
         when(agentRepositoryPort.existsByCode(any(AgentCode.class))).thenReturn(true);
@@ -181,12 +181,12 @@ final class CreateAgentServiceTest {
         verify(agentRepositoryPort, times(20)).existsByCode(any(AgentCode.class));
 
         verifyNoInteractions(idGeneratorPort, timeProviderPort, accountProfilePort, auditPort);
-        verify(idempotencyPort, never()).save(anyString(), any());
+        verify(idempotencyPort, never()).save(anyString(), anyString(), any());
     }
 
     @Test
     void forbidden_whenAccountProfileAlreadyExists() {
-        when(idempotencyPort.find(IDEM_KEY, CreateAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(Optional.empty());
 
         when(codeGeneratorPort.next6Digits()).thenReturn(DIGITS_1);
         when(agentRepositoryPort.existsByCode(AgentCode.of(AGENT_CODE_1))).thenReturn(false);
@@ -203,7 +203,6 @@ final class CreateAgentServiceTest {
         verify(agentRepositoryPort).save(any(Agent.class));
 
         verify(accountProfilePort, never()).save(any(AccountProfile.class));
-        verify(idempotencyPort, never()).save(anyString(), any());
         verifyNoInteractions(auditPort);
     }
 }

@@ -24,7 +24,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
-public final class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
+public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
 
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
@@ -56,7 +56,7 @@ public final class RequestAgentPayoutService implements RequestAgentPayoutUseCas
 
     @Override
     public AgentPayoutResult execute(RequestAgentPayoutCommand command) {
-        var cached = idempotencyPort.find(command.idempotencyKey(), AgentPayoutResult.class);
+        var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), AgentPayoutResult.class);
         if (cached.isPresent()) {
             return cached.get();
         }
@@ -114,7 +114,7 @@ public final class RequestAgentPayoutService implements RequestAgentPayoutUseCas
                 PayoutStatus.REQUESTED.name()
         );
 
-        idempotencyPort.save(command.idempotencyKey(), result);
+        idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
         return result;
     }
 }

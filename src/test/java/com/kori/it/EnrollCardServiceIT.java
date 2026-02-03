@@ -33,6 +33,7 @@ class EnrollCardServiceIT extends IntegrationTestBase {
 
         EnrollCardResult result = enrollCardUseCase.execute(new EnrollCardCommand(
                 "idem-enroll-1",
+                "request-hash",
                 agentActor("agent-actor"),
                 CLIENT_PHONE,
                 CARD_UID,

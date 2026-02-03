@@ -19,7 +19,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public final class ReversalService implements ReversalUseCase {
+public class ReversalService implements ReversalUseCase {
 
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
@@ -48,7 +48,7 @@ public final class ReversalService implements ReversalUseCase {
     @Override
     @Transactional
     public ReversalResult execute(ReversalCommand cmd) {
-        var cached = idempotencyPort.find(cmd.idempotencyKey(), ReversalResult.class);
+        var cached = idempotencyPort.find(cmd.idempotencyKey(), cmd.idempotencyRequestHash(), ReversalResult.class);
         if (cached.isPresent()) {
             return cached.get();
         }
@@ -105,7 +105,7 @@ public final class ReversalService implements ReversalUseCase {
         ));
 
         ReversalResult result = new ReversalResult(reversalTx.id().value().toString(), originalTxId.value().toString());
-        idempotencyPort.save(cmd.idempotencyKey(), result);
+        idempotencyPort.save(cmd.idempotencyKey(), cmd.idempotencyRequestHash(), result);
         return result;
     }
 }

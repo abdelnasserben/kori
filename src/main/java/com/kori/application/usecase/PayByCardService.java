@@ -31,7 +31,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public final class PayByCardService implements PayByCardUseCase {
+public class PayByCardService implements PayByCardUseCase {
 
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
@@ -90,7 +90,7 @@ public final class PayByCardService implements PayByCardUseCase {
     @Override
     @Transactional
     public PayByCardResult execute(PayByCardCommand command) {
-        var cached = idempotencyPort.find(command.idempotencyKey(), PayByCardResult.class);
+        var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), PayByCardResult.class);
         if (cached.isPresent()) {
             return cached.get();
         }
@@ -195,7 +195,7 @@ public final class PayByCardService implements PayByCardUseCase {
                 totalDebited.asBigDecimal()
         );
 
-        idempotencyPort.save(command.idempotencyKey(), result);
+        idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
         return result;
     }
 }

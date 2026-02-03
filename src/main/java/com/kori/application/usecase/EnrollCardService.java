@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-public final class EnrollCardService implements EnrollCardUseCase {
+public class EnrollCardService implements EnrollCardUseCase {
 
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
@@ -88,7 +88,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
     public EnrollCardResult execute(EnrollCardCommand command) {
 
         // 0) Idempotence
-        var cached = idempotencyPort.find(command.idempotencyKey(), EnrollCardResult.class);
+        var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), EnrollCardResult.class);
         if (cached.isPresent()) {
             return cached.get();
         }
@@ -188,7 +188,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
                 clientAccountProfileCreated
         );
 
-        idempotencyPort.save(command.idempotencyKey(), result);
+        idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
         return result;
     }
 }

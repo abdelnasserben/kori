@@ -42,6 +42,7 @@ class ReversalServiceIT extends IntegrationTestBase {
 
         ReversalResult result = reversalUseCase.execute(new ReversalCommand(
                 "idem-reversal-1",
+                "request-hash",
                 adminActor(),
                 original.id().value().toString()
         ));

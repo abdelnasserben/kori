@@ -45,6 +45,7 @@ final class CreateTerminalServiceTest {
 
     // ======= constants =======
     private static final String IDEM_KEY = "idem-1";
+    private static final String REQUEST_HASH = "request-hash";
     private static final String ADMIN_ID = "admin-actor";
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
@@ -67,7 +68,7 @@ final class CreateTerminalServiceTest {
     }
 
     private static CreateTerminalCommand cmd(ActorContext actor) {
-        return new CreateTerminalCommand(IDEM_KEY, actor, MERCHANT_CODE_RAW);
+        return new CreateTerminalCommand(IDEM_KEY, REQUEST_HASH, actor, MERCHANT_CODE_RAW);
     }
 
     private static Merchant activeMerchant() {
@@ -85,12 +86,12 @@ final class CreateTerminalServiceTest {
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         CreateTerminalResult cached = new CreateTerminalResult("t-1", MERCHANT_CODE_RAW);
-        when(idempotencyPort.find(IDEM_KEY, CreateTerminalResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class)).thenReturn(Optional.of(cached));
 
         CreateTerminalResult out = service.execute(cmd(adminActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, CreateTerminalResult.class);
+        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class);
 
         verifyNoMoreInteractions(
                 merchantRepositoryPort,
@@ -104,19 +105,19 @@ final class CreateTerminalServiceTest {
 
     @Test
     void throwsNotFound_whenMerchantDoesNotExist() {
-        when(idempotencyPort.find(IDEM_KEY, CreateTerminalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class)).thenReturn(Optional.empty());
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> service.execute(cmd(adminActor())));
 
         verify(merchantRepositoryPort).findByCode(MERCHANT_CODE);
         verifyNoInteractions(terminalRepositoryPort, timeProviderPort, idGeneratorPort, auditPort);
-        verify(idempotencyPort, never()).save(anyString(), any());
+        verify(idempotencyPort, never()).save(anyString(), anyString(), any());
     }
 
     @Test
     void forbidden_whenMerchantIsNotActive() {
-        when(idempotencyPort.find(IDEM_KEY, CreateTerminalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class)).thenReturn(Optional.empty());
 
         Merchant inactive = new Merchant(MERCHANT_ID, MERCHANT_CODE, Status.SUSPENDED, NOW.minusSeconds(120));
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(inactive));
@@ -124,12 +125,12 @@ final class CreateTerminalServiceTest {
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(adminActor())));
 
         verifyNoInteractions(terminalRepositoryPort, timeProviderPort, idGeneratorPort, auditPort);
-        verify(idempotencyPort, never()).save(anyString(), any());
+        verify(idempotencyPort, never()).save(anyString(), anyString(), any());
     }
 
     @Test
     void happyPath_createsTerminal_audits_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, CreateTerminalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class)).thenReturn(Optional.empty());
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(activeMerchant()));
         when(timeProviderPort.now()).thenReturn(NOW);
         when(idGeneratorPort.newUuid()).thenReturn(TERMINAL_UUID);
@@ -164,6 +165,6 @@ final class CreateTerminalServiceTest {
         assertEquals(TERMINAL_UUID.toString(), event.metadata().get("terminalId"));
         assertEquals(MERCHANT_CODE_RAW, event.metadata().get("merchantCode"));
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), any(CreateTerminalResult.class));
+        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateTerminalResult.class));
     }
 }
