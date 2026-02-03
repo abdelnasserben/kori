@@ -23,6 +23,7 @@ import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -83,6 +84,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
     }
 
     @Override
+    @Transactional
     public EnrollCardResult execute(EnrollCardCommand command) {
 
         // 0) Idempotence

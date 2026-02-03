@@ -12,6 +12,7 @@ import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.ledger.LedgerEntryType;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -45,6 +46,7 @@ public final class ReversalService implements ReversalUseCase {
     }
 
     @Override
+    @Transactional
     public ReversalResult execute(ReversalCommand cmd) {
         var cached = idempotencyPort.find(cmd.idempotencyKey(), ReversalResult.class);
         if (cached.isPresent()) {
