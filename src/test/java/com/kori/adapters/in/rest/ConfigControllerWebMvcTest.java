@@ -1,26 +1,25 @@
 package com.kori.adapters.in.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.in.rest.controller.ConfigController;
+import com.kori.adapters.in.rest.dto.Requests.UpdateCommissionConfigRequest;
 import com.kori.adapters.in.rest.dto.Requests.UpdateFeeConfigRequest;
 import com.kori.adapters.in.rest.error.RestExceptionHandler;
 import com.kori.application.exception.*;
 import com.kori.application.port.in.UpdateCommissionConfigUseCase;
 import com.kori.application.port.in.UpdateFeeConfigUseCase;
+import com.kori.application.result.UpdateCommissionConfigResult;
 import com.kori.application.result.UpdateFeeConfigResult;
 import com.kori.bootstrap.config.JacksonConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.util.stream.Stream;
@@ -34,16 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(ConfigController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import({JacksonConfig.class, RestExceptionHandler.class})
-class ConfigControllerWebMvcTest {
-
-    private static final String ACTOR_TYPE = "ADMIN";
-    private static final String ACTOR_ID = "admin-1";
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class ConfigControllerWebMvcTest extends BaseWebMvcTest {
 
     @MockitoBean
     private UpdateFeeConfigUseCase updateFeeConfigUseCase;
@@ -87,6 +77,35 @@ class ConfigControllerWebMvcTest {
                 .andExpect(jsonPath("$.merchantWithdrawFeeRate").value(0.02))
                 .andExpect(jsonPath("$.merchantWithdrawFeeMin").value(2))
                 .andExpect(jsonPath("$.merchantWithdrawFeeMax").value(20));
+    }
+
+    @Test
+    void should_update_commission_config() throws Exception {
+        var request = new UpdateCommissionConfigRequest(
+                new BigDecimal("50"),
+                new BigDecimal("0.01"),
+                new BigDecimal("1"),
+                new BigDecimal("10"),
+                "ok"
+        );
+        var result = new UpdateCommissionConfigResult(
+                new BigDecimal("50"),
+                new BigDecimal("0.01"),
+                new BigDecimal("1"),
+                new BigDecimal("10")
+        );
+        when(updateCommissionConfigUseCase.execute(any())).thenReturn(result);
+
+        mockMvc.perform(patch("/api/config/commissions")
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.cardEnrollmentAgentCommission").value(50))
+                .andExpect(jsonPath("$.merchantWithdrawCommissionRate").value(0.01))
+                .andExpect(jsonPath("$.merchantWithdrawCommissionMin").value(1))
+                .andExpect(jsonPath("$.merchantWithdrawCommissionMax").value(10));
     }
 
     @Test

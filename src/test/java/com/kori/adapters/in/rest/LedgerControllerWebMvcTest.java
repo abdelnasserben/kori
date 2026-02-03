@@ -1,12 +1,12 @@
 package com.kori.adapters.in.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.in.rest.controller.LedgerController;
 import com.kori.adapters.in.rest.dto.Requests.SearchLedgerRequest;
 import com.kori.adapters.in.rest.error.RestExceptionHandler;
 import com.kori.application.exception.*;
 import com.kori.application.port.in.GetBalanceUseCase;
 import com.kori.application.port.in.SearchTransactionHistoryUseCase;
+import com.kori.application.result.BalanceResult;
 import com.kori.application.result.TransactionHistoryItem;
 import com.kori.application.result.TransactionHistoryResult;
 import com.kori.bootstrap.config.JacksonConfig;
@@ -17,14 +17,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -33,6 +31,7 @@ import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -40,22 +39,29 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(LedgerController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import({JacksonConfig.class, RestExceptionHandler.class})
-class LedgerControllerWebMvcTest {
-
-    private static final String ACTOR_TYPE = "ADMIN";
-    private static final String ACTOR_ID = "admin-1";
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class LedgerControllerWebMvcTest extends BaseWebMvcTest {
 
     @MockitoBean
     private GetBalanceUseCase getBalanceUseCase;
 
     @MockitoBean
     private SearchTransactionHistoryUseCase searchTransactionHistoryUseCase;
+
+    @Test
+    void should_get_balance() throws Exception {
+        var result = new BalanceResult("CLIENT", "client-1", new BigDecimal("250"));
+        when(getBalanceUseCase.execute(any())).thenReturn(result);
+
+        mockMvc.perform(get("/api/ledger/balance")
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
+                        .queryParam("accountType", "CLIENT")
+                        .queryParam("ownerRef", "client-1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.accountType").value("CLIENT"))
+                .andExpect(jsonPath("$.ownerRef").value("client-1"))
+                .andExpect(jsonPath("$.balance").value(250));
+    }
 
     @Test
     void should_search_transactions() throws Exception {

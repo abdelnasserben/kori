@@ -1,54 +1,57 @@
 package com.kori.adapters.in.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.in.rest.controller.AdminController;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.error.RestExceptionHandler;
 import com.kori.application.exception.*;
 import com.kori.application.port.in.CreateAdminUseCase;
 import com.kori.application.port.in.UpdateAdminStatusUseCase;
+import com.kori.application.result.CreateAdminResult;
 import com.kori.application.result.UpdateAdminStatusResult;
 import com.kori.bootstrap.config.JacksonConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AdminController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import({JacksonConfig.class, RestExceptionHandler.class})
-class AdminControllerWebMvcTest {
-
-    private static final String ACTOR_TYPE = "ADMIN";
-    private static final String ACTOR_ID = "admin-1";
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class AdminControllerWebMvcTest extends BaseWebMvcTest {
 
     @MockitoBean
     private CreateAdminUseCase createAdminUseCase;
 
     @MockitoBean
     private UpdateAdminStatusUseCase updateAdminStatusUseCase;
+
+    @Test
+    void should_create_admin() throws Exception {
+        var result = new CreateAdminResult("admin-123");
+        when(createAdminUseCase.execute(any())).thenReturn(result);
+
+        mockMvc.perform(post("/api/admins")
+                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.adminId").value("admin-123"));
+    }
 
     @Test
     void should_update_admin_status() throws Exception {

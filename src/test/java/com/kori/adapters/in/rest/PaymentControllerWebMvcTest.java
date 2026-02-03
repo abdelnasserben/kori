@@ -1,27 +1,28 @@
 package com.kori.adapters.in.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.in.rest.controller.PaymentController;
+import com.kori.adapters.in.rest.dto.Requests.MerchantWithdrawAtAgentRequest;
 import com.kori.adapters.in.rest.dto.Requests.PayByCardRequest;
+import com.kori.adapters.in.rest.dto.Requests.ReversalRequest;
 import com.kori.adapters.in.rest.error.RestExceptionHandler;
 import com.kori.application.exception.*;
 import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
 import com.kori.application.port.in.PayByCardUseCase;
 import com.kori.application.port.in.ReversalUseCase;
+import com.kori.application.result.MerchantWithdrawAtAgentResult;
 import com.kori.application.result.PayByCardResult;
+import com.kori.application.result.ReversalResult;
 import com.kori.bootstrap.config.JacksonConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.util.stream.Stream;
@@ -35,16 +36,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(PaymentController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import({JacksonConfig.class, RestExceptionHandler.class})
-class PaymentControllerWebMvcTest {
-
-    private static final String ACTOR_TYPE = "TERMINAL";
-    private static final String ACTOR_ID = "terminal-1";
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class PaymentControllerWebMvcTest extends BaseWebMvcTest {
 
     @MockitoBean
     private PayByCardUseCase payByCardUseCase;
@@ -82,6 +74,54 @@ class PaymentControllerWebMvcTest {
                 .andExpect(jsonPath("$.fee").value(2))
                 .andExpect(jsonPath("$.totalDebited").value(102));
     }
+
+    @Test
+    void should_withdraw_from_merchant_at_agent() throws Exception {
+        var request = new MerchantWithdrawAtAgentRequest("merchant-1", "agent-1", new BigDecimal("100"));
+        var result = new MerchantWithdrawAtAgentResult(
+                "tx-1",
+                "merchant-1",
+                "agent-1",
+                new BigDecimal("100"),
+                new BigDecimal("3"),
+                new BigDecimal("1"),
+                new BigDecimal("103")
+        );
+        when(merchantWithdrawAtAgentUseCase.execute(any())).thenReturn(result);
+
+        mockMvc.perform(post("/api/payments/merchant-withdraw")
+                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.transactionId").value("tx-1"))
+                .andExpect(jsonPath("$.merchantCode").value("merchant-1"))
+                .andExpect(jsonPath("$.agentCode").value("agent-1"))
+                .andExpect(jsonPath("$.amount").value(100))
+                .andExpect(jsonPath("$.fee").value(3))
+                .andExpect(jsonPath("$.commission").value(1))
+                .andExpect(jsonPath("$.totalDebitedMerchant").value(103));
+    }
+
+    @Test
+    void should_reverse_transaction() throws Exception {
+        var request = new ReversalRequest("tx-1");
+        var result = new ReversalResult("tx-2", "tx-1");
+        when(reversalUseCase.execute(any())).thenReturn(result);
+
+        mockMvc.perform(post("/api/payments/reversals")
+                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.transactionId").value("tx-2"))
+                .andExpect(jsonPath("$.originalTransactionId").value("tx-1"));
+    }
+
 
     @Test
     void should_return_400_when_request_is_invalid() throws Exception {

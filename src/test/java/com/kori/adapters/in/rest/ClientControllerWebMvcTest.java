@@ -1,6 +1,5 @@
 package com.kori.adapters.in.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.in.rest.controller.ClientController;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.error.RestExceptionHandler;
@@ -12,14 +11,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.stream.Stream;
 
@@ -32,16 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(ClientController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import({JacksonConfig.class, RestExceptionHandler.class})
-class ClientControllerWebMvcTest {
-
-    private static final String ACTOR_TYPE = "ADMIN";
-    private static final String ACTOR_ID = "admin-1";
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class ClientControllerWebMvcTest extends BaseWebMvcTest {
 
     @MockitoBean
     private UpdateClientStatusUseCase updateClientStatusUseCase;

@@ -1,54 +1,58 @@
 package com.kori.adapters.in.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.in.rest.controller.AgentController;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.error.RestExceptionHandler;
 import com.kori.application.exception.*;
 import com.kori.application.port.in.CreateAgentUseCase;
 import com.kori.application.port.in.UpdateAgentStatusUseCase;
+import com.kori.application.result.CreateAgentResult;
 import com.kori.application.result.UpdateAgentStatusResult;
 import com.kori.bootstrap.config.JacksonConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AgentController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import({JacksonConfig.class, RestExceptionHandler.class})
-class AgentControllerWebMvcTest {
-
-    private static final String ACTOR_TYPE = "ADMIN";
-    private static final String ACTOR_ID = "admin-1";
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class AgentControllerWebMvcTest extends BaseWebMvcTest {
 
     @MockitoBean
     private CreateAgentUseCase createAgentUseCase;
 
     @MockitoBean
     private UpdateAgentStatusUseCase updateAgentStatusUseCase;
+
+    @Test
+    void should_create_agent() throws Exception {
+        var result = new CreateAgentResult("agent-123", "AGT-001");
+        when(createAgentUseCase.execute(any())).thenReturn(result);
+
+        mockMvc.perform(post("/api/agents")
+                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.agentId").value("agent-123"))
+                .andExpect(jsonPath("$.agentCode").value("AGT-001"));
+    }
 
     @Test
     void should_update_agent_status() throws Exception {

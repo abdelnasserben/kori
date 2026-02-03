@@ -1,8 +1,9 @@
 package com.kori.adapters.in.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.in.rest.controller.CardController;
+import com.kori.adapters.in.rest.dto.Requests.AgentCardStatusRequest;
 import com.kori.adapters.in.rest.dto.Requests.EnrollCardRequest;
+import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.error.RestExceptionHandler;
 import com.kori.application.exception.*;
 import com.kori.application.port.in.AdminUnblockCardUseCase;
@@ -10,25 +11,26 @@ import com.kori.application.port.in.AdminUpdateCardStatusUseCase;
 import com.kori.application.port.in.AgentUpdateCardStatusUseCase;
 import com.kori.application.port.in.EnrollCardUseCase;
 import com.kori.application.result.EnrollCardResult;
+import com.kori.application.result.UpdateCardStatusResult;
 import com.kori.bootstrap.config.JacksonConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.util.UUID;
 import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -36,16 +38,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(CardController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import({JacksonConfig.class, RestExceptionHandler.class})
-class CardControllerWebMvcTest {
-
-    private static final String ACTOR_TYPE = "ADMIN";
-    private static final String ACTOR_ID = "admin-1";
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class CardControllerWebMvcTest extends BaseWebMvcTest {
 
     @MockitoBean
     private EnrollCardUseCase enrollCardUseCase;
@@ -87,6 +80,57 @@ class CardControllerWebMvcTest {
                 .andExpect(jsonPath("$.agentCommission").value(50))
                 .andExpect(jsonPath("$.clientCreated").value(true))
                 .andExpect(jsonPath("$.clientAccountProfileCreated").value(true));
+    }
+
+    @Test
+    void should_admin_update_card_status() throws Exception {
+        var cardUid = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        var request = new UpdateStatusRequest("BLOCKED", "fraud");
+        var result = new UpdateCardStatusResult(cardUid, "ACTIVE", "BLOCKED");
+        when(adminUpdateCardStatusUseCase.execute(any())).thenReturn(result);
+
+        mockMvc.perform(patch("/api/cards/{cardUid}/status/admin", cardUid)
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subjectId").value(cardUid.toString()))
+                .andExpect(jsonPath("$.previousStatus").value("ACTIVE"))
+                .andExpect(jsonPath("$.newStatus").value("BLOCKED"));
+    }
+
+    @Test
+    void should_admin_unblock_card() throws Exception {
+        var cardUid = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        var result = new UpdateCardStatusResult(cardUid, "BLOCKED", "ACTIVE");
+        when(adminUnblockCardUseCase.execute(any())).thenReturn(result);
+
+        mockMvc.perform(post("/api/cards/{cardUid}/unblock", cardUid)
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subjectId").value(cardUid.toString()))
+                .andExpect(jsonPath("$.previousStatus").value("BLOCKED"))
+                .andExpect(jsonPath("$.newStatus").value("ACTIVE"));
+    }
+
+    @Test
+    void should_agent_update_card_status() throws Exception {
+        var cardUid = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        var request = new AgentCardStatusRequest("agent-1", "BLOCKED", "lost");
+        var result = new UpdateCardStatusResult(cardUid, "ACTIVE", "BLOCKED");
+        when(agentUpdateCardStatusUseCase.execute(any())).thenReturn(result);
+
+        mockMvc.perform(patch("/api/cards/{cardUid}/status/agent", cardUid)
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "AGENT")
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, "agent-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.subjectId").value(cardUid.toString()))
+                .andExpect(jsonPath("$.previousStatus").value("ACTIVE"))
+                .andExpect(jsonPath("$.newStatus").value("BLOCKED"));
     }
 
     @Test

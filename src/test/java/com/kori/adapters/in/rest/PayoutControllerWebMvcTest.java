@@ -1,7 +1,7 @@
 package com.kori.adapters.in.rest;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.in.rest.controller.PayoutController;
+import com.kori.adapters.in.rest.dto.Requests.FailPayoutRequest;
 import com.kori.adapters.in.rest.dto.Requests.RequestAgentPayoutRequest;
 import com.kori.adapters.in.rest.error.RestExceptionHandler;
 import com.kori.application.exception.*;
@@ -14,14 +14,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
 import java.util.stream.Stream;
@@ -35,16 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(PayoutController.class)
 @AutoConfigureMockMvc(addFilters = false)
 @Import({JacksonConfig.class, RestExceptionHandler.class})
-class PayoutControllerWebMvcTest {
-
-    private static final String ACTOR_TYPE = "ADMIN";
-    private static final String ACTOR_ID = "admin-1";
-
-    @Autowired
-    private MockMvc mockMvc;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+class PayoutControllerWebMvcTest extends BaseWebMvcTest {
 
     @MockitoBean
     private RequestAgentPayoutUseCase requestAgentPayoutUseCase;
@@ -79,6 +68,26 @@ class PayoutControllerWebMvcTest {
                 .andExpect(jsonPath("$.agentCode").value("agent-1"))
                 .andExpect(jsonPath("$.amount").value(100))
                 .andExpect(jsonPath("$.status").value("REQUESTED"));
+    }
+
+    @Test
+    void should_complete_agent_payout() throws Exception {
+        mockMvc.perform(post("/api/payouts/{payoutId}/complete", "payout-1")
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void should_fail_agent_payout() throws Exception {
+        var request = new FailPayoutRequest("insufficient funds");
+
+        mockMvc.perform(post("/api/payouts/{payoutId}/fail", "payout-1")
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNoContent());
     }
 
     @Test
