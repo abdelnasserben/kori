@@ -109,6 +109,6 @@ public final class Requests {
             BigDecimal minAmount,
             BigDecimal maxAmount,
             String view,
-            Integer limit
+            @PositiveOrZero Integer limit
     ) {}
 }
