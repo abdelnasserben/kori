@@ -40,6 +40,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class CardControllerWebMvcTest extends BaseWebMvcTest {
 
+    private final static String URL = ApiPaths.CARDS;
+    private final static String URL_ENROLL = ApiPaths.CARDS + "/enroll";
+
     @MockitoBean
     private EnrollCardUseCase enrollCardUseCase;
 
@@ -66,7 +69,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
         );
         when(enrollCardUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(post("/api/cards/enroll")
+        mockMvc.perform(post(URL_ENROLL)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
@@ -89,7 +92,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
         var result = new UpdateCardStatusResult(cardUid, "ACTIVE", "BLOCKED");
         when(adminUpdateCardStatusUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(patch("/api/cards/{cardUid}/status/admin", cardUid)
+        mockMvc.perform(patch(URL + "/{cardUid}/status/admin", cardUid)
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -106,7 +109,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
         var result = new UpdateCardStatusResult(cardUid, "BLOCKED", "ACTIVE");
         when(adminUnblockCardUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(post("/api/cards/{cardUid}/unblock", cardUid)
+        mockMvc.perform(post(URL + "/{cardUid}/unblock", cardUid)
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID))
                 .andExpect(status().isOk())
@@ -122,7 +125,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
         var result = new UpdateCardStatusResult(cardUid, "ACTIVE", "BLOCKED");
         when(agentUpdateCardStatusUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(patch("/api/cards/{cardUid}/status/agent", cardUid)
+        mockMvc.perform(patch(URL + "/{cardUid}/status/agent", cardUid)
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "AGENT")
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, "agent-1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -137,7 +140,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
     void should_return_400_when_request_is_invalid() throws Exception {
         var request = new EnrollCardRequest("123", "", "12", "");
 
-        mockMvc.perform(post("/api/cards/enroll")
+        mockMvc.perform(post(URL_ENROLL)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
@@ -154,7 +157,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
         var request = new EnrollCardRequest("+2691234567", "card-123", "1234", "agent-1");
         when(enrollCardUseCase.execute(any())).thenThrow(exception);
 
-        mockMvc.perform(post("/api/cards/enroll")
+        mockMvc.perform(post(URL_ENROLL)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)

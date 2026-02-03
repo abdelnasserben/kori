@@ -31,6 +31,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class ClientControllerWebMvcTest extends BaseWebMvcTest {
 
+    private static final String URL_PATH_VARIABLE_STATUS = ApiPaths.CLIENTS + "/{clientId}/status";
+
     @MockitoBean
     private UpdateClientStatusUseCase updateClientStatusUseCase;
 
@@ -40,7 +42,7 @@ class ClientControllerWebMvcTest extends BaseWebMvcTest {
         var result = new UpdateClientStatusResult("client-123", "INACTIVE", "ACTIVE");
         when(updateClientStatusUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(patch("/api/clients/{clientId}/status", "client-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "client-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -55,7 +57,7 @@ class ClientControllerWebMvcTest extends BaseWebMvcTest {
     void should_return_400_when_request_is_invalid() throws Exception {
         var request = new UpdateStatusRequest("", "ok");
 
-        mockMvc.perform(patch("/api/clients/{clientId}/status", "client-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "client-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -71,7 +73,7 @@ class ClientControllerWebMvcTest extends BaseWebMvcTest {
         var request = new UpdateStatusRequest("ACTIVE", "ok");
         when(updateClientStatusUseCase.execute(any())).thenThrow(exception);
 
-        mockMvc.perform(patch("/api/clients/{clientId}/status", "client-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "client-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)

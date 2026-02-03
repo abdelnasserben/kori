@@ -1,5 +1,6 @@
 package com.kori.adapters.in.rest.controller;
 
+import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.MerchantWithdrawAtAgentRequest;
 import com.kori.adapters.in.rest.dto.Requests.PayByCardRequest;
@@ -18,7 +19,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/payments")
+@RequestMapping(ApiPaths.PAYMENTS)
 public class PaymentController {
 
     private final PayByCardUseCase payByCardUseCase;

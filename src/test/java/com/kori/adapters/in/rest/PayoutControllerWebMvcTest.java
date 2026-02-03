@@ -35,6 +35,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class PayoutControllerWebMvcTest extends BaseWebMvcTest {
 
+    private static final String URL =ApiPaths.PAYOUTS;
+
     @MockitoBean
     private RequestAgentPayoutUseCase requestAgentPayoutUseCase;
 
@@ -56,7 +58,7 @@ class PayoutControllerWebMvcTest extends BaseWebMvcTest {
         );
         when(requestAgentPayoutUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(post("/api/payouts/requests")
+        mockMvc.perform(post(URL + "/requests")
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
@@ -72,7 +74,7 @@ class PayoutControllerWebMvcTest extends BaseWebMvcTest {
 
     @Test
     void should_complete_agent_payout() throws Exception {
-        mockMvc.perform(post("/api/payouts/{payoutId}/complete", "payout-1")
+        mockMvc.perform(post(URL + "/{payoutId}/complete", "payout-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID))
                 .andExpect(status().isNoContent());
@@ -82,7 +84,7 @@ class PayoutControllerWebMvcTest extends BaseWebMvcTest {
     void should_fail_agent_payout() throws Exception {
         var request = new FailPayoutRequest("insufficient funds");
 
-        mockMvc.perform(post("/api/payouts/{payoutId}/fail", "payout-1")
+        mockMvc.perform(post(URL + "/{payoutId}/fail", "payout-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -94,7 +96,7 @@ class PayoutControllerWebMvcTest extends BaseWebMvcTest {
     void should_return_400_when_request_is_invalid() throws Exception {
         var request = new RequestAgentPayoutRequest("");
 
-        mockMvc.perform(post("/api/payouts/requests")
+        mockMvc.perform(post(URL + "/requests")
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
@@ -111,7 +113,7 @@ class PayoutControllerWebMvcTest extends BaseWebMvcTest {
         var request = new RequestAgentPayoutRequest("agent-1");
         when(requestAgentPayoutUseCase.execute(any())).thenThrow(exception);
 
-        mockMvc.perform(post("/api/payouts/requests")
+        mockMvc.perform(post(URL + "/requests")
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)

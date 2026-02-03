@@ -1,5 +1,6 @@
 package com.kori.adapters.in.rest.controller;
 
+import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.UpdateAccountProfileStatusRequest;
 import com.kori.adapters.in.rest.dto.Responses.UpdateAccountProfileStatusResponse;
@@ -9,7 +10,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/account-profiles")
+@RequestMapping(ApiPaths.ACCOUNT_PROFILES)
 public class AccountProfileController {
 
     private final UpdateAccountProfileStatusUseCase updateAccountProfileStatusUseCase;

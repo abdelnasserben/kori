@@ -41,6 +41,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class LedgerControllerWebMvcTest extends BaseWebMvcTest {
 
+    private static final String URL = ApiPaths.LEDGER;
+    private static final String URL_TRANSACTION_SEARCH = URL + "/transactions/search";
+
     @MockitoBean
     private GetBalanceUseCase getBalanceUseCase;
 
@@ -52,7 +55,7 @@ class LedgerControllerWebMvcTest extends BaseWebMvcTest {
         var result = new BalanceResult("CLIENT", "client-1", new BigDecimal("250"));
         when(getBalanceUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(get("/api/ledger/balance")
+        mockMvc.perform(get(URL + "/balance")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .queryParam("accountType", "CLIENT")
@@ -81,7 +84,7 @@ class LedgerControllerWebMvcTest extends BaseWebMvcTest {
         var result = getTransactionHistoryResult();
         when(searchTransactionHistoryUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(post("/api/ledger/transactions/search")
+        mockMvc.perform(post(URL_TRANSACTION_SEARCH)
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -135,7 +138,7 @@ class LedgerControllerWebMvcTest extends BaseWebMvcTest {
                 -1
         );
 
-        mockMvc.perform(post("/api/ledger/transactions/search")
+        mockMvc.perform(post(URL_TRANSACTION_SEARCH)
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -163,7 +166,7 @@ class LedgerControllerWebMvcTest extends BaseWebMvcTest {
         );
         when(searchTransactionHistoryUseCase.execute(any())).thenThrow(exception);
 
-        mockMvc.perform(post("/api/ledger/transactions/search")
+        mockMvc.perform(post(URL_TRANSACTION_SEARCH)
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)

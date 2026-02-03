@@ -38,6 +38,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class PaymentControllerWebMvcTest extends BaseWebMvcTest {
 
+    private static final String URL = ApiPaths.PAYMENTS;
+
     @MockitoBean
     private PayByCardUseCase payByCardUseCase;
 
@@ -60,7 +62,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
         );
         when(payByCardUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(post("/api/payments/card")
+        mockMvc.perform(post(URL + "/card")
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
@@ -89,7 +91,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
         );
         when(merchantWithdrawAtAgentUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(post("/api/payments/merchant-withdraw")
+        mockMvc.perform(post(URL + "/merchant-withdraw")
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
@@ -111,7 +113,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
         var result = new ReversalResult("tx-2", "tx-1");
         when(reversalUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(post("/api/payments/reversals")
+        mockMvc.perform(post(URL + "/reversals")
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
@@ -127,7 +129,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
     void should_return_400_when_request_is_invalid() throws Exception {
         var request = new PayByCardRequest("terminal-1", "card-1", "12", new BigDecimal("100"));
 
-        mockMvc.perform(post("/api/payments/card")
+        mockMvc.perform(post(URL + "/card")
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
@@ -144,7 +146,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
         var request = new PayByCardRequest("terminal-1", "card-1", "1234", new BigDecimal("100"));
         when(payByCardUseCase.execute(any())).thenThrow(exception);
 
-        mockMvc.perform(post("/api/payments/card")
+        mockMvc.perform(post(URL + "/card")
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)

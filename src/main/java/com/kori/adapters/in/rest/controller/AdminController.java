@@ -1,5 +1,6 @@
 package com.kori.adapters.in.rest.controller;
 
+import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.dto.Responses.CreateAdminResponse;
@@ -13,7 +14,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/admins")
+@RequestMapping(ApiPaths.ADMINS)
 public class AdminController {
 
     private final CreateAdminUseCase createAdminUseCase;

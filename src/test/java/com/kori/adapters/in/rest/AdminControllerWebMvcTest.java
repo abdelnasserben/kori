@@ -34,6 +34,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class AdminControllerWebMvcTest extends BaseWebMvcTest {
 
+    private final static String URL = ApiPaths.ADMINS;
+    private final static String URL_PATH_VARIABLE_STATUS = URL + "/{adminId}/status";
+
     @MockitoBean
     private CreateAdminUseCase createAdminUseCase;
 
@@ -45,7 +48,7 @@ class AdminControllerWebMvcTest extends BaseWebMvcTest {
         var result = new CreateAdminResult("admin-123");
         when(createAdminUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(post("/api/admins")
+        mockMvc.perform(post(URL)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID))
@@ -59,7 +62,7 @@ class AdminControllerWebMvcTest extends BaseWebMvcTest {
         var result = new UpdateAdminStatusResult("admin-123", "INACTIVE", "ACTIVE");
         when(updateAdminStatusUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(patch("/api/admins/{adminId}/status", "admin-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "admin-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -74,7 +77,7 @@ class AdminControllerWebMvcTest extends BaseWebMvcTest {
     void should_return_400_when_request_is_invalid() throws Exception {
         var request = new UpdateStatusRequest("", "ok");
 
-        mockMvc.perform(patch("/api/admins/{adminId}/status", "admin-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "admin-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -90,7 +93,7 @@ class AdminControllerWebMvcTest extends BaseWebMvcTest {
         var request = new UpdateStatusRequest("ACTIVE", "ok");
         when(updateAdminStatusUseCase.execute(any())).thenThrow(exception);
 
-        mockMvc.perform(patch("/api/admins/{adminId}/status", "admin-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "admin-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)

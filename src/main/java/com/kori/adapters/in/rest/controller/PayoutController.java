@@ -1,5 +1,6 @@
 package com.kori.adapters.in.rest.controller;
 
+import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.FailPayoutRequest;
 import com.kori.adapters.in.rest.dto.Requests.RequestAgentPayoutRequest;
@@ -15,7 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/payouts")
+@RequestMapping(ApiPaths.PAYOUTS)
 public class PayoutController {
 
     private final RequestAgentPayoutUseCase requestAgentPayoutUseCase;

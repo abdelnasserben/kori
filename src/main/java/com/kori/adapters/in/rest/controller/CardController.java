@@ -1,5 +1,6 @@
 package com.kori.adapters.in.rest.controller;
 
+import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.AgentCardStatusRequest;
 import com.kori.adapters.in.rest.dto.Requests.EnrollCardRequest;
@@ -21,7 +22,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/cards")
+@RequestMapping(ApiPaths.CARDS)
 public class CardController {
 
     private final EnrollCardUseCase enrollCardUseCase;

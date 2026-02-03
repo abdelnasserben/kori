@@ -1,5 +1,6 @@
 package com.kori.adapters.in.rest.controller;
 
+import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.UpdateCommissionConfigRequest;
 import com.kori.adapters.in.rest.dto.Requests.UpdateFeeConfigRequest;
@@ -13,7 +14,7 @@ import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/config")
+@RequestMapping(ApiPaths.CONFIG)
 public class ConfigController {
 
     private final UpdateFeeConfigUseCase updateFeeConfigUseCase;

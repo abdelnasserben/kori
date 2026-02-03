@@ -35,6 +35,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class ConfigControllerWebMvcTest extends BaseWebMvcTest {
 
+    private static final String URL = ApiPaths.CONFIG;
+    private static final String URL_FEES = ApiPaths.CONFIG + "/fees";
+
     @MockitoBean
     private UpdateFeeConfigUseCase updateFeeConfigUseCase;
 
@@ -64,7 +67,7 @@ class ConfigControllerWebMvcTest extends BaseWebMvcTest {
         );
         when(updateFeeConfigUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(patch("/api/config/fees")
+        mockMvc.perform(patch(URL_FEES)
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -96,7 +99,7 @@ class ConfigControllerWebMvcTest extends BaseWebMvcTest {
         );
         when(updateCommissionConfigUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(patch("/api/config/commissions")
+        mockMvc.perform(patch(URL + "/commissions")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -121,7 +124,7 @@ class ConfigControllerWebMvcTest extends BaseWebMvcTest {
                 "ok"
         );
 
-        mockMvc.perform(patch("/api/config/fees")
+        mockMvc.perform(patch(URL_FEES)
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -146,7 +149,7 @@ class ConfigControllerWebMvcTest extends BaseWebMvcTest {
         );
         when(updateFeeConfigUseCase.execute(any())).thenThrow(exception);
 
-        mockMvc.perform(patch("/api/config/fees")
+        mockMvc.perform(patch(URL_FEES)
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)

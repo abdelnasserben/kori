@@ -34,6 +34,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class MerchantControllerWebMvcTest extends BaseWebMvcTest {
 
+    private static final String URL = ApiPaths.MERCHANTS;
+    private static final String URL_PATH_VARIABLE_STATUS = URL + "/{merchantCode}/status";
+
     @MockitoBean
     private CreateMerchantUseCase createMerchantUseCase;
 
@@ -45,7 +48,7 @@ class MerchantControllerWebMvcTest extends BaseWebMvcTest {
         var result = new CreateMerchantResult("merchant-123", "M-123456");
         when(createMerchantUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(post("/api/merchants")
+        mockMvc.perform(post(URL)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID))
@@ -60,7 +63,7 @@ class MerchantControllerWebMvcTest extends BaseWebMvcTest {
         var result = new UpdateMerchantStatusResult("M-123456", "INACTIVE", "ACTIVE");
         when(updateMerchantStatusUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(patch("/api/merchants/{merchantCode}/status", "M-123456")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "M-123456")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -75,7 +78,7 @@ class MerchantControllerWebMvcTest extends BaseWebMvcTest {
     void should_return_400_when_request_is_invalid() throws Exception {
         var request = new UpdateStatusRequest("", "ok");
 
-        mockMvc.perform(patch("/api/merchants/{merchantCode}/status", "merchant-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "merchant-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -91,7 +94,7 @@ class MerchantControllerWebMvcTest extends BaseWebMvcTest {
         var request = new UpdateStatusRequest("ACTIVE", "ok");
         when(updateMerchantStatusUseCase.execute(any())).thenThrow(exception);
 
-        mockMvc.perform(patch("/api/merchants/{merchantCode}/status", "merchant-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "merchant-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)

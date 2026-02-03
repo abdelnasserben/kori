@@ -35,6 +35,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class TerminalControllerWebMvcTest extends BaseWebMvcTest {
 
+    private static final String URL = ApiPaths.TERMINALS;
+    private static final String URL_PATH_VARIABLE_STATUS = URL + "/{terminalId}/status";
+
+
     @MockitoBean
     private CreateTerminalUseCase createTerminalUseCase;
 
@@ -47,7 +51,7 @@ class TerminalControllerWebMvcTest extends BaseWebMvcTest {
         var result = new CreateTerminalResult("terminal-123", "merchant-1");
         when(createTerminalUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(post("/api/terminals")
+        mockMvc.perform(post(URL)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
@@ -64,7 +68,7 @@ class TerminalControllerWebMvcTest extends BaseWebMvcTest {
         var result = new UpdateTerminalStatusResult("terminal-123", "INACTIVE", "ACTIVE");
         when(updateTerminalStatusUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(patch("/api/terminals/{terminalId}/status", "terminal-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "terminal-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -79,7 +83,7 @@ class TerminalControllerWebMvcTest extends BaseWebMvcTest {
     void should_return_400_when_request_is_invalid() throws Exception {
         var request = new UpdateStatusRequest("", "ok");
 
-        mockMvc.perform(patch("/api/terminals/{terminalId}/status", "terminal-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "terminal-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -95,7 +99,7 @@ class TerminalControllerWebMvcTest extends BaseWebMvcTest {
         var request = new UpdateStatusRequest("ACTIVE", "ok");
         when(updateTerminalStatusUseCase.execute(any())).thenThrow(exception);
 
-        mockMvc.perform(patch("/api/terminals/{terminalId}/status", "terminal-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "terminal-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)

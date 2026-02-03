@@ -1,5 +1,6 @@
 package com.kori.adapters.in.rest.controller;
 
+import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.SearchLedgerRequest;
 import com.kori.adapters.in.rest.dto.Responses.BalanceResponse;
@@ -20,7 +21,7 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 
 @RestController
-@RequestMapping("/api/ledger")
+@RequestMapping(ApiPaths.LEDGER)
 public class LedgerController {
 
     private final GetBalanceUseCase getBalanceUseCase;

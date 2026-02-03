@@ -34,6 +34,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class AgentControllerWebMvcTest extends BaseWebMvcTest {
 
+    private final static String URL = ApiPaths.AGENTS;
+    private final static String URL_PATH_VARIABLE_STATUS = URL + "/{agentCode}/status";
+
     @MockitoBean
     private CreateAgentUseCase createAgentUseCase;
 
@@ -45,7 +48,7 @@ class AgentControllerWebMvcTest extends BaseWebMvcTest {
         var result = new CreateAgentResult("agent-123", "AGT-001");
         when(createAgentUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(post("/api/agents")
+        mockMvc.perform(post(URL)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID))
@@ -60,7 +63,7 @@ class AgentControllerWebMvcTest extends BaseWebMvcTest {
         var result = new UpdateAgentStatusResult("agent-123", "INACTIVE", "ACTIVE");
         when(updateAgentStatusUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(patch("/api/agents/{agentCode}/status", "agent-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "agent-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -75,7 +78,7 @@ class AgentControllerWebMvcTest extends BaseWebMvcTest {
     void should_return_400_when_request_is_invalid() throws Exception {
         var request = new UpdateStatusRequest("", "ok");
 
-        mockMvc.perform(patch("/api/agents/{agentCode}/status", "agent-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "agent-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -91,7 +94,7 @@ class AgentControllerWebMvcTest extends BaseWebMvcTest {
         var request = new UpdateStatusRequest("ACTIVE", "ok");
         when(updateAgentStatusUseCase.execute(any())).thenThrow(exception);
 
-        mockMvc.perform(patch("/api/agents/{agentCode}/status", "agent-123")
+        mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "agent-123")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)

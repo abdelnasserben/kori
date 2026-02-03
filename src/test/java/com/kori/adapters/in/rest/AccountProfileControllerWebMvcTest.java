@@ -31,6 +31,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class AccountProfileControllerWebMvcTest extends BaseWebMvcTest {
 
+    private static final String URL = ApiPaths.ACCOUNT_PROFILES + "/status";
+
     @MockitoBean
     private UpdateAccountProfileStatusUseCase updateAccountProfileStatusUseCase;
 
@@ -40,7 +42,7 @@ class AccountProfileControllerWebMvcTest extends BaseWebMvcTest {
         var result = new UpdateAccountProfileStatusResult("CLIENT", "owner-1", "INACTIVE", "ACTIVE");
         when(updateAccountProfileStatusUseCase.execute(any())).thenReturn(result);
 
-        mockMvc.perform(patch("/api/account-profiles/status")
+        mockMvc.perform(patch(URL)
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -56,7 +58,7 @@ class AccountProfileControllerWebMvcTest extends BaseWebMvcTest {
     void should_return_400_when_request_is_invalid() throws Exception {
         var request = new UpdateAccountProfileStatusRequest("", "", "", "ok");
 
-        mockMvc.perform(patch("/api/account-profiles/status")
+        mockMvc.perform(patch(URL)
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -72,7 +74,7 @@ class AccountProfileControllerWebMvcTest extends BaseWebMvcTest {
         var request = new UpdateAccountProfileStatusRequest("CLIENT", "owner-1", "ACTIVE", "ok");
         when(updateAccountProfileStatusUseCase.execute(any())).thenThrow(exception);
 
-        mockMvc.perform(patch("/api/account-profiles/status")
+        mockMvc.perform(patch(URL)
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
