@@ -62,4 +62,8 @@ public record Transaction(
                 originalTransactionId
         );
     }
+
+    public static Transaction cashInByAgent(TransactionId id, Money amount, Instant createdAt) {
+        return new Transaction(id, TransactionType.CASH_IN_BY_AGENT, amount, createdAt, null);
+    }
 }

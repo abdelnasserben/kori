@@ -45,6 +45,14 @@ public final class Responses {
             BigDecimal totalDebitedMerchant
     ) {}
 
+    public record CashInByAgentResponse(
+            String transactionId,
+            String agentId,
+            String clientId,
+            String clientPhoneNumber,
+            BigDecimal amount
+    ) {}
+
     public record AgentPayoutResponse(
             String transactionId,
             String payoutId,

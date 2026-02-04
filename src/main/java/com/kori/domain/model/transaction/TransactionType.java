@@ -5,5 +5,6 @@ public enum TransactionType {
     PAY_BY_CARD,
     MERCHANT_WITHDRAW_AT_AGENT,
     AGENT_PAYOUT,
+    CASH_IN_BY_AGENT,
     REVERSAL
 }

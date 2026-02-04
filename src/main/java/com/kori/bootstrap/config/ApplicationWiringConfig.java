@@ -138,6 +138,39 @@ public class ApplicationWiringConfig {
     }
 
     @Bean
+    public CashInByAgentUseCase cashInByAgentUseCase(
+            PlatformTransactionManager transactionManager,
+            TimeProviderPort timeProviderPort,
+            IdempotencyPort idempotencyPort,
+            IdGeneratorPort idGeneratorPort,
+            AgentRepositoryPort agentRepositoryPort,
+            ClientRepositoryPort clientRepositoryPort,
+            CardRepositoryPort cardRepositoryPort,
+            LedgerQueryPort ledgerQueryPort,
+            TransactionRepositoryPort transactionRepositoryPort,
+            LedgerAppendPort ledgerAppendPort,
+            AuditPort auditPort,
+            OperationStatusGuards operationStatusGuards
+    ) {
+        var useCase = new CashInByAgentService(
+                timeProviderPort,
+                idempotencyPort,
+                idGeneratorPort,
+                agentRepositoryPort,
+                clientRepositoryPort,
+                cardRepositoryPort,
+                ledgerQueryPort,
+                transactionRepositoryPort,
+                ledgerAppendPort,
+                auditPort,
+                operationStatusGuards
+        );
+
+        var transactionTemplate = new TransactionTemplate(transactionManager);
+        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
+    }
+
+    @Bean
     public RequestAgentPayoutUseCase agentPayoutUseCase(
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,

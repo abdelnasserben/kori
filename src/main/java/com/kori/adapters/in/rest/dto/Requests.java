@@ -53,6 +53,13 @@ public final class Requests {
             @NotNull @Positive BigDecimal amount
     ) {}
 
+    public record CashInByAgentRequest(
+            @NotBlank
+            @Pattern(regexp = COMOROS_PHONE_REGEX, message = "Phone number must be (+269 + 7 digits) or 7 digits local")
+            String phoneNumber,
+            @NotNull @Positive BigDecimal amount
+    ) {}
+
     public record RequestAgentPayoutRequest(
             @NotBlank @Size(max = 16) String agentCode
     ) {}

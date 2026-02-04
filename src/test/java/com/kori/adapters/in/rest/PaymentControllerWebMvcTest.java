@@ -1,14 +1,17 @@
 package com.kori.adapters.in.rest;
 
 import com.kori.adapters.in.rest.controller.PaymentController;
+import com.kori.adapters.in.rest.dto.Requests.CashInByAgentRequest;
 import com.kori.adapters.in.rest.dto.Requests.MerchantWithdrawAtAgentRequest;
 import com.kori.adapters.in.rest.dto.Requests.PayByCardRequest;
 import com.kori.adapters.in.rest.dto.Requests.ReversalRequest;
 import com.kori.adapters.in.rest.error.RestExceptionHandler;
 import com.kori.application.exception.*;
+import com.kori.application.port.in.CashInByAgentUseCase;
 import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
 import com.kori.application.port.in.PayByCardUseCase;
 import com.kori.application.port.in.ReversalUseCase;
+import com.kori.application.result.CashInByAgentResult;
 import com.kori.application.result.MerchantWithdrawAtAgentResult;
 import com.kori.application.result.PayByCardResult;
 import com.kori.application.result.ReversalResult;
@@ -45,6 +48,9 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
 
     @MockitoBean
     private MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase;
+
+    @MockitoBean
+    private CashInByAgentUseCase cashInByAgentUseCase;
 
     @MockitoBean
     private ReversalUseCase reversalUseCase;
@@ -105,6 +111,32 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
                 .andExpect(jsonPath("$.fee").value(3))
                 .andExpect(jsonPath("$.commission").value(1))
                 .andExpect(jsonPath("$.totalDebitedMerchant").value(103));
+    }
+
+    @Test
+    void should_cash_in_by_agent() throws Exception {
+        var request = new CashInByAgentRequest("+2690000000", new BigDecimal("120"));
+        var result = new CashInByAgentResult(
+                "tx-1",
+                "agent-1",
+                "client-1",
+                "+2690000000",
+                new BigDecimal("120")
+        );
+        when(cashInByAgentUseCase.execute(any())).thenReturn(result);
+
+        mockMvc.perform(post(URL + "/cash-in")
+                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "AGENT")
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, "agent-1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.transactionId").value("tx-1"))
+                .andExpect(jsonPath("$.agentId").value("agent-1"))
+                .andExpect(jsonPath("$.clientId").value("client-1"))
+                .andExpect(jsonPath("$.clientPhoneNumber").value("+2690000000"))
+                .andExpect(jsonPath("$.amount").value(120));
     }
 
     @Test
