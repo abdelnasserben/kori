@@ -27,5 +27,17 @@ public interface LedgerEntryJpaRepository extends JpaRepository<LedgerEntryEntit
     """)
     BigDecimal netBalance(@Param("ledgerAccountType") String accountType,
                           @Param("ownerRef") String ownerRef);
+
+    @Query("""
+        select e.transactionId
+        from LedgerEntryEntity e
+        group by e.transactionId
+        having
+          coalesce(sum(case when e.entryType = 'CREDIT' then e.amount else 0 end), 0)
+            <> coalesce(sum(case when e.entryType = 'DEBIT' then e.amount else 0 end), 0)
+          or coalesce(sum(case when e.entryType = 'CREDIT' then 1 else 0 end), 0) = 0
+          or coalesce(sum(case when e.entryType = 'DEBIT' then 1 else 0 end), 0) = 0
+    """)
+    List<UUID> findInconsistentTransactionIds();
 }
 

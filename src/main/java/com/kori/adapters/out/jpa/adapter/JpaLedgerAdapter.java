@@ -74,6 +74,15 @@ public class JpaLedgerAdapter implements LedgerAppendPort, LedgerQueryPort {
                 .toList();
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public List<TransactionId> findInconsistentTransactionIds() {
+        return repo.findInconsistentTransactionIds()
+                .stream()
+                .map(TransactionId::new)
+                .toList();
+    }
+
 
     // Mapping
     private LedgerEntryEntity toEntity(LedgerEntry e) {

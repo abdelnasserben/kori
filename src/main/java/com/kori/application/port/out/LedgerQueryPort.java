@@ -22,4 +22,10 @@ public interface LedgerQueryPort {
      * Expected to return entries where {@code entry.accountRef() == accountRef}.
      */
     List<LedgerEntry> findEntries(LedgerAccountRef account);
+
+    /**
+     * Returns transaction ids that violate double-entry invariants
+     * (missing debit/credit or unbalanced amounts).
+     */
+    List<TransactionId> findInconsistentTransactionIds();
 }
