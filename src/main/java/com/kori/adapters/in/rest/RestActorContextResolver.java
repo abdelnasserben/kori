@@ -1,7 +1,9 @@
 package com.kori.adapters.in.rest;
 
 import com.kori.application.security.ActorContext;
+import com.kori.application.security.ActorPrincipal;
 import com.kori.application.security.ActorType;
+import com.kori.application.security.PrincipalActorContextBridge;
 
 import java.util.Locale;
 import java.util.Map;
@@ -25,6 +27,13 @@ public final class RestActorContextResolver {
         if (actorId.isBlank()) {
             throw new IllegalArgumentException("actorId must not be blank");
         }
-        return new ActorContext(actorType, actorId, Map.of());
+        return PrincipalActorContextBridge.from(new RestActorPrincipal(actorType, actorId));
+    }
+
+    private record RestActorPrincipal(ActorType actorType, String actorId) implements ActorPrincipal {
+        @Override
+        public Map<String, String> metadata() {
+            return Map.of();
+        }
     }
 }
