@@ -57,6 +57,11 @@ public final class Responses {
 
     public record BalanceResponse(String accountType, String ownerRef, BigDecimal balance) {}
 
+    /**
+     * Standard cursor-based pagination metadata for list endpoints.
+     */
+    public record CursorPageResponse(String nextCursor) {}
+
     public record TransactionHistoryResponse(
             LedgerScope ledgerScope,
             List<TransactionHistoryItemResponse> items,

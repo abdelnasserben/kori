@@ -7,13 +7,16 @@ Les chemins exposés dans le code sont centralisés via `ApiPaths.API`.
 
 ## Pagination (cursor/limit)
 
-La pagination est de type **cursor-based**.
+La pagination est de type **cursor-based** et standardisée pour toutes les futures listes (clients,
+marchands, etc.), afin d’assurer une compatibilité long terme avec le ledger.
 
-### Conventions générales
+### Conventions générales (standard)
 
 - **limit** (integer, optionnel) : taille de page. Si omis ou à `0`, l’API applique sa limite par défaut.
-- **cursor** : l’API utilise un couple de champs pour garantir un ordre stable.
-- Le client renvoie le curseur reçu dans la réponse pour récupérer la page suivante.
+- **cursor** (string, optionnel) : curseur opaque, renvoyé par l’API et réutilisé tel quel par le client.
+- **nextCursor** (string, réponse) : curseur de la page suivante. S’il est `null`, il n’y a plus de page.
+
+Cette convention s’appliquera aux nouvelles listes (clients, marchands, etc.).
 
 ### Ledger – historique de transactions
 
@@ -25,7 +28,8 @@ Endpoint : `POST /api/v1/ledger/transactions/search`
 - `beforeCreatedAt` : horodatage du dernier élément de la page précédente.
 - `beforeTransactionId` : identifiant du dernier élément de la page précédente.
 
-Le couple `beforeCreatedAt` + `beforeTransactionId` sert de curseur.
+Le couple `beforeCreatedAt` + `beforeTransactionId` sert de curseur stable et restera la base
+des listes qui doivent s’aligner sur la compatibilité ledger.
 
 #### Réponse
 

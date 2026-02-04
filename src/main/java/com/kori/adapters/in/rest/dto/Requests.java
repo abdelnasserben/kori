@@ -98,6 +98,16 @@ public final class Requests {
 
     public record FailPayoutRequest(@NotBlank @Size(max = 255) String reason) {}
 
+    /**
+     * Standard cursor-based pagination for list endpoints.
+     * - cursor is opaque and must be returned as-is by clients.
+     * - limit <= 0 means "use default".
+     */
+    public record CursorPageRequest(
+            String cursor,
+            @PositiveOrZero Integer limit
+    ) {}
+
     public record SearchLedgerRequest(
             String accountType,
             String ownerRef,
