@@ -2,6 +2,7 @@ package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.IdempotencyRequestHasher;
+import com.kori.adapters.in.rest.IdempotentOperation;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.AgentCardStatusRequest;
 import com.kori.adapters.in.rest.dto.Requests.EnrollCardRequest;
@@ -16,6 +17,8 @@ import com.kori.application.port.in.AdminUnblockCardUseCase;
 import com.kori.application.port.in.AdminUpdateCardStatusUseCase;
 import com.kori.application.port.in.AgentUpdateCardStatusUseCase;
 import com.kori.application.port.in.EnrollCardUseCase;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -24,6 +27,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping(ApiPaths.CARDS)
+@Tag(name = "Cards")
 public class CardController {
 
     private final EnrollCardUseCase enrollCardUseCase;
@@ -45,6 +49,8 @@ public class CardController {
 
     @PostMapping("/enroll")
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Enroll card")
+    @IdempotentOperation
     public EnrollCardResponse enrollCard(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
@@ -75,6 +81,7 @@ public class CardController {
     }
 
     @PatchMapping("/{cardUid}/status/admin")
+    @Operation(summary = "Update card status (admin)")
     public UpdateStatusResponse adminUpdateStatus(
             @PathVariable String cardUid,
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
@@ -94,6 +101,7 @@ public class CardController {
     }
 
     @PostMapping("/{cardUid}/unblock")
+    @Operation(summary = "Unblock card")
     public UpdateStatusResponse adminUnblock(
             @PathVariable String cardUid,
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
@@ -113,6 +121,7 @@ public class CardController {
     }
 
     @PatchMapping("/{cardUid}/status/agent")
+    @Operation(summary = "Update card status (agent)")
     public UpdateStatusResponse agentUpdateStatus(
             @PathVariable String cardUid,
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,

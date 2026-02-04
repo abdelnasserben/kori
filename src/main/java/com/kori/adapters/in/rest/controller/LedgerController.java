@@ -14,6 +14,11 @@ import com.kori.application.port.in.GetBalanceUseCase;
 import com.kori.application.port.in.SearchTransactionHistoryUseCase;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerAccountType;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +27,7 @@ import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(ApiPaths.LEDGER)
+@Tag(name = "Ledger")
 public class LedgerController {
 
     private final GetBalanceUseCase getBalanceUseCase;
@@ -34,6 +40,7 @@ public class LedgerController {
     }
 
     @GetMapping("/balance")
+    @Operation(summary = "Get account balance")
     public BalanceResponse getBalance(
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
             @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
@@ -46,6 +53,40 @@ public class LedgerController {
     }
 
     @PostMapping("/transactions/search")
+    @Operation(summary = "Search transaction history")
+    @ApiResponse(
+            responseCode = "200",
+            description = "Paginated transaction history",
+            content = @Content(
+                    mediaType = "application/json",
+                    examples = @ExampleObject(value = """
+                        {
+                          "ledgerScope": {
+                            "accountType": "MERCHANT",
+                            "ownerRef": "M-000000"
+                          },
+                          "items": [
+                            {
+                              "transactionId": "trx_2001",
+                              "transactionType": "CARD_PAYMENT",
+                              "createdAt": "2024-08-10T14:22:10Z",
+                              "clientId": "client-55",
+                              "merchantId": "merchant-33",
+                              "agentId": null,
+                              "selfTotalDebits": 0,
+                              "selfTotalCredits": 1500,
+                              "selfNet": 1500,
+                              "amount": 1500,
+                              "fee": 30,
+                              "totalDebited": 1530
+                            }
+                          ],
+                          "nextBeforeCreatedAt": "2024-08-10T14:22:10Z",
+                          "nextBeforeTransactionId": "trx_2001"
+                        }
+                        """)
+            )
+    )
     public TransactionHistoryResponse searchTransactions(
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
             @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,

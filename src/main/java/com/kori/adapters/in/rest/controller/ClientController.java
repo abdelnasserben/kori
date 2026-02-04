@@ -6,11 +6,14 @@ import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.dto.Responses.UpdateStatusResponse;
 import com.kori.application.command.UpdateClientStatusCommand;
 import com.kori.application.port.in.UpdateClientStatusUseCase;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(ApiPaths.CLIENTS)
+@Tag(name = "Clients")
 public class ClientController {
 
     private final UpdateClientStatusUseCase updateClientStatusUseCase;
@@ -20,6 +23,7 @@ public class ClientController {
     }
 
     @PatchMapping("/{clientId}/status")
+    @Operation(summary = "Update client status")
     public UpdateStatusResponse updateClientStatus(
             @PathVariable String clientId,
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,

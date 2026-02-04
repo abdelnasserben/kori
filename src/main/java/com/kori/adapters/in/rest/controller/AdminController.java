@@ -2,6 +2,7 @@ package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.IdempotencyRequestHasher;
+import com.kori.adapters.in.rest.IdempotentOperation;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.dto.Responses.CreateAdminResponse;
@@ -10,12 +11,15 @@ import com.kori.application.command.CreateAdminCommand;
 import com.kori.application.command.UpdateAdminStatusCommand;
 import com.kori.application.port.in.CreateAdminUseCase;
 import com.kori.application.port.in.UpdateAdminStatusUseCase;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(ApiPaths.ADMINS)
+@Tag(name = "Admins")
 public class AdminController {
 
     private final CreateAdminUseCase createAdminUseCase;
@@ -30,6 +34,8 @@ public class AdminController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create administrator")
+    @IdempotentOperation
     public CreateAdminResponse createAdmin(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
@@ -43,6 +49,7 @@ public class AdminController {
     }
 
     @PatchMapping("/{adminId}/status")
+    @Operation(summary = "Update admin status")
     public UpdateStatusResponse updateAdminStatus(
             @PathVariable String adminId,
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,

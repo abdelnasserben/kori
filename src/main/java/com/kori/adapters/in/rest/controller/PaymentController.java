@@ -2,6 +2,7 @@ package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.IdempotencyRequestHasher;
+import com.kori.adapters.in.rest.IdempotentOperation;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.MerchantWithdrawAtAgentRequest;
 import com.kori.adapters.in.rest.dto.Requests.PayByCardRequest;
@@ -15,12 +16,15 @@ import com.kori.application.command.ReversalCommand;
 import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
 import com.kori.application.port.in.PayByCardUseCase;
 import com.kori.application.port.in.ReversalUseCase;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(ApiPaths.PAYMENTS)
+@Tag(name = "Payments")
 public class PaymentController {
 
     private final PayByCardUseCase payByCardUseCase;
@@ -39,6 +43,8 @@ public class PaymentController {
 
     @PostMapping("/card")
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Pay by card")
+    @IdempotentOperation
     public PayByCardResponse payByCard(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
@@ -69,6 +75,8 @@ public class PaymentController {
 
     @PostMapping("/merchant-withdraw")
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Merchant withdrawal")
+    @IdempotentOperation
     public MerchantWithdrawAtAgentResponse merchantWithdrawAtAgent(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
@@ -99,6 +107,8 @@ public class PaymentController {
 
     @PostMapping("/reversals")
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Reverse transaction")
+    @IdempotentOperation
     public ReversalResponse reversal(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,

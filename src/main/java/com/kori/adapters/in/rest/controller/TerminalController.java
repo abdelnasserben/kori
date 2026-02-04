@@ -2,6 +2,7 @@ package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.IdempotencyRequestHasher;
+import com.kori.adapters.in.rest.IdempotentOperation;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.CreateTerminalRequest;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
@@ -11,12 +12,15 @@ import com.kori.application.command.CreateTerminalCommand;
 import com.kori.application.command.UpdateTerminalStatusCommand;
 import com.kori.application.port.in.CreateTerminalUseCase;
 import com.kori.application.port.in.UpdateTerminalStatusUseCase;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(ApiPaths.TERMINALS)
+@Tag(name = "Terminals")
 public class TerminalController {
 
     private final CreateTerminalUseCase createTerminalUseCase;
@@ -32,6 +36,8 @@ public class TerminalController {
 
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create terminal")
+    @IdempotentOperation
     public CreateTerminalResponse createTerminal(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
@@ -51,6 +57,7 @@ public class TerminalController {
     }
 
     @PatchMapping("/{terminalId}/status")
+    @Operation(summary = "Update terminal status")
     public UpdateStatusResponse updateTerminalStatus(
             @PathVariable String terminalId,
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,

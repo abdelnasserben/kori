@@ -10,11 +10,14 @@ import com.kori.application.command.UpdateCommissionConfigCommand;
 import com.kori.application.command.UpdateFeeConfigCommand;
 import com.kori.application.port.in.UpdateCommissionConfigUseCase;
 import com.kori.application.port.in.UpdateFeeConfigUseCase;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(ApiPaths.CONFIG)
+@Tag(name = "Config")
 public class ConfigController {
 
     private final UpdateFeeConfigUseCase updateFeeConfigUseCase;
@@ -27,6 +30,7 @@ public class ConfigController {
     }
 
     @PatchMapping("/fees")
+    @Operation(summary = "Update fees")
     public UpdateFeeConfigResponse updateFees(
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
             @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
@@ -56,6 +60,7 @@ public class ConfigController {
     }
 
     @PatchMapping("/commissions")
+    @Operation(summary = "Update commissions")
     public UpdateCommissionConfigResponse updateCommissions(
             @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
             @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
