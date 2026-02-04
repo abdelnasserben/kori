@@ -24,14 +24,13 @@ import com.kori.domain.model.terminal.Terminal;
 import com.kori.domain.model.terminal.TerminalId;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class PayByCardService implements PayByCardUseCase {
+public final class PayByCardService implements PayByCardUseCase {
 
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
@@ -88,7 +87,6 @@ public class PayByCardService implements PayByCardUseCase {
     }
 
     @Override
-    @Transactional
     public PayByCardResult execute(PayByCardCommand command) {
         var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), PayByCardResult.class);
         if (cached.isPresent()) {

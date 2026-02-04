@@ -10,6 +10,8 @@ import com.kori.application.security.LedgerAccessPolicy;
 import com.kori.application.usecase.*;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Configuration
 public class ApplicationWiringConfig {
@@ -20,6 +22,7 @@ public class ApplicationWiringConfig {
 
     @Bean
     public EnrollCardUseCase enrollCardUseCase(
+            PlatformTransactionManager transactionManager,
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
             IdGeneratorPort idGeneratorPort,
@@ -34,7 +37,7 @@ public class ApplicationWiringConfig {
             AuditPort auditPort,
             PinHasherPort pinHasherPort,
             OperationStatusGuards operationStatusGuards) {
-        return new EnrollCardService(
+        var useCase = new EnrollCardService(
                 timeProviderPort,
                 idempotencyPort,
                 idGeneratorPort,
@@ -50,10 +53,15 @@ public class ApplicationWiringConfig {
                 pinHasherPort,
                 operationStatusGuards
         );
+
+        // Make this @Transactional
+        var transactionTemplate = new TransactionTemplate(transactionManager);
+        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
     }
 
     @Bean
     public PayByCardUseCase payByCardUseCase(
+            PlatformTransactionManager transactionManager,
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
             IdGeneratorPort idGeneratorPort,
@@ -70,7 +78,7 @@ public class ApplicationWiringConfig {
             AuditPort auditPort,
             PinHasherPort pinHasherPort,
             OperationStatusGuards operationStatusGuards) {
-        return new PayByCardService(
+        var useCase = new PayByCardService(
                 timeProviderPort,
                 idempotencyPort,
                 idGeneratorPort,
@@ -87,10 +95,15 @@ public class ApplicationWiringConfig {
                 pinHasherPort,
                 operationStatusGuards
         );
+
+        // Make this @Transactional
+        var transactionTemplate = new TransactionTemplate(transactionManager);
+        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
     }
 
     @Bean
     public MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase(
+            PlatformTransactionManager transactionManager,
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
             IdGeneratorPort idGeneratorPort,
@@ -104,7 +117,7 @@ public class ApplicationWiringConfig {
             AuditPort auditPort,
             OperationStatusGuards operationStatusGuards
     ) {
-        return new MerchantWithdrawAtAgentService(
+        var useCase = new MerchantWithdrawAtAgentService(
                 timeProviderPort,
                 idempotencyPort,
                 idGeneratorPort,
@@ -118,6 +131,10 @@ public class ApplicationWiringConfig {
                 auditPort,
                 operationStatusGuards
         );
+
+        // Make this @Transactional
+        var transactionTemplate = new TransactionTemplate(transactionManager);
+        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
     }
 
     @Bean
@@ -171,6 +188,7 @@ public class ApplicationWiringConfig {
 
     @Bean
     public ReversalUseCase reversalUseCase(
+            PlatformTransactionManager transactionManager,
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
             TransactionRepositoryPort transactionRepositoryPort,
@@ -179,7 +197,7 @@ public class ApplicationWiringConfig {
             AuditPort auditPort,
             IdGeneratorPort idGeneratorPort
     ) {
-        return new ReversalService(
+        var useCase = new ReversalService(
                 timeProviderPort,
                 idempotencyPort,
                 transactionRepositoryPort,
@@ -188,6 +206,10 @@ public class ApplicationWiringConfig {
                 auditPort,
                 idGeneratorPort
         );
+
+        //Make this @Transactional
+        var transactionTemplate = new TransactionTemplate(transactionManager);
+        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
     }
 
     @Bean

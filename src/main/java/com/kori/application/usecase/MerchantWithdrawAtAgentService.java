@@ -19,14 +19,13 @@ import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class MerchantWithdrawAtAgentService implements MerchantWithdrawAtAgentUseCase {
+public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtAgentUseCase {
 
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
@@ -73,7 +72,6 @@ public class MerchantWithdrawAtAgentService implements MerchantWithdrawAtAgentUs
     }
 
     @Override
-    @Transactional
     public MerchantWithdrawAtAgentResult execute(MerchantWithdrawAtAgentCommand command) {
         var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), MerchantWithdrawAtAgentResult.class);
         if (cached.isPresent()) {
