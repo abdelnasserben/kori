@@ -1,6 +1,7 @@
 package com.kori.adapters.in.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.kori.adapters.in.rest.doc.IdempotencyRequestHasher;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;

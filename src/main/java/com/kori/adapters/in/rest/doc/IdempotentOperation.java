@@ -1,4 +1,4 @@
-package com.kori.adapters.in.rest;
+package com.kori.adapters.in.rest.doc;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

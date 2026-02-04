@@ -1,4 +1,4 @@
-package com.kori.adapters.in.rest;
+package com.kori.adapters.in.rest.doc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
