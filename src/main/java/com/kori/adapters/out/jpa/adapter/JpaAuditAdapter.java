@@ -5,9 +5,12 @@ import com.kori.adapters.out.jpa.entity.AuditEventEntity;
 import com.kori.adapters.out.jpa.repo.AuditEventJpaRepository;
 import com.kori.application.port.out.AuditPort;
 import com.kori.domain.model.audit.AuditEvent;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -26,7 +29,13 @@ public class JpaAuditAdapter implements AuditPort {
     @Transactional
     public void publish(AuditEvent event) {
         try {
-            String metadataJson = objectMapper.writeValueAsString(event.metadata());
+            String correlationId = MDC.get("correlationId");
+            Map<String, String> metadata = new HashMap<>(event.metadata());
+            if (correlationId != null && !correlationId.isBlank() && !metadata.containsKey("correlationId")) {
+                metadata.put("correlationId", correlationId);
+            }
+
+            String metadataJson = objectMapper.writeValueAsString(metadata);
             AuditEventEntity entity = new AuditEventEntity(
                     UUID.randomUUID(),
                     event.action(),

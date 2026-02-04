@@ -1,6 +1,7 @@
 package com.kori.adapters.in.rest.doc;
 
 import com.kori.adapters.in.rest.RestActorContextResolver;
+import com.kori.adapters.in.rest.filter.CorrelationIdFilter;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.info.License;
@@ -59,6 +60,12 @@ public class ApiDocumentationConfig {
                     .in("header")
                     .name(RestActorContextResolver.ACTOR_ID_HEADER)
                     .required(true)
+                    .schema(new StringSchema());
+
+            Parameter correlationId = new Parameter()
+                    .in("header")
+                    .name(CorrelationIdFilter.CORRELATION_ID_HEADER)
+                    .required(false)
                     .schema(new StringSchema());
 
             if (openApi.getPaths() == null) {
