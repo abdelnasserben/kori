@@ -1,4 +1,4 @@
-package com.kori.application.ledger;
+package com.kori.adapters.in.scheduler;
 
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.LedgerQueryPort;
@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.stream.Collectors;
 
 @Component
 public class LedgerConsistencyScheduler {
@@ -64,7 +63,7 @@ public class LedgerConsistencyScheduler {
                 timeProviderPort.now(),
                 Map.of(
                         "count", Integer.toString(inconsistent.size()),
-                        "sampleTransactionIds", sample.stream().collect(Collectors.joining(","))
+                        "sampleTransactionIds", String.join(",", sample)
                 )
         ));
     }
