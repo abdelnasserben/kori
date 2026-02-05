@@ -120,7 +120,6 @@ public abstract class IntegrationTestBase {
     protected Agent createActiveAgent(String code) {
         Agent agent = Agent.activeNew(new AgentId(UUID.randomUUID()), AgentCode.of(code), NOW.minusSeconds(300));
         agentRepositoryPort.save(agent);
-        createActiveAccountProfile(LedgerAccountRef.agent(agent.id().value().toString()));
         createActiveAccountProfile(LedgerAccountRef.agentWallet(agent.id().value().toString()));
         createActiveAccountProfile(LedgerAccountRef.agentCashClearing(agent.id().value().toString()));
         return agent;

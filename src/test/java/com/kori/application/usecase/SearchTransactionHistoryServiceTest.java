@@ -42,7 +42,7 @@ final class SearchTransactionHistoryServiceTest {
 
     private static final LedgerAccountRef CLIENT_SCOPE = LedgerAccountRef.client("C-123");
     private static final LedgerAccountRef MERCHANT_SCOPE = LedgerAccountRef.merchant("M-456");
-    private static final LedgerAccountRef AGENT_SCOPE = LedgerAccountRef.agent("A-789");
+    private static final LedgerAccountRef AGENT_SCOPE = LedgerAccountRef.agentWallet("A-789");
     private static final LedgerAccountRef PLATFORM_FEE = LedgerAccountRef.platformFeeRevenue();
 
     private static final TransactionId TX_ID = new TransactionId(UUID.fromString("11111111-1111-1111-1111-111111111111"));

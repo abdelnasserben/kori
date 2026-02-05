@@ -63,15 +63,15 @@ public final class CreateAgentService implements CreateAgentUseCase {
         Agent agent = Agent.activeNew(id, code, now);
         agentRepositoryPort.save(agent);
 
-        // Create ledger accountRef ref + profile
-        LedgerAccountRef agentAccount = LedgerAccountRef.agent(id.value().toString());
-        // Optional safety: avoid duplicates (should not happen in phase 1, but safe)
-        accountProfilePort.findByAccount(agentAccount).ifPresent(existing -> {
-            throw new ForbiddenOperationException("Agent account profile already exists for " + agentAccount);
-        });
+        // Active model: create both AGENT_WALLET and AGENT_CASH_CLEARING profiles.
+        LedgerAccountRef walletAccount = LedgerAccountRef.agentWallet(id.value().toString());
+        LedgerAccountRef clearingAccount = LedgerAccountRef.agentCashClearing(id.value().toString());
 
-        AccountProfile profile = AccountProfile.activeNew(agentAccount, now);
-        accountProfilePort.save(profile);
+        ensureMissing(walletAccount);
+        ensureMissing(clearingAccount);
+
+        accountProfilePort.save(AccountProfile.activeNew(walletAccount, now));
+        accountProfilePort.save(AccountProfile.activeNew(clearingAccount, now));
 
         CreateAgentResult result = new CreateAgentResult(id.value().toString(), code.value());
         idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
@@ -88,6 +88,12 @@ public final class CreateAgentService implements CreateAgentUseCase {
         ));
 
         return result;
+    }
+
+    private void ensureMissing(LedgerAccountRef account) {
+        accountProfilePort.findByAccount(account).ifPresent(existing -> {
+            throw new ForbiddenOperationException("Agent account profile already exists for " + account);
+        });
     }
 
     private AgentCode generateUniqueAgentCode() {

@@ -6,13 +6,14 @@ import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.account.AccountProfile;
 import com.kori.domain.model.common.Status;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
  * Propagation du changement de statut Agent :
- * - SUSPENDED => suspend AccountProfile(agent)
- * - CLOSED    => close AccountProfile(agent)
- * - ACTIVE    => activate AccountProfile(agent)
+ * - SUSPENDED => suspend AccountProfile(agent wallet + cash clearing)
+ * - CLOSED    => close AccountProfile(agent wallet + cash clearing)
+ * - ACTIVE    => activate AccountProfile(agent wallet + cash clearing)
  */
 public class OnAgentStatusChangedHandler {
 
@@ -31,28 +32,31 @@ public class OnAgentStatusChangedHandler {
 
         Status after = event.after();
 
-        LedgerAccountRef agentAccountRef =
-                LedgerAccountRef.agent(event.agentId().value().toString());
+        String agentId = event.agentId().value().toString();
 
-        AccountProfile agentProfile =
-                accountProfilePort.findByAccount(agentAccountRef).orElse(null);
-
-        if (agentProfile == null) {
-            return; // rien à propager
+        for (LedgerAccountRef accountRef : List.of(
+                LedgerAccountRef.agentWallet(agentId),
+                LedgerAccountRef.agentCashClearing(agentId)
+        )) {
+            accountProfilePort.findByAccount(accountRef)
+                    .ifPresent(profile -> applyStatus(after, profile));
         }
+    }
+
+    private void applyStatus(Status after, AccountProfile profile) {
 
         switch (after) {
             case SUSPENDED -> {
-                agentProfile.suspend();
-                accountProfilePort.save(agentProfile);
+                profile.suspend();
+                accountProfilePort.save(profile);
             }
             case CLOSED -> {
-                agentProfile.close();
-                accountProfilePort.save(agentProfile);
+                profile.close();
+                accountProfilePort.save(profile);
             }
             case ACTIVE -> {
-                agentProfile.activate();
-                accountProfilePort.save(agentProfile);
+                profile.activate();
+                accountProfilePort.save(profile);
             }
         }
     }

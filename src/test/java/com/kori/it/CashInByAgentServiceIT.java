@@ -74,7 +74,7 @@ class CashInByAgentServiceIT extends IntegrationTestBase {
         assertEquals(Money.of(amountBd.negate()), clearingBalance);
 
         // Optionnel: agentBalance doit rester à 0 (ou à sa valeur seed si tu le seedais)
-        Money agentBalance = ledgerQueryPort.netBalance(LedgerAccountRef.agent(agent.id().value().toString()));
+        Money agentBalance = ledgerQueryPort.netBalance(LedgerAccountRef.agentWallet(agent.id().value().toString()));
         assertEquals(Money.of(BigDecimal.ZERO), agentBalance);
 
         var audits = auditEventJpaRepository.findAll();

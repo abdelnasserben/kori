@@ -74,7 +74,7 @@ public final class GetBalanceService implements GetBalanceUseCase {
 
     private static LedgerAccountRef ownScope(ActorContext actor) {
         return switch (actor.actorType()) {
-            case AGENT -> LedgerAccountRef.agent(actor.actorId());
+            case AGENT -> LedgerAccountRef.agentWallet(actor.actorId());
             case MERCHANT -> LedgerAccountRef.merchant(actor.actorId());
             case CLIENT -> LedgerAccountRef.client(actor.actorId());
             default -> throw new ForbiddenOperationException("Actor type cannot consult ledger");

@@ -32,9 +32,12 @@ class CreateAgentServiceIT extends IntegrationTestBase {
         Agent agent = agentRepositoryPort.findByCode(AgentCode.of(result.agentCode())).orElseThrow();
         assertEquals(Status.ACTIVE, agent.status());
 
-        LedgerAccountRef agentAccount = LedgerAccountRef.agent(result.agentId());
-        AccountProfile profile = accountProfilePort.findByAccount(agentAccount).orElseThrow();
-        assertEquals(Status.ACTIVE, profile.status());
+        LedgerAccountRef agentWallet = LedgerAccountRef.agentWallet(result.agentId());
+        LedgerAccountRef agentClearing = LedgerAccountRef.agentCashClearing(result.agentId());
+        AccountProfile walletProfile = accountProfilePort.findByAccount(agentWallet).orElseThrow();
+        AccountProfile clearingProfile = accountProfilePort.findByAccount(agentClearing).orElseThrow();
+        assertEquals(Status.ACTIVE, walletProfile.status());
+        assertEquals(Status.ACTIVE, clearingProfile.status());
 
         assertTrue(auditEventJpaRepository.findAll().stream()
                 .anyMatch(event -> event.getAction().contains("AGENT_CREATED"))

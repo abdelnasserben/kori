@@ -15,7 +15,7 @@ public enum TransactionHistoryView {
     PAY_BY_CARD_VIEW,
 
     /**
-     * UI-friendly view for commissions (where AGENT has credits).
+     UI-friendly view for commissions (AGENT_WALLET credits).
      */
     COMMISSION_VIEW
 }

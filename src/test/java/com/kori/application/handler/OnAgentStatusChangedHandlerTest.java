@@ -28,48 +28,59 @@ class OnAgentStatusChangedHandlerTest {
 
     @Test
     void suspend_agent_suspends_account_profile() {
-        AccountProfile profile = mock(AccountProfile.class);
-        when(accountProfilePort.findByAccount(agentRef()))
-                .thenReturn(Optional.of(profile));
+        AccountProfile wallet = mock(AccountProfile.class);
+        AccountProfile clearing = mock(AccountProfile.class);
+        when(accountProfilePort.findByAccount(walletRef())).thenReturn(Optional.of(wallet));
+        when(accountProfilePort.findByAccount(clearingRef())).thenReturn(Optional.of(clearing));
 
         handler.handle(event(Status.ACTIVE, Status.SUSPENDED));
 
-        verify(profile).suspend();
-        verify(accountProfilePort).save(profile);
+        verify(wallet).suspend();
+        verify(clearing).suspend();
+        verify(accountProfilePort).save(wallet);
+        verify(accountProfilePort).save(clearing);
     }
 
     @Test
     void close_agent_closes_account_profile() {
-        AccountProfile profile = mock(AccountProfile.class);
-        when(accountProfilePort.findByAccount(agentRef()))
-                .thenReturn(Optional.of(profile));
+        AccountProfile wallet = mock(AccountProfile.class);
+        AccountProfile clearing = mock(AccountProfile.class);
+        when(accountProfilePort.findByAccount(walletRef())).thenReturn(Optional.of(wallet));
+        when(accountProfilePort.findByAccount(clearingRef())).thenReturn(Optional.of(clearing));
 
         handler.handle(event(Status.ACTIVE, Status.CLOSED));
 
-        verify(profile).close();
-        verify(accountProfilePort).save(profile);
+        verify(wallet).close();
+        verify(clearing).close();
+        verify(accountProfilePort).save(wallet);
+        verify(accountProfilePort).save(clearing);
     }
 
     @Test
     void activate_agent_activates_account_profile() {
-        AccountProfile profile = mock(AccountProfile.class);
-        when(accountProfilePort.findByAccount(agentRef()))
-                .thenReturn(Optional.of(profile));
+        AccountProfile wallet = mock(AccountProfile.class);
+        AccountProfile clearing = mock(AccountProfile.class);
+        when(accountProfilePort.findByAccount(walletRef())).thenReturn(Optional.of(wallet));
+        when(accountProfilePort.findByAccount(clearingRef())).thenReturn(Optional.of(clearing));
 
         handler.handle(event(Status.SUSPENDED, Status.ACTIVE));
 
-        verify(profile).activate();
-        verify(accountProfilePort).save(profile);
+        verify(wallet).activate();
+        verify(clearing).activate();
+        verify(accountProfilePort).save(wallet);
+        verify(accountProfilePort).save(clearing);
     }
 
     @Test
     void no_account_profile_does_nothing() {
-        when(accountProfilePort.findByAccount(agentRef()))
-                .thenReturn(Optional.empty());
+        when(accountProfilePort.findByAccount(walletRef())).thenReturn(Optional.empty());
+        when(accountProfilePort.findByAccount(clearingRef())).thenReturn(Optional.empty());
 
         handler.handle(event(Status.ACTIVE, Status.SUSPENDED));
 
-        verifyNoMoreInteractions(accountProfilePort);
+        verify(accountProfilePort).findByAccount(walletRef());
+        verify(accountProfilePort).findByAccount(clearingRef());
+        verify(accountProfilePort, never()).save(any());
     }
 
     @Test
@@ -92,7 +103,11 @@ class OnAgentStatusChangedHandlerTest {
         );
     }
 
-    private LedgerAccountRef agentRef() {
-        return LedgerAccountRef.agent(agentId.value().toString());
+    private LedgerAccountRef walletRef() {
+        return LedgerAccountRef.agentWallet(agentId.value().toString());
+    }
+
+    private LedgerAccountRef clearingRef() {
+        return LedgerAccountRef.agentCashClearing(agentId.value().toString());
     }
 }

@@ -64,10 +64,16 @@ public class OperationStatusGuards {
             throw new ForbiddenOperationException("AGENT_NOT_ACTIVE");
         }
 
-        LedgerAccountRef ref =
-                LedgerAccountRef.agent(agent.id().value().toString());
+        String agentId = agent.id().value().toString();
 
-        accountProfilePort.findByAccount(ref)
+        LedgerAccountRef walletRef = LedgerAccountRef.agentWallet(agentId);
+        LedgerAccountRef clearingRef = LedgerAccountRef.agentCashClearing(agentId);
+
+        accountProfilePort.findByAccount(walletRef)
+                .filter(p -> p.status() == Status.ACTIVE)
+                .orElseThrow(() -> new ForbiddenOperationException("AGENT_ACCOUNT_INACTIVE_OR_MISSING"));
+
+        accountProfilePort.findByAccount(clearingRef)
                 .filter(p -> p.status() == Status.ACTIVE)
                 .orElseThrow(() -> new ForbiddenOperationException("AGENT_ACCOUNT_INACTIVE_OR_MISSING"));
 

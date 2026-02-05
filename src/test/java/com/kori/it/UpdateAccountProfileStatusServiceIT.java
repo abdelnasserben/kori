@@ -22,12 +22,12 @@ class UpdateAccountProfileStatusServiceIT extends IntegrationTestBase {
     @Test
     void updateAccountProfileStatus_suspendsProfileAndWritesAudit() {
         String ownerRef = UUID.randomUUID().toString();
-        LedgerAccountRef accountRef = new LedgerAccountRef(LedgerAccountType.AGENT, ownerRef);
+        LedgerAccountRef accountRef = new LedgerAccountRef(LedgerAccountType.AGENT_WALLET, ownerRef);
         createActiveAccountProfile(accountRef);
 
         updateAccountProfileStatusUseCase.execute(new UpdateAccountProfileStatusCommand(
                 adminActor(),
-                LedgerAccountType.AGENT.name(),
+                LedgerAccountType.AGENT_WALLET.name(),
                 ownerRef,
                 Status.SUSPENDED.name(),
                 "test"

@@ -60,3 +60,9 @@ Le payload supporte les flags de remboursement suivants :
 - `cardEnrollmentPriceRefundable`
 
 Compatibilité descendante : si ces champs sont omis, la valeur appliquée est explicitement `false` (default SAFE).
+## Ledger account model (Slice 5 cleanup)
+
+- Le compte `AGENT` a été retiré du modèle actif.
+- Les commissions agent utilisent `AGENT_WALLET`.
+- Les flux cash agent utilisent `AGENT_CASH_CLEARING`.
+- Lors de la création d'un agent, les deux profils de compte (`AGENT_WALLET` et `AGENT_CASH_CLEARING`) sont provisionnés.

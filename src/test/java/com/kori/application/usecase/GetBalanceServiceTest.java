@@ -89,7 +89,7 @@ final class GetBalanceServiceTest {
         GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY);
 
         String agentCode = "A-123456";
-        LedgerAccountRef scope = LedgerAccountRef.agent(agentCode);
+        LedgerAccountRef scope = LedgerAccountRef.agentWallet(agentCode);
 
         when(ledgerQueryPort.findEntries(scope)).thenReturn(List.of(
                 LedgerEntry.credit(TX_1, scope, Money.of(new BigDecimal("12.50"))),
@@ -102,7 +102,7 @@ final class GetBalanceServiceTest {
                 null
         ));
 
-        assertEquals(LedgerAccountType.AGENT.name(), out.accountType());
+        assertEquals(LedgerAccountType.AGENT_WALLET.name(), out.accountType());
         assertEquals(agentCode, out.ownerRef());
         assertEquals(new BigDecimal("10.25"), out.balance());
 
@@ -117,7 +117,7 @@ final class GetBalanceServiceTest {
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(new GetBalanceCommand(
                 agentActor("A-123456"),
-                LedgerAccountType.AGENT.name(),
+                LedgerAccountType.AGENT_WALLET.name(),
                 "A-999999"
         )));
 
@@ -130,7 +130,7 @@ final class GetBalanceServiceTest {
 
         assertThrows(ValidationException.class, () -> service.execute(new GetBalanceCommand(
                 agentActor("A-123456"),
-                LedgerAccountType.AGENT.name(),
+                LedgerAccountType.AGENT_WALLET.name(),
                 null
         )));
 

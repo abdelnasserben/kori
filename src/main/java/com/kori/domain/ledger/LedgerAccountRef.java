@@ -24,10 +24,6 @@ public record LedgerAccountRef(LedgerAccountType type, String ownerRef) {
         return new LedgerAccountRef(LedgerAccountType.MERCHANT, merchantId);
     }
 
-    public static LedgerAccountRef agent(String agentId) {
-        return new LedgerAccountRef(LedgerAccountType.AGENT, agentId);
-    }
-
     public static LedgerAccountRef agentWallet(String agentId) {
         return new LedgerAccountRef(LedgerAccountType.AGENT_WALLET, agentId);
     }
@@ -69,8 +65,7 @@ public record LedgerAccountRef(LedgerAccountType type, String ownerRef) {
     }
 
     public boolean isForAgent() {
-        return this.type == LedgerAccountType.AGENT
-                || this.type == LedgerAccountType.AGENT_WALLET
+        return this.type == LedgerAccountType.AGENT_WALLET
                 || this.type == LedgerAccountType.AGENT_CASH_CLEARING;
     }
 }

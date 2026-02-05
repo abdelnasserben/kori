@@ -123,8 +123,10 @@ class OperationStatusGuardsTest {
         Agent agent = activeAgent();
         AccountProfile profile = activeProfile();
 
-        LedgerAccountRef ref = LedgerAccountRef.agent(agent.id().value().toString());
-        when(accountProfilePort.findByAccount(ref)).thenReturn(Optional.of(profile));
+        LedgerAccountRef walletRef = LedgerAccountRef.agentWallet(agent.id().value().toString());
+        LedgerAccountRef clearingRef = LedgerAccountRef.agentCashClearing(agent.id().value().toString());
+        when(accountProfilePort.findByAccount(walletRef)).thenReturn(Optional.of(profile));
+        when(accountProfilePort.findByAccount(clearingRef)).thenReturn(Optional.of(profile));
 
         assertDoesNotThrow(() -> guards.requireActiveAgent(agent));
     }
@@ -139,6 +141,22 @@ class OperationStatusGuardsTest {
 
         assertEquals("AGENT_NOT_ACTIVE", ex.getMessage());
         verifyNoInteractions(accountProfilePort);
+    }
+
+    @Test
+    void requireActiveAgent_throws_whenClearingAccountMissing() {
+        Agent agent = activeAgent();
+
+        LedgerAccountRef walletRef = LedgerAccountRef.agentWallet(agent.id().value().toString());
+        LedgerAccountRef clearingRef = LedgerAccountRef.agentCashClearing(agent.id().value().toString());
+        when(accountProfilePort.findByAccount(walletRef)).thenReturn(Optional.of(activeProfile()));
+        when(accountProfilePort.findByAccount(clearingRef)).thenReturn(Optional.empty());
+
+        ForbiddenOperationException ex =
+                assertThrows(ForbiddenOperationException.class,
+                        () -> guards.requireActiveAgent(agent));
+
+        assertEquals("AGENT_ACCOUNT_INACTIVE_OR_MISSING", ex.getMessage());
     }
 
     // ENROLL

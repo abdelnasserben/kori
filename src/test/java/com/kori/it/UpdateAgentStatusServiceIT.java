@@ -33,9 +33,12 @@ class UpdateAgentStatusServiceIT extends IntegrationTestBase {
         Agent updated = agentRepositoryPort.findByCode(agent.code()).orElseThrow();
         assertEquals(Status.SUSPENDED, updated.status());
 
-        LedgerAccountRef agentAccount = LedgerAccountRef.agent(agent.id().value().toString());
-        AccountProfile profile = accountProfilePort.findByAccount(agentAccount).orElseThrow();
-        assertEquals(Status.SUSPENDED, profile.status());
+        LedgerAccountRef agentWallet = LedgerAccountRef.agentWallet(agent.id().value().toString());
+        LedgerAccountRef agentClearing = LedgerAccountRef.agentCashClearing(agent.id().value().toString());
+        AccountProfile walletProfile = accountProfilePort.findByAccount(agentWallet).orElseThrow();
+        AccountProfile clearingProfile = accountProfilePort.findByAccount(agentClearing).orElseThrow();
+        assertEquals(Status.SUSPENDED, walletProfile.status());
+        assertEquals(Status.SUSPENDED, clearingProfile.status());
 
         assertTrue(auditEventJpaRepository.findAll().stream()
                 .anyMatch(event -> event.getAction().contains("ADMIN_UPDATE_AGENT_STATUS"))

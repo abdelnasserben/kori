@@ -44,8 +44,8 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
         LedgerAccountRef scope = resolveScope(command.actorContext(), command.ledgerAccountRef());
         ledgerAccessPolicy.assertCanReadLedger(command.actorContext(), scope);
 
-        // Entries of the actor's ledger (scope) => defines which tx are "visible" for that actor
-        var scopeEntries = ledgerQueryPort.findEntries(scope);
+        // Entries of the actor's ledger (scope) => defines which tx are visible for that actor.
+        List<LedgerEntry> scopeEntries = ledgerQueryPort.findEntries(scope);
 
         // Group scope entries by tx (preserve order)
         var byTx = new LinkedHashMap<String, List<LedgerEntry>>();
@@ -84,7 +84,7 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
             // Counterparties
             String clientId = firstOwnerRef(allEntries, LedgerAccountType.CLIENT);
             String merchantId = firstOwnerRef(allEntries, LedgerAccountType.MERCHANT);
-            String agentId = firstOwnerRef(allEntries, LedgerAccountType.AGENT);
+            String agentId = firstOwnerRef(allEntries, LedgerAccountType.AGENT_WALLET);
 
             // Self aggregates (only from the entries of the scope ledger)
             Money selfDebits = Money.zero();
@@ -100,8 +100,7 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
             Money clientDebit = sum(allEntries, LedgerAccountType.CLIENT, LedgerEntryType.DEBIT);
             Money merchantCredit = sum(allEntries, LedgerAccountType.MERCHANT, LedgerEntryType.CREDIT);
             Money platformCredit = sum(allEntries, LedgerAccountType.PLATFORM_FEE_REVENUE, LedgerEntryType.CREDIT);
-            Money agentCredit = sum(allEntries, LedgerAccountType.AGENT, LedgerEntryType.CREDIT)
-                    .plus(sum(allEntries, LedgerAccountType.AGENT_WALLET, LedgerEntryType.CREDIT));
+            Money agentCredit = sum(allEntries, LedgerAccountType.AGENT_WALLET, LedgerEntryType.CREDIT);
 
             TransactionHistoryView view = command.view();
 
@@ -206,7 +205,7 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
         return switch (actorContext.actorType()) {
             case CLIENT -> LedgerAccountRef.client(actorContext.actorId());
             case MERCHANT -> LedgerAccountRef.merchant(actorContext.actorId());
-            case AGENT -> LedgerAccountRef.agent(actorContext.actorId());
+            case AGENT -> LedgerAccountRef.agentWallet(actorContext.actorId());
             default -> throw new ForbiddenOperationException("Actor type cannot consult history");
         };
     }

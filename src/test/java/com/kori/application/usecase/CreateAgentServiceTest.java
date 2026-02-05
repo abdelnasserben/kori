@@ -106,8 +106,10 @@ final class CreateAgentServiceTest {
         when(idGeneratorPort.newUuid()).thenReturn(AGENT_UUID);
         when(timeProviderPort.now()).thenReturn(NOW);
 
-        LedgerAccountRef agentAcc = LedgerAccountRef.agent(AGENT_UUID.toString());
+        LedgerAccountRef agentAcc = LedgerAccountRef.agentWallet(AGENT_UUID.toString());
+        LedgerAccountRef clearingAcc = LedgerAccountRef.agentCashClearing(AGENT_UUID.toString());
         when(accountProfilePort.findByAccount(agentAcc)).thenReturn(Optional.empty());
+        when(accountProfilePort.findByAccount(clearingAcc)).thenReturn(Optional.empty());
 
         CreateAgentResult out = service.execute(cmd(adminActor()));
 
@@ -124,14 +126,14 @@ final class CreateAgentServiceTest {
         assertEquals(Status.ACTIVE, savedAgent.status());
         assertEquals(NOW, savedAgent.createdAt());
 
-        // Profile saved
+        // Profiles saved (wallet + clearing)
         ArgumentCaptor<AccountProfile> profileCaptor = ArgumentCaptor.forClass(AccountProfile.class);
-        verify(accountProfilePort).save(profileCaptor.capture());
-        AccountProfile savedProfile = profileCaptor.getValue();
-
-        assertEquals(agentAcc, savedProfile.account());
-        assertEquals(Status.ACTIVE, savedProfile.status());
-        assertEquals(NOW, savedProfile.createdAt());
+        verify(accountProfilePort, times(2)).save(profileCaptor.capture());
+        assertEquals(2, profileCaptor.getAllValues().size());
+        assertTrue(profileCaptor.getAllValues().stream().anyMatch(p -> p.account().equals(agentAcc)));
+        assertTrue(profileCaptor.getAllValues().stream().anyMatch(p -> p.account().equals(clearingAcc)));
+        assertTrue(profileCaptor.getAllValues().stream().allMatch(p -> p.status() == Status.ACTIVE));
+        assertTrue(profileCaptor.getAllValues().stream().allMatch(p -> p.createdAt().equals(NOW)));
 
         // Audit
         ArgumentCaptor<AuditEvent> auditCaptor = ArgumentCaptor.forClass(AuditEvent.class);
@@ -159,8 +161,10 @@ final class CreateAgentServiceTest {
         when(idGeneratorPort.newUuid()).thenReturn(AGENT_UUID);
         when(timeProviderPort.now()).thenReturn(NOW);
 
-        LedgerAccountRef agentAcc = LedgerAccountRef.agent(AGENT_UUID.toString());
+        LedgerAccountRef agentAcc = LedgerAccountRef.agentWallet(AGENT_UUID.toString());
+        LedgerAccountRef clearingAcc = LedgerAccountRef.agentCashClearing(AGENT_UUID.toString());
         when(accountProfilePort.findByAccount(agentAcc)).thenReturn(Optional.empty());
+        when(accountProfilePort.findByAccount(clearingAcc)).thenReturn(Optional.empty());
 
         CreateAgentResult out = service.execute(cmd(adminActor()));
 
@@ -194,8 +198,10 @@ final class CreateAgentServiceTest {
         when(idGeneratorPort.newUuid()).thenReturn(AGENT_UUID);
         when(timeProviderPort.now()).thenReturn(NOW);
 
-        LedgerAccountRef agentAcc = LedgerAccountRef.agent(AGENT_UUID.toString());
-        when(accountProfilePort.findByAccount(agentAcc)).thenReturn(Optional.of(mock(AccountProfile.class)));
+        LedgerAccountRef agentAcc = LedgerAccountRef.agentWallet(AGENT_UUID.toString());
+        LedgerAccountRef clearingAcc = LedgerAccountRef.agentCashClearing(AGENT_UUID.toString());
+        when(accountProfilePort.findByAccount(agentAcc)).thenReturn(Optional.empty());
+        when(accountProfilePort.findByAccount(clearingAcc)).thenReturn(Optional.of(mock(AccountProfile.class)));
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(adminActor())));
 
