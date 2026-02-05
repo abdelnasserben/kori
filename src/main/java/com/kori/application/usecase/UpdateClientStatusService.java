@@ -5,13 +5,11 @@ import com.kori.application.events.ClientStatusChangedEvent;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateClientStatusUseCase;
-import com.kori.application.port.out.AuditPort;
-import com.kori.application.port.out.ClientRepositoryPort;
-import com.kori.application.port.out.DomainEventPublisherPort;
-import com.kori.application.port.out.TimeProviderPort;
+import com.kori.application.port.out.*;
 import com.kori.application.result.UpdateClientStatusResult;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.application.utils.ReasonNormalizer;
+import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.common.Status;
@@ -25,17 +23,20 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
     private final DomainEventPublisherPort domainEventPublisherPort;
+    private final LedgerQueryPort ledgerQueryPort;
 
     public UpdateClientStatusService(
             ClientRepositoryPort clientRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort,
-            DomainEventPublisherPort domainEventPublisherPort
+            DomainEventPublisherPort domainEventPublisherPort,
+            LedgerQueryPort ledgerQueryPort
     ) {
         this.clientRepositoryPort = clientRepositoryPort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
         this.domainEventPublisherPort = domainEventPublisherPort;
+        this.ledgerQueryPort = ledgerQueryPort;
     }
 
     @Override
@@ -50,6 +51,10 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
         String before = beforeStatus.name();
 
         Status afterStatus = Status.parseStatus(cmd.targetStatus());
+
+        if (afterStatus == Status.CLOSED && beforeStatus != Status.CLOSED) {
+            ensureClientWalletIsZero(clientId);
+        }
 
         // Apply updating (domain validates transitions)
         switch (afterStatus) {
@@ -90,5 +95,12 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
         }
 
         return new UpdateClientStatusResult(cmd.clientId(), before, cmd.targetStatus());
+    }
+
+    private void ensureClientWalletIsZero(ClientId clientId) {
+        LedgerAccountRef clientWallet = LedgerAccountRef.client(clientId.value().toString());
+        if (!ledgerQueryPort.netBalance(clientWallet).isZero()) {
+            throw new IllegalStateException("CLIENT_WALLET_BALANCE_MUST_BE_ZERO_TO_CLOSE");
+        }
     }
 }

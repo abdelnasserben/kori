@@ -75,3 +75,12 @@ Use case admin-only pour constater un dépôt bancaire effectué par un agent.
 - Écriture ledger : **Debit `PLATFORM_BANK` / Credit `AGENT_CASH_CLEARING`**.
 - Invariant métier : la position cash agent (`AGENT_CASH_CLEARING`) est créditée, ce qui réduit son exposition cash.
 - Traçabilité : audit `AGENT_BANK_DEPOSIT_RECEIPT`.
+
+## Close client account (admin only)
+
+Le use case de clôture client passe par la mise à jour de statut client vers `CLOSED`.
+
+- Précondition : `CLIENT_WALLET` doit avoir un solde net égal à `0`.
+- Si le solde est non nul : la requête est refusée, sans changement d'état du client, des cartes ou du compte.
+- Si le client est déjà `CLOSED` : opération idempotente (no-op).
+- Aucune écriture ledger additionnelle n'est créée par la clôture (seulement changement d'état + audit/event existants).

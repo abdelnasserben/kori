@@ -451,13 +451,15 @@ public class ApplicationWiringConfig {
             ClientRepositoryPort clientRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort,
-            DomainEventPublisherPort domainEventPublisherPort
+            DomainEventPublisherPort domainEventPublisherPort,
+            LedgerQueryPort ledgerQueryPort
     ) {
         return new UpdateClientStatusService(
                 clientRepositoryPort,
                 auditPort,
                 timeProviderPort,
-                domainEventPublisherPort
+                domainEventPublisherPort,
+                ledgerQueryPort
         );
     }
 

@@ -4,17 +4,16 @@ import com.kori.application.command.UpdateClientStatusCommand;
 import com.kori.application.events.ClientStatusChangedEvent;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.port.out.AuditPort;
-import com.kori.application.port.out.ClientRepositoryPort;
-import com.kori.application.port.out.DomainEventPublisherPort;
-import com.kori.application.port.out.TimeProviderPort;
+import com.kori.application.port.out.*;
 import com.kori.application.result.UpdateClientStatusResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.common.InvalidStatusTransitionException;
+import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientId;
+import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -23,6 +22,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
@@ -40,6 +40,7 @@ final class UpdateClientStatusServiceTest {
     @Mock AuditPort auditPort;
     @Mock TimeProviderPort timeProviderPort;
     @Mock DomainEventPublisherPort domainEventPublisherPort;
+    @Mock LedgerQueryPort ledgerQueryPort;
 
     @InjectMocks UpdateClientStatusService service;
 
@@ -147,10 +148,27 @@ final class UpdateClientStatusServiceTest {
     }
 
     @Test
+    void throws_whenClosingClientWithNonZeroWalletBalance() {
+        Client client = clientWithStatus(Status.SUSPENDED);
+
+        when(clientRepositoryPort.findById(ClientId.of(CLIENT_ID_RAW))).thenReturn(Optional.of(client));
+        when(ledgerQueryPort.netBalance(LedgerAccountRef.client(CLIENT_ID_RAW))).thenReturn(Money.of(BigDecimal.ONE));
+
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                service.execute(cmd(adminActor(), Status.CLOSED.name(), REASON))
+        );
+
+        assertEquals("CLIENT_WALLET_BALANCE_MUST_BE_ZERO_TO_CLOSE", ex.getMessage());
+        verify(clientRepositoryPort, never()).save(any());
+        verifyNoInteractions(auditPort, timeProviderPort, domainEventPublisherPort);
+    }
+
+    @Test
     void happyPath_closesClient_saves_audits_publishesEvent_andReturnsResult() {
         Client client = clientWithStatus(Status.SUSPENDED);
 
         when(clientRepositoryPort.findById(ClientId.of(CLIENT_ID_RAW))).thenReturn(Optional.of(client));
+        when(ledgerQueryPort.netBalance(LedgerAccountRef.client(CLIENT_ID_RAW))).thenReturn(Money.zero());
         when(timeProviderPort.now()).thenReturn(NOW);
 
         UpdateClientStatusResult out = service.execute(cmd(adminActor(), Status.CLOSED.name(), REASON));
