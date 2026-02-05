@@ -49,6 +49,7 @@ final class CashInByAgentServiceTest {
     @Mock ClientRepositoryPort clientRepositoryPort;
     @Mock CardRepositoryPort cardRepositoryPort;
     @Mock LedgerQueryPort ledgerQueryPort;
+    @Mock PlatformConfigPort platformConfigPort;
     @Mock TransactionRepositoryPort transactionRepositoryPort;
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock AuditPort auditPort;
@@ -137,6 +138,9 @@ final class CashInByAgentServiceTest {
 
         when(clientRepositoryPort.findByPhoneNumber(PHONE)).thenReturn(Optional.of(client));
         doNothing().when(operationStatusGuards).requireActiveClient(client);
+        when(agentRepositoryPort.findByIdForUpdate(new AgentId(AGENT_UUID))).thenReturn(Optional.of(agent));
+        when(ledgerQueryPort.getBalance(LedgerAccountRef.agentCashClearing(AGENT_UUID.toString()))).thenReturn(Money.zero());
+        when(platformConfigPort.get()).thenReturn(Optional.of(new com.kori.domain.model.config.PlatformConfig(new BigDecimal("1000.00"))));
 
         when(timeProviderPort.now()).thenReturn(NOW);
         when(idGeneratorPort.newUuid()).thenReturn(TX_UUID);
@@ -155,7 +159,7 @@ final class CashInByAgentServiceTest {
         List<LedgerEntry> entries = entriesCaptor.getValue();
         assertEquals(2, entries.size());
         assertTrue(entries.stream().anyMatch(e ->
-                e.accountRef().equals(LedgerAccountRef.platformClearing())
+                e.accountRef().equals(LedgerAccountRef.agentCashClearing(AGENT_UUID.toString()))
                         && e.type() == LedgerEntryType.DEBIT
                         && e.amount().equals(AMOUNT)
         ));

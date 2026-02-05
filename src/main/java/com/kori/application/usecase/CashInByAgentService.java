@@ -3,6 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.CashInByAgentCommand;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.guard.ActorGuards;
+import com.kori.application.guard.AgentCashLimitGuard;
 import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.port.in.CashInByAgentUseCase;
 import com.kori.application.port.out.*;
@@ -31,6 +32,7 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
     private final AgentRepositoryPort agentRepositoryPort;
     private final ClientRepositoryPort clientRepositoryPort;
     private final TransactionRepositoryPort transactionRepositoryPort;
+    private final AgentCashLimitGuard agentCashLimitGuard;
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
     private final OperationStatusGuards operationStatusGuards;
@@ -40,8 +42,8 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
                                 IdGeneratorPort idGeneratorPort,
                                 AgentRepositoryPort agentRepositoryPort,
                                 ClientRepositoryPort clientRepositoryPort,
-                                CardRepositoryPort cardRepositoryPort,
                                 LedgerQueryPort ledgerQueryPort,
+                                PlatformConfigPort platformConfigPort,
                                 TransactionRepositoryPort transactionRepositoryPort,
                                 LedgerAppendPort ledgerAppendPort,
                                 AuditPort auditPort,
@@ -52,6 +54,7 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
         this.agentRepositoryPort = agentRepositoryPort;
         this.clientRepositoryPort = clientRepositoryPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
+        this.agentCashLimitGuard = new AgentCashLimitGuard(ledgerQueryPort, platformConfigPort);
         this.ledgerAppendPort = ledgerAppendPort;
         this.auditPort = auditPort;
         this.operationStatusGuards = operationStatusGuards;
@@ -89,7 +92,10 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
         tx = transactionRepositoryPort.save(tx);
 
         // Cash-in is free (no fees, no commissions)
-        var clearingAcc = LedgerAccountRef.platformClearing();
+        agentRepositoryPort.findByIdForUpdate(agent.id());
+        agentCashLimitGuard.ensureProjectedBalanceWithinLimit(agent.id().value().toString(), amount, Money.zero());
+
+        var clearingAcc = LedgerAccountRef.agentCashClearing(agent.id().value().toString());
         var clientAcc = LedgerAccountRef.client(client.id().value().toString());
 
         ledgerAppendPort.append(List.of(

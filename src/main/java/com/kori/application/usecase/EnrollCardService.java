@@ -4,6 +4,7 @@ import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.guard.ActorGuards;
+import com.kori.application.guard.AgentCashLimitGuard;
 import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.guard.PricingGuards;
 import com.kori.application.port.in.EnrollCardUseCase;
@@ -48,6 +49,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
     private final CommissionPolicyPort commissionPolicyPort;
 
     private final LedgerAppendPort ledgerAppendPort;
+    private final AgentCashLimitGuard agentCashLimitGuard;
     private final AuditPort auditPort;
     private final PinHasherPort pinHasherPort;
     private final OperationStatusGuards operationStatusGuards;
@@ -63,6 +65,8 @@ public final class EnrollCardService implements EnrollCardUseCase {
                              FeePolicyPort feePolicyPort,
                              CommissionPolicyPort commissionPolicyPort,
                              LedgerAppendPort ledgerAppendPort,
+                             LedgerQueryPort ledgerQueryPort,
+                             PlatformConfigPort platformConfigPort,
                              AuditPort auditPort,
                              PinHasherPort pinHasherPort,
                              OperationStatusGuards operationStatusGuards) {
@@ -77,6 +81,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
         this.feePolicyPort = feePolicyPort;
         this.commissionPolicyPort = commissionPolicyPort;
         this.ledgerAppendPort = ledgerAppendPort;
+        this.agentCashLimitGuard = new AgentCashLimitGuard(ledgerQueryPort, platformConfigPort);
         this.auditPort = auditPort;
         this.pinHasherPort = pinHasherPort;
         this.operationStatusGuards = operationStatusGuards;
@@ -100,7 +105,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
 
         operationStatusGuards.requireActiveAgent(agent);
 
-        var agentAccount = LedgerAccountRef.agent(agent.id().value().toString());
+        var agentWalletAccount = LedgerAccountRef.agentWallet(agent.id().value().toString());
 
         // 3) Card UID must be unique
         if (cardRepositoryPort.findByCardUid(command.cardUid()).isPresent()) {
@@ -157,9 +162,13 @@ public final class EnrollCardService implements EnrollCardUseCase {
         tx = transactionRepositoryPort.save(tx);
 
         // 9) ledger entries
+        agentRepositoryPort.findByIdForUpdate(agent.id());
+        agentCashLimitGuard.ensureProjectedBalanceWithinLimit(agent.id().value().toString(), cardPrice, Money.zero());
+
         ledgerAppendPort.append(List.of(
-                LedgerEntry.credit(tx.id(), LedgerAccountRef.platformFeeRevenue(), platformRevenue),
-                LedgerEntry.credit(tx.id(), agentAccount, agentCommission)
+                LedgerEntry.debit(tx.id(), LedgerAccountRef.agentCashClearing(agent.id().value().toString()), cardPrice),
+                LedgerEntry.credit(tx.id(), agentWalletAccount, agentCommission),
+                LedgerEntry.credit(tx.id(), LedgerAccountRef.platformFeeRevenue(), platformRevenue)
         ));
 
         // 10) audit

@@ -101,7 +101,7 @@ public abstract class IntegrationTestBase {
                 "INSERT INTO security_config (id, max_failed_pin_attempts) VALUES (1, 3)"
         );
         jdbcTemplate.update(
-                "INSERT INTO platform_config (id, agent_cash_limit_global) VALUES (1, 0.00)"
+                "INSERT INTO platform_config (id, agent_cash_limit_global) VALUES (1, 1000.00)"
         );
     }
 
@@ -121,6 +121,8 @@ public abstract class IntegrationTestBase {
         Agent agent = Agent.activeNew(new AgentId(UUID.randomUUID()), AgentCode.of(code), NOW.minusSeconds(300));
         agentRepositoryPort.save(agent);
         createActiveAccountProfile(LedgerAccountRef.agent(agent.id().value().toString()));
+        createActiveAccountProfile(LedgerAccountRef.agentWallet(agent.id().value().toString()));
+        createActiveAccountProfile(LedgerAccountRef.agentCashClearing(agent.id().value().toString()));
         return agent;
     }
 

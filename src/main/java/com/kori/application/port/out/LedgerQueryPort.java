@@ -14,6 +14,11 @@ public interface LedgerQueryPort {
      */
     Money netBalance(LedgerAccountRef account);
 
+    /**
+     * Alias explicite utilisé par les flux métier qui manipulent des limites.
+     */
+    Money getBalance(LedgerAccountRef account);
+
     // Needed for generic reversal
     List<LedgerEntry> findByTransactionId(TransactionId transactionId);
 

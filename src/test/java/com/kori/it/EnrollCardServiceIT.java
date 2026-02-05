@@ -51,10 +51,15 @@ class EnrollCardServiceIT extends IntegrationTestBase {
         assertTrue(cardRepositoryPort.findByCardUid(CARD_UID).isPresent());
 
         List<LedgerEntry> entries = ledgerQueryPort.findByTransactionId(TransactionId.of(result.transactionId()));
-        assertEquals(2, entries.size());
+        assertEquals(3, entries.size());
 
-        LedgerAccountRef agentAccount = LedgerAccountRef.agent(agent.id().value().toString());
+        LedgerAccountRef agentAccount = LedgerAccountRef.agentWallet(agent.id().value().toString());
 
+        assertTrue(entries.stream().anyMatch(entry ->
+                entry.type() == LedgerEntryType.DEBIT
+                        && entry.accountRef().equals(LedgerAccountRef.agentCashClearing(agent.id().value().toString()))
+                        && entry.amount().equals(Money.of(new BigDecimal("10.00")))
+        ));
         assertTrue(entries.stream().anyMatch(entry ->
                 entry.type() == LedgerEntryType.CREDIT
                         && entry.accountRef().equals(LedgerAccountRef.platformFeeRevenue())
@@ -65,6 +70,15 @@ class EnrollCardServiceIT extends IntegrationTestBase {
                 entry.type() == LedgerEntryType.CREDIT
                         && entry.accountRef().equals(agentAccount)
                         && entry.amount().equals(Money.of(new BigDecimal("3.00")))
+        ));
+
+        assertTrue(entries.stream().noneMatch(entry ->
+                entry.type() == LedgerEntryType.DEBIT
+                        && entry.accountRef().equals(agentAccount)
+        ));
+
+        assertTrue(entries.stream().noneMatch(entry ->
+                entry.accountRef().equals(LedgerAccountRef.platformClearing())
         ));
 
         assertTrue(auditEventJpaRepository.findAll().stream()

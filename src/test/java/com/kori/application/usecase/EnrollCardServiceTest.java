@@ -60,6 +60,8 @@ final class EnrollCardServiceTest {
     @Mock FeePolicyPort feePolicyPort;
     @Mock CommissionPolicyPort commissionPolicyPort;
     @Mock LedgerAppendPort ledgerAppendPort;
+    @Mock LedgerQueryPort ledgerQueryPort;
+    @Mock PlatformConfigPort platformConfigPort;
     @Mock AuditPort auditPort;
     @Mock PinHasherPort pinHasherPort;
 
@@ -216,7 +218,7 @@ final class EnrollCardServiceTest {
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
         doNothing().when(operationStatusGuards).requireActiveAgent(agent);
 
-        LedgerAccountRef agentAccount = LedgerAccountRef.agent(agent.id().value().toString());
+        LedgerAccountRef agentAccount = LedgerAccountRef.agentWallet(agent.id().value().toString());
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.empty());
 
         when(clientRepositoryPort.findByPhoneNumber(CLIENT_PHONE)).thenReturn(Optional.empty());
@@ -231,6 +233,9 @@ final class EnrollCardServiceTest {
 
         when(feePolicyPort.cardEnrollmentPrice()).thenReturn(CARD_PRICE);
         when(commissionPolicyPort.cardEnrollmentAgentCommission()).thenReturn(AGENT_COMMISSION);
+        when(agentRepositoryPort.findByIdForUpdate(agent.id())).thenReturn(Optional.of(agent));
+        when(ledgerQueryPort.getBalance(LedgerAccountRef.agentCashClearing(AGENT_UUID.toString()))).thenReturn(Money.zero());
+        when(platformConfigPort.get()).thenReturn(Optional.of(new com.kori.domain.model.config.PlatformConfig(new BigDecimal("1000.00"))));
 
         when(transactionRepositoryPort.save(any(Transaction.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -249,11 +254,18 @@ final class EnrollCardServiceTest {
         verify(ledgerAppendPort).append(ledgerCaptor.capture());
 
         List<LedgerEntry> entries = ledgerCaptor.getValue();
-        assertEquals(2, entries.size());
-        assertTrue(entries.stream().allMatch(e -> e.type() == LedgerEntryType.CREDIT));
+        assertEquals(3, entries.size());
 
         assertTrue(entries.stream().anyMatch(e ->
                 e.transactionId().equals(new TransactionId(TX_UUID))
+                        && e.type() == LedgerEntryType.DEBIT
+                        && e.accountRef().equals(LedgerAccountRef.agentCashClearing(AGENT_UUID.toString()))
+                        && e.amount().equals(CARD_PRICE)
+        ));
+
+        assertTrue(entries.stream().anyMatch(e ->
+                e.transactionId().equals(new TransactionId(TX_UUID))
+                        && e.type() == LedgerEntryType.CREDIT
                         && e.accountRef().equals(agentAccount)
                         && e.amount().equals(AGENT_COMMISSION)
         ));

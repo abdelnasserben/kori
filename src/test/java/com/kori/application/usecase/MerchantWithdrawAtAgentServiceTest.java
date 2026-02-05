@@ -56,6 +56,7 @@ final class MerchantWithdrawAtAgentServiceTest {
     @Mock CommissionPolicyPort commissionPolicyPort;
 
     @Mock LedgerQueryPort ledgerQueryPort;
+    @Mock PlatformConfigPort platformConfigPort;
     @Mock TransactionRepositoryPort transactionRepositoryPort;
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock AuditPort auditPort;
@@ -298,7 +299,7 @@ final class MerchantWithdrawAtAgentServiceTest {
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(merchant));
         doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
 
-        LedgerAccountRef agentAcc = LedgerAccountRef.agent(agent.id().value().toString());
+        LedgerAccountRef agentAcc = LedgerAccountRef.agentWallet(agent.id().value().toString());
         LedgerAccountRef merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
 
         when(timeProviderPort.now()).thenReturn(NOW);
@@ -307,6 +308,9 @@ final class MerchantWithdrawAtAgentServiceTest {
         when(commissionPolicyPort.merchantWithdrawAgentCommission(FEE)).thenReturn(COMMISSION);
 
         when(ledgerQueryPort.netBalance(merchantAcc)).thenReturn(Money.of(new BigDecimal("999999.00")));
+        when(agentRepositoryPort.findByIdForUpdate(agent.id())).thenReturn(Optional.of(agent));
+        when(ledgerQueryPort.getBalance(LedgerAccountRef.agentCashClearing(agent.id().value().toString()))).thenReturn(Money.zero());
+        when(platformConfigPort.get()).thenReturn(Optional.of(new com.kori.domain.model.config.PlatformConfig(new BigDecimal("1000.00"))));
 
         when(idGeneratorPort.newUuid()).thenReturn(TX_UUID);
         when(transactionRepositoryPort.save(any(Transaction.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -338,7 +342,7 @@ final class MerchantWithdrawAtAgentServiceTest {
         assertEquals(4, entries.size());
 
         TransactionId txId = new TransactionId(TX_UUID);
-        LedgerAccountRef clearingAcc = LedgerAccountRef.platformClearing();
+        LedgerAccountRef clearingAcc = LedgerAccountRef.agentCashClearing(agent.id().value().toString());
         LedgerAccountRef feeAcc = LedgerAccountRef.platformFeeRevenue();
 
         assertTrue(entries.stream().anyMatch(e ->

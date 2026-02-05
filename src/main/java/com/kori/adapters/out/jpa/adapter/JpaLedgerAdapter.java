@@ -54,6 +54,12 @@ public class JpaLedgerAdapter implements LedgerAppendPort, LedgerQueryPort {
 
     @Override
     @Transactional(readOnly = true)
+    public Money getBalance(LedgerAccountRef account) {
+        return netBalance(account);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public List<LedgerEntry> findByTransactionId(TransactionId transactionId) {
 
         return repo.findByTransactionIdOrderByCreatedAtAscIdAsc(transactionId.value())

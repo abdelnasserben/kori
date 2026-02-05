@@ -51,7 +51,7 @@ class CashInByAgentServiceIT extends IntegrationTestBase {
         assertEquals(2, entries.size());
 
         assertTrue(entries.stream().anyMatch(e ->
-                e.accountRef().equals(LedgerAccountRef.platformClearing())
+                e.accountRef().equals(LedgerAccountRef.agentCashClearing(agent.id().value().toString()))
                         && e.type() == LedgerEntryType.DEBIT
                         && e.amount().equals(amount)
         ));
@@ -62,11 +62,15 @@ class CashInByAgentServiceIT extends IntegrationTestBase {
                         && e.amount().equals(amount)
         ));
 
+        assertTrue(entries.stream().noneMatch(e ->
+                e.accountRef().equals(LedgerAccountRef.platformClearing())
+        ));
+
         // Balances: agent inchangé, client +amount, clearing -amount (si netBalance suit DEBIT=-, CREDIT=+)
         Money clientBalance = ledgerQueryPort.netBalance(LedgerAccountRef.client(client.id().value().toString()));
         assertEquals(amount, clientBalance);
 
-        Money clearingBalance = ledgerQueryPort.netBalance(LedgerAccountRef.platformClearing());
+        Money clearingBalance = ledgerQueryPort.netBalance(LedgerAccountRef.agentCashClearing(agent.id().value().toString()));
         assertEquals(Money.of(amountBd.negate()), clearingBalance);
 
         // Optionnel: agentBalance doit rester à 0 (ou à sa valeur seed si tu le seedais)

@@ -100,7 +100,8 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
             Money clientDebit = sum(allEntries, LedgerAccountType.CLIENT, LedgerEntryType.DEBIT);
             Money merchantCredit = sum(allEntries, LedgerAccountType.MERCHANT, LedgerEntryType.CREDIT);
             Money platformCredit = sum(allEntries, LedgerAccountType.PLATFORM_FEE_REVENUE, LedgerEntryType.CREDIT);
-            Money agentCredit = sum(allEntries, LedgerAccountType.AGENT, LedgerEntryType.CREDIT);
+            Money agentCredit = sum(allEntries, LedgerAccountType.AGENT, LedgerEntryType.CREDIT)
+                    .plus(sum(allEntries, LedgerAccountType.AGENT_WALLET, LedgerEntryType.CREDIT));
 
             TransactionHistoryView view = command.view();
 

@@ -53,6 +53,19 @@ public class JpaAgentRepositoryAdapter implements AgentRepositoryPort {
     }
 
     @Override
+    @Transactional
+    public Optional<Agent> findByIdForUpdate(AgentId agentId) {
+        return repo.findByIdForUpdate(agentId.value())
+                .map(entity -> new Agent(
+                        new AgentId(entity.getId()),
+                        AgentCode.of(entity.getCode()),
+                        entity.getCreatedAt(),
+                        Status.valueOf(entity.getStatus())
+                ));
+    }
+
+
+    @Override
     public void save(Agent agent) {
         repo.save(new AgentEntity(
                 agent.id().value(),

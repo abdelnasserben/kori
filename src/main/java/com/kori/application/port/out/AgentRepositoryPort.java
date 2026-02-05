@@ -14,5 +14,7 @@ public interface AgentRepositoryPort {
 
     Optional<Agent> findById(AgentId agentId);
 
+    Optional<Agent> findByIdForUpdate(AgentId agentId);
+
     void save(Agent agent);
 }

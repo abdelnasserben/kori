@@ -4,6 +4,7 @@ import com.kori.application.command.MerchantWithdrawAtAgentCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.guard.ActorGuards;
+import com.kori.application.guard.AgentCashLimitGuard;
 import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.guard.PricingGuards;
 import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
@@ -44,6 +45,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
     private final AuditPort auditPort;
 
     private final OperationStatusGuards operationStatusGuards;
+    private final AgentCashLimitGuard agentCashLimitGuard;
 
     public MerchantWithdrawAtAgentService(TimeProviderPort timeProviderPort,
                                           IdempotencyPort idempotencyPort,
@@ -53,6 +55,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
                                           FeePolicyPort feePolicyPort,
                                           CommissionPolicyPort commissionPolicyPort,
                                           LedgerQueryPort ledgerQueryPort,
+                                          PlatformConfigPort platformConfigPort,
                                           TransactionRepositoryPort transactionRepositoryPort,
                                           LedgerAppendPort ledgerAppendPort,
                                           AuditPort auditPort,
@@ -69,6 +72,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         this.ledgerAppendPort = ledgerAppendPort;
         this.auditPort = auditPort;
         this.operationStatusGuards = operationStatusGuards;
+        this.agentCashLimitGuard = new AgentCashLimitGuard(ledgerQueryPort, platformConfigPort);
     }
 
     @Override
@@ -93,7 +97,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
 
         operationStatusGuards.requireActiveMerchant(merchant);
 
-        var agentAcc = LedgerAccountRef.agent(agent.id().value().toString());
+        var agentWalletAcc = LedgerAccountRef.agentWallet(agent.id().value().toString());
         var merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
 
         Instant now = timeProviderPort.now();
@@ -114,17 +118,20 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
             );
         }
 
+        agentRepositoryPort.findByIdForUpdate(agent.id());
+        agentCashLimitGuard.ensureProjectedBalanceWithinLimit(agent.id().value().toString(), Money.zero(), amount);
+
         TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
         Transaction tx = Transaction.merchantWithdrawAtAgent(txId, amount, now);
         tx = transactionRepositoryPort.save(tx);
 
-        var clearingAcc = LedgerAccountRef.platformClearing();
+        var clearingAcc = LedgerAccountRef.agentCashClearing(agent.id().value().toString());
         var feeAcc = LedgerAccountRef.platformFeeRevenue();
 
         ledgerAppendPort.append(List.of(
                 LedgerEntry.debit(tx.id(), merchantAcc, totalDebitedMerchant),
                 LedgerEntry.credit(tx.id(), clearingAcc, amount),
-                LedgerEntry.credit(tx.id(), agentAcc, commission),
+                LedgerEntry.credit(tx.id(), agentWalletAcc, commission),
                 LedgerEntry.credit(tx.id(), feeAcc, platformRevenue)
         ));
 
