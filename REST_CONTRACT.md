@@ -5,6 +5,53 @@
 Toutes les routes publiques sont désormais versionnées sous `/api/v1`.
 Les chemins exposés dans le code sont centralisés via `ApiPaths.API`.
 
+## Sécurité des endpoints (étape 1)
+
+Politique globale:
+- **deny-by-default** pour toute route non mappée explicitement.
+- **whitelist ouverte** sans token pour:
+  - OpenAPI/Swagger (`/api-docs/**`, `/v3/api-docs/**`, `/swagger-ui/**`, `/swagger-ui.html`)
+  - Health check (`/actuator/health/**`)
+
+Mapping endpoint -> rôle attendu (scan de tous les contrôleurs REST):
+
+- **Admin uniquement**
+  - `POST /api/v1/admins`
+  - `PATCH /api/v1/admins/{adminId}/status`
+  - `POST /api/v1/agents`
+  - `PATCH /api/v1/agents/{agentCode}/status`
+  - `POST /api/v1/merchants`
+  - `PATCH /api/v1/merchants/{merchantCode}/status`
+  - `POST /api/v1/terminals`
+  - `PATCH /api/v1/terminals/{terminalId}/status`
+  - `PATCH /api/v1/clients/{clientId}/status`
+  - `PATCH /api/v1/account-profiles/status`
+  - `PATCH /api/v1/config/fees`
+  - `PATCH /api/v1/config/commissions`
+  - `POST /api/v1/client-refunds/requests`
+  - `POST /api/v1/client-refunds/{refundId}/complete`
+  - `POST /api/v1/client-refunds/{refundId}/fail`
+  - `POST /api/v1/payments/agent-bank-deposits`
+  - `POST /api/v1/payments/reversals`
+  - `POST /api/v1/payouts/requests`
+  - `POST /api/v1/payouts/{payoutId}/complete`
+  - `POST /api/v1/payouts/{payoutId}/fail`
+  - `PATCH /api/v1/cards/{cardUid}/status/admin`
+  - `POST /api/v1/cards/{cardUid}/unblock`
+
+- **Agent uniquement**
+  - `POST /api/v1/cards/enroll`
+  - `PATCH /api/v1/cards/{cardUid}/status/agent`
+  - `POST /api/v1/payments/merchant-withdraw`
+  - `POST /api/v1/payments/cash-in`
+
+- **Terminal uniquement**
+  - `POST /api/v1/payments/card`
+
+- **Lecture ledger (ADMIN, AGENT, MERCHANT, CLIENT)**
+  - `GET /api/v1/ledger/balance`
+  - `POST /api/v1/ledger/transactions/search`
+  - 
 ## Pagination (cursor/limit)
 
 La pagination est de type **cursor-based** et standardisée pour toutes les futures listes (clients,
