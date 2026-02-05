@@ -26,6 +26,9 @@ class UpdateFeeConfigServiceIT extends IntegrationTestBase {
                 new BigDecimal("0.035000"),
                 new BigDecimal("2.00"),
                 new BigDecimal("7.00"),
+                true,
+                false,
+                true,
                 "test"
         ));
 

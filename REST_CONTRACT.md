@@ -51,3 +51,12 @@ Si ces champs sont `null`, il n’y a plus de page suivante.
 ### Actions sans corps de réponse
 
 - **204 No Content** pour les actions idempotentes qui ne renvoient pas de payload.
+
+## Config fees (`PATCH /api/v1/config/fees`)
+
+Le payload supporte les flags de remboursement suivants :
+- `cardPaymentFeeRefundable`
+- `merchantWithdrawFeeRefundable`
+- `cardEnrollmentPriceRefundable`
+
+Compatibilité descendante : si ces champs sont omis, la valeur appliquée est explicitement `false` (default SAFE).

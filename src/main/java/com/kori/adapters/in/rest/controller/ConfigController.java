@@ -46,6 +46,9 @@ public class ConfigController {
                 request.merchantWithdrawFeeRate(),
                 request.merchantWithdrawFeeMin(),
                 request.merchantWithdrawFeeMax(),
+                Boolean.TRUE.equals(request.cardPaymentFeeRefundable()),
+                Boolean.TRUE.equals(request.merchantWithdrawFeeRefundable()),
+                Boolean.TRUE.equals(request.cardEnrollmentPriceRefundable()),
                 request.reason()
         ));
         return new UpdateFeeConfigResponse(
@@ -55,7 +58,10 @@ public class ConfigController {
                 result.cardPaymentFeeMax(),
                 result.merchantWithdrawFeeRate(),
                 result.merchantWithdrawFeeMin(),
-                result.merchantWithdrawFeeMax()
+                result.merchantWithdrawFeeMax(),
+                result.cardPaymentFeeRefundable(),
+                result.merchantWithdrawFeeRefundable(),
+                result.cardEnrollmentPriceRefundable()
         );
     }
 

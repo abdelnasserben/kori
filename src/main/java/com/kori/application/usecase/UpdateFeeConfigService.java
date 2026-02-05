@@ -49,7 +49,10 @@ public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
                 cmd.cardPaymentFeeMax(),
                 cmd.merchantWithdrawFeeRate(),
                 cmd.merchantWithdrawFeeMin(),
-                cmd.merchantWithdrawFeeMax()
+                cmd.merchantWithdrawFeeMax(),
+                cmd.cardPaymentFeeRefundable(),
+                cmd.merchantWithdrawFeeRefundable(),
+                cmd.cardEnrollmentPriceRefundable()
         );
 
         feeConfigPort.upsert(updated);
@@ -66,6 +69,9 @@ public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
         metadata.put("merchantWithdrawFeeRate", cmd.merchantWithdrawFeeRate().toPlainString());
         metadata.put("merchantWithdrawFeeMin", cmd.merchantWithdrawFeeMin().toPlainString());
         metadata.put("merchantWithdrawFeeMax", cmd.merchantWithdrawFeeMax().toPlainString());
+        metadata.put("cardPaymentFeeRefundable", String.valueOf(cmd.cardPaymentFeeRefundable()));
+        metadata.put("merchantWithdrawFeeRefundable", String.valueOf(cmd.merchantWithdrawFeeRefundable()));
+        metadata.put("cardEnrollmentPriceRefundable", String.valueOf(cmd.cardEnrollmentPriceRefundable()));
 
         previous.ifPresent(cfg -> {
             metadata.put("previousCardEnrollmentPrice", cfg.cardEnrollmentPrice().toPlainString());
@@ -91,7 +97,10 @@ public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
                 cmd.cardPaymentFeeMax(),
                 cmd.merchantWithdrawFeeRate(),
                 cmd.merchantWithdrawFeeMin(),
-                cmd.merchantWithdrawFeeMax()
+                cmd.merchantWithdrawFeeMax(),
+                cmd.cardPaymentFeeRefundable(),
+                cmd.merchantWithdrawFeeRefundable(),
+                cmd.cardEnrollmentPriceRefundable()
         );
     }
 

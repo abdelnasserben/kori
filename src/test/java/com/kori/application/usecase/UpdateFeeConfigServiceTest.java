@@ -56,6 +56,9 @@ final class UpdateFeeConfigServiceTest {
                 new BigDecimal("0.030000"),
                 new BigDecimal("1.50"),
                 new BigDecimal("6.00"),
+                true,
+                false,
+                true,
                 reason
         );
     }
@@ -80,6 +83,9 @@ final class UpdateFeeConfigServiceTest {
                 new BigDecimal("0.030000"),
                 new BigDecimal("1.50"),
                 new BigDecimal("6.00"),
+                false,
+                false,
+                false,
                 "test"
         );
 
@@ -96,7 +102,10 @@ final class UpdateFeeConfigServiceTest {
                 new BigDecimal("4.00"),
                 new BigDecimal("0.020000"),
                 new BigDecimal("1.00"),
-                new BigDecimal("5.00")
+                new BigDecimal("5.00"),
+                false,
+                false,
+                false
         );
 
         when(feeConfigPort.get()).thenReturn(Optional.of(previous));
@@ -116,6 +125,9 @@ final class UpdateFeeConfigServiceTest {
         assertEquals("admin-1", event.actorId());
         assertEquals(NOW, event.occurredAt());
         assertEquals("ops update", event.metadata().get("reason"));
+        assertEquals("true", event.metadata().get("cardPaymentFeeRefundable"));
+        assertEquals("false", event.metadata().get("merchantWithdrawFeeRefundable"));
+        assertEquals("true", event.metadata().get("cardEnrollmentPriceRefundable"));
         assertEquals("9.00", event.metadata().get("previousCardEnrollmentPrice"));
     }
 

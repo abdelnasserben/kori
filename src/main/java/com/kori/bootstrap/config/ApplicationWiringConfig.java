@@ -228,7 +228,8 @@ public class ApplicationWiringConfig {
             LedgerQueryPort ledgerQueryPort,
             LedgerAppendPort ledgerAppendPort,
             AuditPort auditPort,
-            IdGeneratorPort idGeneratorPort
+            IdGeneratorPort idGeneratorPort,
+            FeeConfigPort feeConfigPort
     ) {
         var useCase = new ReversalService(
                 timeProviderPort,
@@ -237,7 +238,8 @@ public class ApplicationWiringConfig {
                 ledgerQueryPort,
                 ledgerAppendPort,
                 auditPort,
-                idGeneratorPort
+                idGeneratorPort,
+                feeConfigPort
         );
 
         //Make this @Transactional

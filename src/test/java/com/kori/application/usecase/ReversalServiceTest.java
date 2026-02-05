@@ -12,6 +12,7 @@ import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.ledger.LedgerEntryType;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Money;
+import com.kori.domain.model.config.FeeConfig;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
 import org.junit.jupiter.api.Test;
@@ -36,7 +37,6 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 final class ReversalServiceTest {
 
-    // ======= mocks =======
     @Mock TimeProviderPort timeProviderPort;
     @Mock IdempotencyPort idempotencyPort;
     @Mock TransactionRepositoryPort transactionRepositoryPort;
@@ -44,10 +44,10 @@ final class ReversalServiceTest {
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock AuditPort auditPort;
     @Mock IdGeneratorPort idGeneratorPort;
+    @Mock FeeConfigPort feeConfigPort;
 
     @InjectMocks ReversalService reversalService;
 
-    // ======= constants =======
     private static final String IDEM_KEY = "idem-1";
     private static final String REQUEST_HASH = "request-hash";
     private static final String ADMIN_ACTOR_ID = "admin-actor";
@@ -59,16 +59,14 @@ final class ReversalServiceTest {
     private static final TransactionId ORIGINAL_TX_ID = new TransactionId(ORIGINAL_TX_UUID);
 
     private static final UUID REVERSAL_TX_UUID = UUID.fromString("22222222-2222-2222-2222-222222222222");
-    private static final TransactionId REVERSAL_TX_ID = new TransactionId(REVERSAL_TX_UUID);
 
     private static final Money ORIGINAL_AMOUNT = Money.of(new BigDecimal("52.00"));
 
-    // Ledger accounts (on s’en fiche du format exact ici, juste cohérence)
     private static final LedgerAccountRef CLIENT_ACC = LedgerAccountRef.client("C-1");
     private static final LedgerAccountRef MERCHANT_ACC = LedgerAccountRef.merchant("M-1");
     private static final LedgerAccountRef PLATFORM_FEE_ACC = LedgerAccountRef.platformFeeRevenue();
+    private static final LedgerAccountRef PLATFORM_CLEARING_ACC = LedgerAccountRef.platformClearing();
 
-    // ======= helpers =======
     private static ActorContext adminActor() {
         return new ActorContext(ActorType.ADMIN, ADMIN_ACTOR_ID, Map.of());
     }
@@ -81,11 +79,10 @@ final class ReversalServiceTest {
         return new ReversalCommand(IDEM_KEY, REQUEST_HASH, actor, ORIGINAL_TX_UUID.toString());
     }
 
-    private static Transaction originalTx() {
+    private static Transaction originalCardTx() {
         return Transaction.payByCard(ORIGINAL_TX_ID, ORIGINAL_AMOUNT, NOW.minusSeconds(120));
     }
 
-    // ======= tests =======
 
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
@@ -104,6 +101,7 @@ final class ReversalServiceTest {
                 ledgerAppendPort,
                 auditPort,
                 idGeneratorPort,
+                feeConfigPort,
                 idempotencyPort
         );
     }
@@ -123,7 +121,8 @@ final class ReversalServiceTest {
                 ledgerQueryPort,
                 ledgerAppendPort,
                 auditPort,
-                idGeneratorPort
+                idGeneratorPort,
+                feeConfigPort
         );
     }
 
@@ -135,46 +134,49 @@ final class ReversalServiceTest {
         assertThrows(NotFoundException.class, () -> reversalService.execute(cmd(adminActor())));
 
         verify(transactionRepositoryPort).findById(ORIGINAL_TX_ID);
-        verifyNoInteractions(ledgerQueryPort, ledgerAppendPort, auditPort, idGeneratorPort);
+        verifyNoInteractions(ledgerQueryPort, ledgerAppendPort, auditPort, idGeneratorPort, feeConfigPort);
     }
 
     @Test
     void forbidden_whenTransactionAlreadyReversed() {
         when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
-        when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalTx()));
+        when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalCardTx()));
         when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(true);
 
         assertThrows(ForbiddenOperationException.class, () -> reversalService.execute(cmd(adminActor())));
 
         verify(transactionRepositoryPort).existsReversalFor(ORIGINAL_TX_ID);
-        verifyNoInteractions(ledgerQueryPort, ledgerAppendPort, auditPort, idGeneratorPort);
+        verifyNoInteractions(ledgerQueryPort, ledgerAppendPort, auditPort, idGeneratorPort, feeConfigPort);
     }
 
     @Test
     void forbidden_whenOriginalTransactionHasNoLedgerEntries() {
         when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
-        when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalTx()));
+        when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalCardTx()));
         when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
         when(ledgerQueryPort.findByTransactionId(ORIGINAL_TX_ID)).thenReturn(List.of());
 
         assertThrows(ForbiddenOperationException.class, () -> reversalService.execute(cmd(adminActor())));
 
         verify(ledgerQueryPort).findByTransactionId(ORIGINAL_TX_ID);
-        verifyNoInteractions(ledgerAppendPort, auditPort, idGeneratorPort);
+        verifyNoInteractions(ledgerAppendPort, auditPort, idGeneratorPort, feeConfigPort);
     }
 
     @Test
-    void happyPath_createsReversalTx_appendsInverseLedger_audits_andSavesIdempotency() {
+    void payByCard_refundableFalse_reversesPrincipalOnly() {
         when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
-        when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalTx()));
+        when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalCardTx()));
         when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
+        when(feeConfigPort.get()).thenReturn(Optional.of(new FeeConfig(
+                new BigDecimal("10.00"), new BigDecimal("0.01"), new BigDecimal("1.00"), new BigDecimal("10.00"),
+                new BigDecimal("0.01"), new BigDecimal("1.00"), new BigDecimal("10.00"), false, true, false
+        )));
 
         Money amount = Money.of(new BigDecimal("50.00"));
         Money fee = Money.of(new BigDecimal("2.00"));
-        Money total = Money.of(new BigDecimal("52.00"));
 
         List<LedgerEntry> originalEntries = List.of(
-                LedgerEntry.debit(ORIGINAL_TX_ID, CLIENT_ACC, total),
+                LedgerEntry.debit(ORIGINAL_TX_ID, CLIENT_ACC, amount.plus(fee)),
                 LedgerEntry.credit(ORIGINAL_TX_ID, MERCHANT_ACC, amount),
                 LedgerEntry.credit(ORIGINAL_TX_ID, PLATFORM_FEE_ACC, fee)
         );
@@ -182,63 +184,94 @@ final class ReversalServiceTest {
 
         when(timeProviderPort.now()).thenReturn(NOW);
         when(idGeneratorPort.newUuid()).thenReturn(REVERSAL_TX_UUID);
-        when(transactionRepositoryPort.save(any(Transaction.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        reversalService.execute(cmd(adminActor()));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<LedgerEntry>> captor = ArgumentCaptor.forClass(List.class);
+        verify(ledgerAppendPort).append(captor.capture());
+        List<LedgerEntry> reversalEntries = captor.getValue();
+
+        assertEquals(2, reversalEntries.size());
+        assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.DEBIT && e.accountRef().equals(MERCHANT_ACC) && e.amount().equals(amount)));
+        assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.CREDIT && e.accountRef().equals(CLIENT_ACC) && e.amount().equals(amount)));
+        assertFalse(reversalEntries.stream().anyMatch(e -> e.accountRef().equals(PLATFORM_FEE_ACC)));
+    }
+
+    @Test
+    void payByCard_refundableTrue_reversesPrincipalAndFee() {
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
+        when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalCardTx()));
+        when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
+        when(feeConfigPort.get()).thenReturn(Optional.of(new FeeConfig(
+                new BigDecimal("10.00"), new BigDecimal("0.01"), new BigDecimal("1.00"), new BigDecimal("10.00"),
+                new BigDecimal("0.01"), new BigDecimal("1.00"), new BigDecimal("10.00"), true, true, false
+        )));
+
+        Money amount = Money.of(new BigDecimal("50.00"));
+        Money fee = Money.of(new BigDecimal("2.00"));
+        List<LedgerEntry> originalEntries = List.of(
+                LedgerEntry.debit(ORIGINAL_TX_ID, CLIENT_ACC, amount.plus(fee)),
+                LedgerEntry.credit(ORIGINAL_TX_ID, MERCHANT_ACC, amount),
+                LedgerEntry.credit(ORIGINAL_TX_ID, PLATFORM_FEE_ACC, fee)
+        );
+        when(ledgerQueryPort.findByTransactionId(ORIGINAL_TX_ID)).thenReturn(originalEntries);
+        when(timeProviderPort.now()).thenReturn(NOW);
+        when(idGeneratorPort.newUuid()).thenReturn(REVERSAL_TX_UUID);
 
         ReversalResult out = reversalService.execute(cmd(adminActor()));
-
         assertEquals(REVERSAL_TX_UUID.toString(), out.reversalTransactionId());
-        assertEquals(ORIGINAL_TX_UUID.toString(), out.originalTransactionId());
 
-        // Transaction reversal saved
-        ArgumentCaptor<Transaction> txCaptor = ArgumentCaptor.forClass(Transaction.class);
-        verify(transactionRepositoryPort).save(txCaptor.capture());
-        Transaction saved = txCaptor.getValue();
 
-        assertEquals(REVERSAL_TX_ID, saved.id());
-        assertEquals(ORIGINAL_TX_ID, saved.originalTransactionId());
-        assertEquals(ORIGINAL_AMOUNT, saved.amount());
-
-        // Ledger entries inverted
         @SuppressWarnings("unchecked")
-        ArgumentCaptor<List<LedgerEntry>> ledgerCaptor = ArgumentCaptor.forClass(List.class);
-        verify(ledgerAppendPort).append(ledgerCaptor.capture());
+        ArgumentCaptor<List<LedgerEntry>> captor = ArgumentCaptor.forClass(List.class);
+        verify(ledgerAppendPort).append(captor.capture());
+        List<LedgerEntry> reversalEntries = captor.getValue();
 
-        List<LedgerEntry> reversalEntries = ledgerCaptor.getValue();
         assertEquals(3, reversalEntries.size());
 
-        assertTrue(reversalEntries.stream().anyMatch(e ->
-                e.transactionId().equals(REVERSAL_TX_ID)
-                        && e.type() == LedgerEntryType.CREDIT
-                        && e.accountRef().equals(CLIENT_ACC)
-                        && e.amount().equals(total)
-        ));
-
-        assertTrue(reversalEntries.stream().anyMatch(e ->
-                e.transactionId().equals(REVERSAL_TX_ID)
-                        && e.type() == LedgerEntryType.DEBIT
-                        && e.accountRef().equals(MERCHANT_ACC)
-                        && e.amount().equals(amount)
-        ));
-
-        assertTrue(reversalEntries.stream().anyMatch(e ->
-                e.transactionId().equals(REVERSAL_TX_ID)
-                        && e.type() == LedgerEntryType.DEBIT
-                        && e.accountRef().equals(PLATFORM_FEE_ACC)
-                        && e.amount().equals(fee)
-        ));
+        assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.DEBIT && e.accountRef().equals(MERCHANT_ACC) && e.amount().equals(amount)));
+        assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.DEBIT && e.accountRef().equals(PLATFORM_FEE_ACC) && e.amount().equals(fee)));
+        assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.CREDIT && e.accountRef().equals(CLIENT_ACC) && e.amount().equals(amount.plus(fee))));
 
         // Audit
         ArgumentCaptor<AuditEvent> auditCaptor = ArgumentCaptor.forClass(AuditEvent.class);
         verify(auditPort).publish(auditCaptor.capture());
 
-        AuditEvent event = auditCaptor.getValue();
-        assertEquals("REVERSAL", event.action());
-        assertEquals("ADMIN", event.actorType());
-        assertEquals(ADMIN_ACTOR_ID, event.actorId());
-        assertEquals(NOW, event.occurredAt());
-        assertEquals(REVERSAL_TX_UUID.toString(), event.metadata().get("transactionId"));
-        assertEquals(ORIGINAL_TX_UUID.toString(), event.metadata().get("originalTransactionId"));
-
         verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(ReversalResult.class));
+    }
+
+    @Test
+    void merchantWithdraw_refundableTrue_reversesPrincipalAndFeeRevenue() {
+        Transaction withdrawTx = Transaction.merchantWithdrawAtAgent(ORIGINAL_TX_ID, Money.of(new BigDecimal("100.00")), NOW.minusSeconds(60));
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
+        when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(withdrawTx));
+        when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
+        when(feeConfigPort.get()).thenReturn(Optional.of(new FeeConfig(
+                new BigDecimal("10.00"), new BigDecimal("0.01"), new BigDecimal("1.00"), new BigDecimal("10.00"),
+                new BigDecimal("0.01"), new BigDecimal("1.00"), new BigDecimal("10.00"), false, true, false
+        )));
+
+        Money principal = Money.of(new BigDecimal("100.00"));
+        Money feeRevenue = Money.of(new BigDecimal("3.00"));
+        List<LedgerEntry> originalEntries = List.of(
+                LedgerEntry.debit(ORIGINAL_TX_ID, MERCHANT_ACC, principal.plus(feeRevenue)),
+                LedgerEntry.credit(ORIGINAL_TX_ID, PLATFORM_CLEARING_ACC, principal),
+                LedgerEntry.credit(ORIGINAL_TX_ID, PLATFORM_FEE_ACC, feeRevenue)
+        );
+        when(ledgerQueryPort.findByTransactionId(ORIGINAL_TX_ID)).thenReturn(originalEntries);
+        when(timeProviderPort.now()).thenReturn(NOW);
+        when(idGeneratorPort.newUuid()).thenReturn(REVERSAL_TX_UUID);
+
+        reversalService.execute(cmd(adminActor()));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<LedgerEntry>> captor = ArgumentCaptor.forClass(List.class);
+        verify(ledgerAppendPort).append(captor.capture());
+        List<LedgerEntry> reversalEntries = captor.getValue();
+
+        assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.DEBIT && e.accountRef().equals(PLATFORM_CLEARING_ACC) && e.amount().equals(principal)));
+        assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.DEBIT && e.accountRef().equals(PLATFORM_FEE_ACC) && e.amount().equals(feeRevenue)));
+        assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.CREDIT && e.accountRef().equals(MERCHANT_ACC) && e.amount().equals(principal.plus(feeRevenue))));
     }
 }

@@ -92,6 +92,9 @@ public final class Requests {
             @NotNull @PositiveOrZero BigDecimal merchantWithdrawFeeRate,
             @NotNull @PositiveOrZero BigDecimal merchantWithdrawFeeMin,
             @NotNull @PositiveOrZero BigDecimal merchantWithdrawFeeMax,
+            Boolean cardPaymentFeeRefundable,
+            Boolean merchantWithdrawFeeRefundable,
+            Boolean cardEnrollmentPriceRefundable,
             @Size(max = 255) String reason
     ) {}
 

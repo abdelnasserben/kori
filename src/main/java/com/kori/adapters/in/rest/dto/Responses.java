@@ -110,7 +110,10 @@ public final class Responses {
             BigDecimal cardPaymentFeeMax,
             BigDecimal merchantWithdrawFeeRate,
             BigDecimal merchantWithdrawFeeMin,
-            BigDecimal merchantWithdrawFeeMax
+            BigDecimal merchantWithdrawFeeMax,
+            boolean cardPaymentFeeRefundable,
+            boolean merchantWithdrawFeeRefundable,
+            boolean cardEnrollmentPriceRefundable
     ) {}
 
     public record UpdateCommissionConfigResponse(

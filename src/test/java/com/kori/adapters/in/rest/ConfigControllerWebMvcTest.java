@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.mockito.ArgumentCaptor;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -24,7 +25,9 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import java.math.BigDecimal;
 import java.util.stream.Stream;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -54,6 +57,9 @@ class ConfigControllerWebMvcTest extends BaseWebMvcTest {
                 new BigDecimal("0.02"),
                 new BigDecimal("2"),
                 new BigDecimal("20"),
+                true,
+                false,
+                true,
                 "ok"
         );
         var result = new UpdateFeeConfigResult(
@@ -63,7 +69,10 @@ class ConfigControllerWebMvcTest extends BaseWebMvcTest {
                 new BigDecimal("10"),
                 new BigDecimal("0.02"),
                 new BigDecimal("2"),
-                new BigDecimal("20")
+                new BigDecimal("20"),
+                true,
+                false,
+                true
         );
         when(updateFeeConfigUseCase.execute(any())).thenReturn(result);
 
@@ -79,7 +88,10 @@ class ConfigControllerWebMvcTest extends BaseWebMvcTest {
                 .andExpect(jsonPath("$.cardPaymentFeeMax").value(10))
                 .andExpect(jsonPath("$.merchantWithdrawFeeRate").value(0.02))
                 .andExpect(jsonPath("$.merchantWithdrawFeeMin").value(2))
-                .andExpect(jsonPath("$.merchantWithdrawFeeMax").value(20));
+                .andExpect(jsonPath("$.merchantWithdrawFeeMax").value(20))
+                .andExpect(jsonPath("$.cardPaymentFeeRefundable").value(true))
+                .andExpect(jsonPath("$.merchantWithdrawFeeRefundable").value(false))
+                .andExpect(jsonPath("$.cardEnrollmentPriceRefundable").value(true));
     }
 
     @Test
@@ -121,6 +133,9 @@ class ConfigControllerWebMvcTest extends BaseWebMvcTest {
                 new BigDecimal("0.02"),
                 new BigDecimal("2"),
                 new BigDecimal("20"),
+                true,
+                false,
+                true,
                 "ok"
         );
 
@@ -134,6 +149,51 @@ class ConfigControllerWebMvcTest extends BaseWebMvcTest {
                 .andExpect(jsonPath("$.details.fields").isArray());
     }
 
+    @Test
+    void should_default_refundable_flags_to_false_when_fields_missing() throws Exception {
+        var result = new UpdateFeeConfigResult(
+                new BigDecimal("500"),
+                new BigDecimal("0.01"),
+                new BigDecimal("1"),
+                new BigDecimal("10"),
+                new BigDecimal("0.02"),
+                new BigDecimal("2"),
+                new BigDecimal("20"),
+                false,
+                false,
+                false
+        );
+        when(updateFeeConfigUseCase.execute(any())).thenReturn(result);
+
+        String payload = """
+                {
+                  "cardEnrollmentPrice": 500,
+                  "cardPaymentFeeRate": 0.01,
+                  "cardPaymentFeeMin": 1,
+                  "cardPaymentFeeMax": 10,
+                  "merchantWithdrawFeeRate": 0.02,
+                  "merchantWithdrawFeeMin": 2,
+                  "merchantWithdrawFeeMax": 20,
+                  "reason": "ok"
+                }
+                """;
+
+        mockMvc.perform(patch(URL_FEES)
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk());
+
+        ArgumentCaptor<com.kori.application.command.UpdateFeeConfigCommand> captor =
+                ArgumentCaptor.forClass(com.kori.application.command.UpdateFeeConfigCommand.class);
+        verify(updateFeeConfigUseCase).execute(captor.capture());
+
+        assertFalse(captor.getValue().cardPaymentFeeRefundable());
+        assertFalse(captor.getValue().merchantWithdrawFeeRefundable());
+        assertFalse(captor.getValue().cardEnrollmentPriceRefundable());
+    }
+
     @ParameterizedTest
     @MethodSource("applicationExceptions")
     void should_map_application_exceptions(RuntimeException exception, HttpStatus status, String code, String message) throws Exception {
@@ -145,6 +205,9 @@ class ConfigControllerWebMvcTest extends BaseWebMvcTest {
                 new BigDecimal("0.02"),
                 new BigDecimal("2"),
                 new BigDecimal("20"),
+                true,
+                false,
+                true,
                 "ok"
         );
         when(updateFeeConfigUseCase.execute(any())).thenThrow(exception);

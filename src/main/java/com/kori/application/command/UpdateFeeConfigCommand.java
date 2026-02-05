@@ -14,6 +14,9 @@ public record UpdateFeeConfigCommand(
         BigDecimal merchantWithdrawFeeRate,
         BigDecimal merchantWithdrawFeeMin,
         BigDecimal merchantWithdrawFeeMax,
+        boolean cardPaymentFeeRefundable,
+        boolean merchantWithdrawFeeRefundable,
+        boolean cardEnrollmentPriceRefundable,
         String reason
 ) {
     public UpdateFeeConfigCommand(
@@ -25,6 +28,9 @@ public record UpdateFeeConfigCommand(
             BigDecimal merchantWithdrawFeeRate,
             BigDecimal merchantWithdrawFeeMin,
             BigDecimal merchantWithdrawFeeMax,
+            boolean cardPaymentFeeRefundable,
+            boolean merchantWithdrawFeeRefundable,
+            boolean cardEnrollmentPriceRefundable,
             String reason) {
         this.actorContext = Objects.requireNonNull(actorContext, "actorContext");
         this.cardEnrollmentPrice = Objects.requireNonNull(cardEnrollmentPrice, "cardEnrollmentPrice");
@@ -34,6 +40,9 @@ public record UpdateFeeConfigCommand(
         this.merchantWithdrawFeeRate = Objects.requireNonNull(merchantWithdrawFeeRate, "merchantWithdrawFeeRate");
         this.merchantWithdrawFeeMin = Objects.requireNonNull(merchantWithdrawFeeMin, "merchantWithdrawFeeMin");
         this.merchantWithdrawFeeMax = Objects.requireNonNull(merchantWithdrawFeeMax, "merchantWithdrawFeeMax");
+        this.cardPaymentFeeRefundable = cardPaymentFeeRefundable;
+        this.merchantWithdrawFeeRefundable = merchantWithdrawFeeRefundable;
+        this.cardEnrollmentPriceRefundable = cardEnrollmentPriceRefundable;
         this.reason = (reason == null || reason.isBlank()) ? "N/A" : reason;
     }
 }
