@@ -420,13 +420,15 @@ public class ApplicationWiringConfig {
             AgentRepositoryPort agentRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort,
-            DomainEventPublisherPort domainEventPublisherPort
+            DomainEventPublisherPort domainEventPublisherPort,
+            LedgerQueryPort ledgerQueryPort
     ) {
         return new UpdateAgentStatusService(
                 agentRepositoryPort,
                 auditPort,
                 timeProviderPort,
-                domainEventPublisherPort
+                domainEventPublisherPort,
+                ledgerQueryPort
         ) {
         };
     }
@@ -468,13 +470,15 @@ public class ApplicationWiringConfig {
             MerchantRepositoryPort merchantRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort,
-            DomainEventPublisherPort domainEventPublisherPort
+            DomainEventPublisherPort domainEventPublisherPort,
+            LedgerQueryPort ledgerQueryPort
     ) {
         return new UpdateMerchantStatusService(
                 merchantRepositoryPort,
                 auditPort,
                 timeProviderPort,
-                domainEventPublisherPort
+                domainEventPublisherPort,
+                ledgerQueryPort
         );
     }
 

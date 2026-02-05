@@ -5,13 +5,11 @@ import com.kori.application.events.AgentStatusChangedEvent;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateAgentStatusUseCase;
-import com.kori.application.port.out.AgentRepositoryPort;
-import com.kori.application.port.out.AuditPort;
-import com.kori.application.port.out.DomainEventPublisherPort;
-import com.kori.application.port.out.TimeProviderPort;
+import com.kori.application.port.out.*;
 import com.kori.application.result.UpdateAgentStatusResult;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.application.utils.ReasonNormalizer;
+import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.common.Status;
@@ -25,17 +23,19 @@ public class UpdateAgentStatusService implements UpdateAgentStatusUseCase {
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
     private final DomainEventPublisherPort domainEventPublisherPort;
+    private final LedgerQueryPort ledgerQueryPort;
 
     public UpdateAgentStatusService(
             AgentRepositoryPort agentRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort,
-            DomainEventPublisherPort domainEventPublisherPort
+            DomainEventPublisherPort domainEventPublisherPort, LedgerQueryPort ledgerQueryPort
     ) {
         this.agentRepositoryPort = agentRepositoryPort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
         this.domainEventPublisherPort = domainEventPublisherPort;
+        this.ledgerQueryPort = ledgerQueryPort;
     }
 
     @Override
@@ -49,6 +49,10 @@ public class UpdateAgentStatusService implements UpdateAgentStatusUseCase {
         String before = beforeStatus.name();
         Status afterStatus = Status.parseStatus(cmd.targetStatus());
 
+        if (afterStatus == Status.CLOSED && beforeStatus != Status.CLOSED) {
+            ensureAgentWalletIsZero(agent);
+        }
+        
         switch (afterStatus) {
             case ACTIVE -> agent.activate();
             case SUSPENDED -> agent.suspend();
@@ -85,5 +89,19 @@ public class UpdateAgentStatusService implements UpdateAgentStatusUseCase {
         }
 
         return new UpdateAgentStatusResult(cmd.agentCode(), before, cmd.targetStatus());
+    }
+
+    private void ensureAgentWalletIsZero(Agent agent) {
+        String agentId = agent.id().value().toString();
+
+        LedgerAccountRef agentWallet = LedgerAccountRef.agentWallet(agentId);
+        if (!ledgerQueryPort.netBalance(agentWallet).isZero()) {
+            throw new IllegalStateException("AGENT_WALLET_BALANCE_MUST_BE_ZERO_TO_CLOSE");
+        }
+
+        LedgerAccountRef agentCashClearing = LedgerAccountRef.agentCashClearing(agentId);
+        if (!ledgerQueryPort.netBalance(agentCashClearing).isZero()) {
+            throw new IllegalStateException("AGENT_CASH_CLEARING_BALANCE_MUST_BE_ZERO_TO_CLOSE");
+        }
     }
 }

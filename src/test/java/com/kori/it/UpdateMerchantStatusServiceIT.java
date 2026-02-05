@@ -58,4 +58,32 @@ class UpdateMerchantStatusServiceIT extends IntegrationTestBase {
                 .anyMatch(event -> event.getAction().equals("ADMIN_UPDATE_MERCHANT_STATUS_SUSPENDED"))
         );
     }
+
+    @Test
+    void closeMerchant_refused_whenMerchantWalletBalanceIsNotZero() {
+        Merchant merchant = createActiveMerchant("M-202020");
+        createActiveTerminal(merchant);
+        seedLedgerCredit(LedgerAccountRef.merchant(merchant.id().value().toString()), java.math.BigDecimal.TEN);
+
+        assertThrows(IllegalStateException.class, () ->
+                updateMerchantStatusUseCase.execute(new UpdateMerchantStatusCommand(
+                        adminActor(),
+                        merchant.code().value(),
+                        Status.CLOSED.name(),
+                        "test"
+                ))
+        );
+
+        Merchant updatedMerchant = merchantRepositoryPort.findByCode(merchant.code()).orElseThrow();
+        assertEquals(Status.ACTIVE, updatedMerchant.status());
+
+        AccountProfile updatedProfile = accountProfilePort.findByAccount(
+                LedgerAccountRef.merchant(merchant.id().value().toString())
+        ).orElseThrow();
+        assertEquals(Status.ACTIVE, updatedProfile.status());
+
+        List<Terminal> terminals = terminalRepositoryPort.findByMerchantId(merchant.id());
+        assertEquals(1, terminals.size());
+        assertEquals(Status.ACTIVE, terminals.get(0).status());
+    }
 }
