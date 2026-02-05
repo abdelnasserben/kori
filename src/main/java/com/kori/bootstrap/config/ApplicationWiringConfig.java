@@ -267,6 +267,71 @@ public class ApplicationWiringConfig {
     }
 
     @Bean
+    public RequestClientRefundUseCase requestClientRefundUseCase(
+            PlatformTransactionManager transactionManager,
+            TimeProviderPort timeProviderPort,
+            IdempotencyPort idempotencyPort,
+            ClientRepositoryPort clientRepositoryPort,
+            LedgerAppendPort ledgerAppendPort,
+            LedgerQueryPort ledgerQueryPort,
+            TransactionRepositoryPort transactionRepositoryPort,
+            ClientRefundRepositoryPort clientRefundRepositoryPort,
+            AuditPort auditPort,
+            IdGeneratorPort idGeneratorPort
+    ) {
+        var useCase = new RequestClientRefundService(
+                timeProviderPort,
+                idempotencyPort,
+                clientRepositoryPort,
+                ledgerAppendPort,
+                ledgerQueryPort,
+                transactionRepositoryPort,
+                clientRefundRepositoryPort,
+                auditPort,
+                idGeneratorPort
+        );
+
+        var transactionTemplate = new TransactionTemplate(transactionManager);
+        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
+    }
+
+    @Bean
+    public CompleteClientRefundUseCase completeClientRefundUseCase(
+            PlatformTransactionManager transactionManager,
+            TimeProviderPort timeProviderPort,
+            ClientRefundRepositoryPort clientRefundRepositoryPort,
+            LedgerAppendPort ledgerAppendPort,
+            AuditPort auditPort) {
+        var useCase = new CompleteClientRefundService(
+                timeProviderPort,
+                clientRefundRepositoryPort,
+                ledgerAppendPort,
+                auditPort
+        );
+
+        var transactionTemplate = new TransactionTemplate(transactionManager);
+        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
+    }
+
+    @Bean
+    public FailClientRefundUseCase failClientRefundUseCase(
+            PlatformTransactionManager transactionManager,
+            TimeProviderPort timeProviderPort,
+            ClientRefundRepositoryPort clientRefundRepositoryPort,
+            LedgerAppendPort ledgerAppendPort,
+            AuditPort auditPort) {
+        var useCase = new FailClientRefundService(
+                timeProviderPort,
+                clientRefundRepositoryPort,
+                ledgerAppendPort,
+                auditPort
+        );
+
+        var transactionTemplate = new TransactionTemplate(transactionManager);
+        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
+    }
+
+    @Bean
     public ReversalUseCase reversalUseCase(
             PlatformTransactionManager transactionManager,
             TimeProviderPort timeProviderPort,

@@ -67,6 +67,14 @@ public final class Responses {
             String status
     ) {}
 
+    public record ClientRefundResponse(
+            String transactionId,
+            String refundId,
+            String clientId,
+            BigDecimal amount,
+            String status
+    ) {}
+
     public record ReversalResponse(String transactionId, String originalTransactionId) {}
 
     public record BalanceResponse(String accountType, String ownerRef, BigDecimal balance) {}

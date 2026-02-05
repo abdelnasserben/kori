@@ -44,6 +44,10 @@ public record LedgerAccountRef(LedgerAccountType type, String ownerRef) {
         return new LedgerAccountRef(LedgerAccountType.PLATFORM_BANK, "SYSTEM");
     }
 
+    public static LedgerAccountRef platformClientRefundClearing() {
+        return new LedgerAccountRef(LedgerAccountType.PLATFORM_CLIENT_REFUND_CLEARING, "SYSTEM");
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

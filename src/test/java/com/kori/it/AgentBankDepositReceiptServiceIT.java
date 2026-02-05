@@ -4,20 +4,17 @@ import com.kori.application.command.AgentBankDepositReceiptCommand;
 import com.kori.application.port.in.AgentBankDepositReceiptUseCase;
 import com.kori.application.result.AgentBankDepositReceiptResult;
 import com.kori.domain.ledger.LedgerAccountRef;
-import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.common.Money;
-import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
 import com.kori.domain.model.transaction.TransactionType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AgentBankDepositReceiptServiceIT extends IntegrationTestBase {
 

@@ -14,6 +14,7 @@ public final class ApiPaths {
     public static final String MERCHANTS = API + "/merchants";
     public static final String PAYMENTS = API + "/payments";
     public static final String PAYOUTS = API + "/payouts";
+    public static final String CLIENT_REFUNDS = API + "/client-refunds";
     public static final String TERMINALS = API + "/terminals";
 }
 

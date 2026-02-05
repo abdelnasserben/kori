@@ -66,6 +66,7 @@ public abstract class IntegrationTestBase {
                 + "ledger_entries, "
                 + "transactions, "
                 + "payouts, "
+                + "client_refunds, "
                 + "audit_events, "
                 + "idempotency_records, "
                 + "cards, "

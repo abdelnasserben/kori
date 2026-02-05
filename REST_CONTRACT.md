@@ -84,3 +84,17 @@ Le use case de clôture client passe par la mise à jour de statut client vers `
 - Si le solde est non nul : la requête est refusée, sans changement d'état du client, des cartes ou du compte.
 - Si le client est déjà `CLOSED` : opération idempotente (no-op).
 - Aucune écriture ledger additionnelle n'est créée par la clôture (seulement changement d'état + audit/event existants).
+## Client refunds (`/api/v1/client-refunds`)
+
+Flux admin-only pour rembourser intégralement le solde d'un client avant clôture.
+
+- `POST /requests` : crée un remboursement `REQUESTED` pour le montant exact du wallet client.
+    - Écriture ledger : **Debit `CLIENT` / Credit `PLATFORM_CLIENT_REFUND_CLEARING`**.
+- `POST /{refundId}/complete` : marque `COMPLETED` lorsque le virement banque est confirmé.
+    - Écriture ledger : **Debit `PLATFORM_CLIENT_REFUND_CLEARING` / Credit `PLATFORM_BANK`**.
+- `POST /{refundId}/fail` : marque `FAILED` et restitue le montant au client.
+    - Écriture ledger : **Debit `PLATFORM_CLIENT_REFUND_CLEARING` / Credit `CLIENT`**.
+
+Contraintes:
+- montant de remboursement = solde intégral du client
+- un seul remboursement `REQUESTED` à la fois par client

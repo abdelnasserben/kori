@@ -70,4 +70,8 @@ public record Transaction(
     public static Transaction cashInByAgent(TransactionId id, Money amount, Instant createdAt) {
         return new Transaction(id, TransactionType.CASH_IN_BY_AGENT, amount, createdAt, null);
     }
+
+    public static Transaction clientRefund(TransactionId id, Money amount, Instant createdAt) {
+        return new Transaction(id, TransactionType.CLIENT_REFUND, amount, createdAt, null);
+    }
 }
