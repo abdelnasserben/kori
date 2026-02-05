@@ -178,51 +178,67 @@ public class ApplicationWiringConfig {
 
     @Bean
     public RequestAgentPayoutUseCase agentPayoutUseCase(
+            PlatformTransactionManager transactionManager,
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
             AgentRepositoryPort agentRepositoryPort,
+            LedgerAppendPort ledgerAppendPort,
             LedgerQueryPort ledgerQueryPort,
             TransactionRepositoryPort transactionRepositoryPort,
             PayoutRepositoryPort payoutRepositoryPort,
             AuditPort auditPort,
             IdGeneratorPort idGeneratorPort
     ) {
-        return new RequestAgentPayoutService(
+        var useCase = new RequestAgentPayoutService(
                 timeProviderPort,
                 idempotencyPort,
                 agentRepositoryPort,
+                ledgerAppendPort,
                 ledgerQueryPort,
                 transactionRepositoryPort,
                 payoutRepositoryPort,
                 auditPort,
                 idGeneratorPort
         );
+
+        var transactionTemplate = new TransactionTemplate(transactionManager);
+        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
     }
 
     @Bean
     public CompleteAgentPayoutUseCase completeAgentPayoutUseCase(
+            PlatformTransactionManager transactionManager,
             TimeProviderPort timeProviderPort,
             PayoutRepositoryPort payoutRepositoryPort,
             LedgerAppendPort ledgerAppendPort,
             AuditPort auditPort) {
-        return new CompleteAgentPayoutService(
+        var useCase = new CompleteAgentPayoutService(
                 timeProviderPort,
                 payoutRepositoryPort,
                 ledgerAppendPort,
                 auditPort
         );
+
+        var transactionTemplate = new TransactionTemplate(transactionManager);
+        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
     }
 
     @Bean
     public FailAgentPayoutUseCase failAgentPayoutUseCase(
+            PlatformTransactionManager transactionManager,
             TimeProviderPort timeProviderPort,
             PayoutRepositoryPort payoutRepositoryPort,
+            LedgerAppendPort ledgerAppendPort,
             AuditPort auditPort) {
-        return new FailAgentPayoutService(
+        var useCase = new FailAgentPayoutService(
                 timeProviderPort,
                 payoutRepositoryPort,
+                ledgerAppendPort,
                 auditPort
         );
+
+        var transactionTemplate = new TransactionTemplate(transactionManager);
+        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
     }
 
     @Bean

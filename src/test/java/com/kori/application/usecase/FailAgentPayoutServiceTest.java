@@ -4,10 +4,14 @@ import com.kori.application.command.FailAgentPayoutCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.out.AuditPort;
+import com.kori.application.port.out.LedgerAppendPort;
 import com.kori.application.port.out.PayoutRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
+import com.kori.domain.ledger.LedgerAccountRef;
+import com.kori.domain.ledger.LedgerEntry;
+import com.kori.domain.ledger.LedgerEntryType;
 import com.kori.domain.model.agent.AgentId;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Money;
@@ -28,8 +32,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -38,6 +41,7 @@ final class FailAgentPayoutServiceTest {
 
     @Mock TimeProviderPort timeProviderPort;
     @Mock PayoutRepositoryPort payoutRepositoryPort;
+    @Mock LedgerAppendPort ledgerAppendPort;
     @Mock AuditPort auditPort;
 
     @InjectMocks FailAgentPayoutService service;
@@ -79,7 +83,7 @@ final class FailAgentPayoutServiceTest {
     @Test
     void forbidden_whenActorIsNotAdmin() {
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(nonAdminActor())));
-        verifyNoInteractions(payoutRepositoryPort, auditPort, timeProviderPort);
+        verifyNoInteractions(payoutRepositoryPort, ledgerAppendPort, auditPort, timeProviderPort);
     }
 
     @Test
@@ -89,7 +93,7 @@ final class FailAgentPayoutServiceTest {
         assertThrows(NotFoundException.class, () -> service.execute(cmd(adminActor())));
 
         verify(payoutRepositoryPort).findById(PAYOUT_ID);
-        verifyNoInteractions(auditPort, timeProviderPort);
+        verifyNoInteractions(ledgerAppendPort, auditPort, timeProviderPort);
     }
 
     @Test
@@ -101,7 +105,7 @@ final class FailAgentPayoutServiceTest {
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(adminActor())));
 
-        verifyNoInteractions(auditPort, timeProviderPort);
+        verifyNoInteractions(ledgerAppendPort, auditPort, timeProviderPort);
         verify(payoutRepositoryPort, never()).save(any(Payout.class));
     }
 
@@ -113,6 +117,25 @@ final class FailAgentPayoutServiceTest {
         when(payoutRepositoryPort.save(any(Payout.class))).thenAnswer(inv -> inv.getArgument(0));
 
         service.execute(cmd(adminActor()));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<java.util.List<LedgerEntry>> ledgerCaptor = ArgumentCaptor.forClass(java.util.List.class);
+        verify(ledgerAppendPort).append(ledgerCaptor.capture());
+        var entries = ledgerCaptor.getValue();
+
+        assertEquals(2, entries.size());
+        assertTrue(entries.stream().anyMatch(e ->
+                e.transactionId().equals(TX_ID)
+                        && e.type() == LedgerEntryType.DEBIT
+                        && e.accountRef().equals(LedgerAccountRef.platformClearing())
+                        && e.amount().equals(AMOUNT)
+        ));
+        assertTrue(entries.stream().anyMatch(e ->
+                e.transactionId().equals(TX_ID)
+                        && e.type() == LedgerEntryType.CREDIT
+                        && e.accountRef().equals(LedgerAccountRef.agentWallet(AGENT_UUID.toString()))
+                        && e.amount().equals(AMOUNT)
+        ));
 
         assertEquals(PayoutStatus.FAILED, payout.status());
         assertEquals(NOW, payout.failedAt());

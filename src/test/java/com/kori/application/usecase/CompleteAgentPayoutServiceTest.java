@@ -125,20 +125,20 @@ final class CompleteAgentPayoutServiceTest {
 
         assertEquals(2, entries.size());
 
-        LedgerAccountRef agentAcc = LedgerAccountRef.agent(AGENT_UUID.toString());
         LedgerAccountRef clearingAcc = LedgerAccountRef.platformClearing();
+        LedgerAccountRef bankAcc = LedgerAccountRef.platformBank();
 
         assertTrue(entries.stream().anyMatch(e ->
                 e.transactionId().equals(TX_ID)
                         && e.type() == LedgerEntryType.DEBIT
-                        && e.accountRef().equals(agentAcc)
+                        && e.accountRef().equals(clearingAcc)
                         && e.amount().equals(AMOUNT)
         ));
 
         assertTrue(entries.stream().anyMatch(e ->
                 e.transactionId().equals(TX_ID)
                         && e.type() == LedgerEntryType.CREDIT
-                        && e.accountRef().equals(clearingAcc)
+                        && e.accountRef().equals(bankAcc)
                         && e.amount().equals(AMOUNT)
         ));
 

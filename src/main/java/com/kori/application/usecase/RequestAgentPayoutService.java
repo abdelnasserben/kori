@@ -9,6 +9,7 @@ import com.kori.application.port.out.*;
 import com.kori.application.result.AgentPayoutResult;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
+import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.agent.AgentId;
@@ -22,6 +23,7 @@ import com.kori.domain.model.transaction.TransactionId;
 
 import java.time.Instant;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
@@ -30,6 +32,7 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
     private final IdempotencyPort idempotencyPort;
 
     private final AgentRepositoryPort agentRepositoryPort;
+    private final LedgerAppendPort ledgerAppendPort;
     private final LedgerQueryPort ledgerQueryPort;
     private final TransactionRepositoryPort transactionRepositoryPort;
     private final PayoutRepositoryPort payoutRepositoryPort;
@@ -39,7 +42,7 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
     public RequestAgentPayoutService(
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
-            AgentRepositoryPort agentRepositoryPort,
+            AgentRepositoryPort agentRepositoryPort, LedgerAppendPort ledgerAppendPort,
             LedgerQueryPort ledgerQueryPort,
             TransactionRepositoryPort transactionRepositoryPort,
             PayoutRepositoryPort payoutRepositoryPort,
@@ -47,6 +50,7 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
         this.agentRepositoryPort = agentRepositoryPort;
+        this.ledgerAppendPort = ledgerAppendPort;
         this.ledgerQueryPort = ledgerQueryPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.payoutRepositoryPort = payoutRepositoryPort;
@@ -79,7 +83,8 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
         }
 
         // Spec: payout must compensate exactly what is due to the agent.
-        Money due = ledgerQueryPort.netBalance(LedgerAccountRef.agent(agentId.value().toString()));
+        Money due = ledgerQueryPort.netBalance(LedgerAccountRef.agentWallet(agentId.value().toString()));
+
         if (due.isZero()) {
             throw new ForbiddenOperationException("No payout due for agent");
         }
@@ -89,6 +94,13 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
         TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
         Transaction tx = Transaction.agentPayout(txId, due, now);
         transactionRepositoryPort.save(tx);
+
+        var agentWalletAcc = LedgerAccountRef.agentWallet(agentId.value().toString());
+        var platformClearingAcc = LedgerAccountRef.platformClearing();
+        ledgerAppendPort.append(List.of(
+                LedgerEntry.debit(tx.id(), agentWalletAcc, due),
+                LedgerEntry.credit(tx.id(), platformClearingAcc, due)
+        ));
 
         PayoutId payoutId = new PayoutId(idGeneratorPort.newUuid());
         Payout payout = Payout.requested(payoutId, agentId, tx.id(), due, now);

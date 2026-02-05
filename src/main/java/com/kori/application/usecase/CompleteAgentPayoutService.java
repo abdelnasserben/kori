@@ -52,12 +52,12 @@ public final class CompleteAgentPayoutService implements CompleteAgentPayoutUseC
 
         Instant now = timeProviderPort.now();
 
-        var agentAcc = LedgerAccountRef.agent(payout.agentId().value().toString());
         var clearingAcc = LedgerAccountRef.platformClearing();
+        var bankAcc = LedgerAccountRef.platformBank();
 
         ledgerAppendPort.append(List.of(
-                LedgerEntry.debit(payout.transactionId(), agentAcc, payout.amount()),
-                LedgerEntry.credit(payout.transactionId(), clearingAcc, payout.amount())
+                LedgerEntry.debit(payout.transactionId(), clearingAcc, payout.amount()),
+                LedgerEntry.credit(payout.transactionId(), bankAcc, payout.amount())
         ));
 
         payout.complete(now);

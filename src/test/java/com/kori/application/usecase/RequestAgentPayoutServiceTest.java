@@ -45,6 +45,7 @@ final class RequestAgentPayoutServiceTest {
     @Mock IdempotencyPort idempotencyPort;
 
     @Mock AgentRepositoryPort agentRepositoryPort;
+    @Mock LedgerAppendPort ledgerAppendPort;
     @Mock LedgerQueryPort ledgerQueryPort;
     @Mock TransactionRepositoryPort transactionRepositoryPort;
     @Mock PayoutRepositoryPort payoutRepositoryPort;
@@ -111,6 +112,7 @@ final class RequestAgentPayoutServiceTest {
         verifyNoMoreInteractions(
                 timeProviderPort,
                 agentRepositoryPort,
+                ledgerAppendPort,
                 ledgerQueryPort,
                 transactionRepositoryPort,
                 payoutRepositoryPort,
@@ -132,6 +134,7 @@ final class RequestAgentPayoutServiceTest {
         verifyNoInteractions(
                 timeProviderPort,
                 agentRepositoryPort,
+                ledgerAppendPort,
                 ledgerQueryPort,
                 transactionRepositoryPort,
                 payoutRepositoryPort,
@@ -148,7 +151,7 @@ final class RequestAgentPayoutServiceTest {
         assertThrows(NotFoundException.class, () -> service.execute(cmd(adminActor())));
 
         verify(agentRepositoryPort).findByCode(AGENT_CODE);
-        verifyNoInteractions(ledgerQueryPort, payoutRepositoryPort, transactionRepositoryPort, auditPort, idGeneratorPort);
+        verifyNoInteractions(ledgerAppendPort, ledgerQueryPort, payoutRepositoryPort, transactionRepositoryPort, auditPort, idGeneratorPort);
     }
 
     @Test
@@ -160,7 +163,7 @@ final class RequestAgentPayoutServiceTest {
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(adminActor())));
 
-        verifyNoInteractions(ledgerQueryPort, payoutRepositoryPort, transactionRepositoryPort, auditPort, idGeneratorPort);
+        verifyNoInteractions(ledgerAppendPort, ledgerQueryPort, payoutRepositoryPort, transactionRepositoryPort, auditPort, idGeneratorPort);
     }
 
     @Test
@@ -172,7 +175,7 @@ final class RequestAgentPayoutServiceTest {
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(adminActor())));
 
         verify(payoutRepositoryPort).existsRequestedForAgent(AGENT_ID);
-        verifyNoInteractions(ledgerQueryPort, transactionRepositoryPort, auditPort, idGeneratorPort);
+        verifyNoInteractions(ledgerAppendPort, ledgerQueryPort, transactionRepositoryPort, auditPort, idGeneratorPort);
     }
 
     @Test
@@ -181,13 +184,13 @@ final class RequestAgentPayoutServiceTest {
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(activeAgent()));
         when(payoutRepositoryPort.existsRequestedForAgent(AGENT_ID)).thenReturn(false);
 
-        LedgerAccountRef agentAcc = LedgerAccountRef.agent(AGENT_UUID.toString());
+        LedgerAccountRef agentAcc = LedgerAccountRef.agentWallet(AGENT_UUID.toString());
         when(ledgerQueryPort.netBalance(agentAcc)).thenReturn(Money.zero());
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(adminActor())));
 
         verify(ledgerQueryPort).netBalance(agentAcc);
-        verifyNoInteractions(transactionRepositoryPort, auditPort, idGeneratorPort);
+        verifyNoInteractions(ledgerAppendPort, transactionRepositoryPort, auditPort, idGeneratorPort);
     }
 
     @Test
@@ -196,7 +199,7 @@ final class RequestAgentPayoutServiceTest {
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(activeAgent()));
         when(payoutRepositoryPort.existsRequestedForAgent(AGENT_ID)).thenReturn(false);
 
-        LedgerAccountRef agentAcc = LedgerAccountRef.agent(AGENT_UUID.toString());
+        LedgerAccountRef agentAcc = LedgerAccountRef.agentWallet(AGENT_UUID.toString());
         when(ledgerQueryPort.netBalance(agentAcc)).thenReturn(DUE);
 
         when(timeProviderPort.now()).thenReturn(NOW);
@@ -219,6 +222,16 @@ final class RequestAgentPayoutServiceTest {
         Transaction savedTx = txCaptor.getValue();
         assertEquals(TX_ID, savedTx.id());
         assertEquals(DUE, savedTx.amount());
+
+        verify(ledgerAppendPort).append(argThat(entries -> entries.size() == 2
+                && entries.stream().anyMatch(e -> e.transactionId().equals(TX_ID)
+                && e.type().name().equals("DEBIT")
+                && e.accountRef().equals(LedgerAccountRef.agentWallet(AGENT_UUID.toString()))
+                && e.amount().equals(DUE))
+                && entries.stream().anyMatch(e -> e.transactionId().equals(TX_ID)
+                && e.type().name().equals("CREDIT")
+                && e.accountRef().equals(LedgerAccountRef.platformClearing())
+                && e.amount().equals(DUE))));
 
         // Payout saved
         ArgumentCaptor<Payout> payoutCaptor = ArgumentCaptor.forClass(Payout.class);

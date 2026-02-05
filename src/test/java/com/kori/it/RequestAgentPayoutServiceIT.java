@@ -27,8 +27,8 @@ class RequestAgentPayoutServiceIT extends IntegrationTestBase {
     void requestAgentPayout_happyPath_persistsPayoutAndAudit() {
         Agent agent = createActiveAgent(AGENT_CODE);
 
-        LedgerAccountRef agentAccount = LedgerAccountRef.agent(agent.id().value().toString());
-        seedLedgerCredit(agentAccount, new BigDecimal("75.00"));
+        LedgerAccountRef agentWalletAccount = LedgerAccountRef.agentWallet(agent.id().value().toString());
+        seedLedgerCredit(agentWalletAccount, new BigDecimal("75.00"));
 
         AgentPayoutResult result = requestAgentPayoutUseCase.execute(new RequestAgentPayoutCommand(
                 "idem-payout-1",
@@ -44,8 +44,11 @@ class RequestAgentPayoutServiceIT extends IntegrationTestBase {
         Payout payout = payoutRepositoryPort.findById(PayoutId.of(result.payoutId())).orElseThrow();
         assertEquals(PayoutStatus.REQUESTED, payout.status());
 
-        assertTrue(ledgerQueryPort.findByTransactionId(TransactionId.of(result.transactionId())).isEmpty());
-        assertEquals(Money.of(new BigDecimal("75.00")), ledgerQueryPort.netBalance(agentAccount));
+        var entries = ledgerQueryPort.findByTransactionId(TransactionId.of(result.transactionId()));
+        assertEquals(2, entries.size());
+        assertTrue(entries.stream().anyMatch(e -> e.accountRef().equals(agentWalletAccount) && e.type().name().equals("DEBIT")));
+        assertTrue(entries.stream().anyMatch(e -> e.accountRef().equals(LedgerAccountRef.platformClearing()) && e.type().name().equals("CREDIT")));
+        assertEquals(Money.zero(), ledgerQueryPort.netBalance(agentWalletAccount));
 
         assertTrue(auditEventJpaRepository.findAll().stream()
                 .anyMatch(event -> event.getAction().equals("AGENT_PAYOUT_REQUESTED"))

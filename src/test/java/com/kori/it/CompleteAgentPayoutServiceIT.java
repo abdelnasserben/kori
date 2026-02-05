@@ -40,6 +40,11 @@ class CompleteAgentPayoutServiceIT extends IntegrationTestBase {
         Payout payout = Payout.requested(new PayoutId(UUID.randomUUID()), agent.id(), tx.id(), Money.of(new BigDecimal("40.00")), NOW);
         payoutRepositoryPort.save(payout);
 
+        ledgerAppendPort.append(List.of(
+                LedgerEntry.debit(tx.id(), LedgerAccountRef.agentWallet(agent.id().value().toString()), Money.of(new BigDecimal("40.00"))),
+                LedgerEntry.credit(tx.id(), LedgerAccountRef.platformClearing(), Money.of(new BigDecimal("40.00")))
+        ));
+
         completeAgentPayoutUseCase.execute(new CompleteAgentPayoutCommand(
                 adminActor(),
                 payout.id().value().toString()
@@ -50,21 +55,22 @@ class CompleteAgentPayoutServiceIT extends IntegrationTestBase {
         assertNotNull(updated.completedAt());
 
         List<LedgerEntry> entries = ledgerQueryPort.findByTransactionId(tx.id());
-        assertEquals(2, entries.size());
-
-        LedgerAccountRef agentAccount = LedgerAccountRef.agent(agent.id().value().toString());
+        assertEquals(4, entries.size());
 
         assertTrue(entries.stream().anyMatch(entry ->
                 entry.type() == LedgerEntryType.DEBIT
-                        && entry.accountRef().equals(agentAccount)
+                        && entry.accountRef().equals(LedgerAccountRef.platformClearing())
                         && entry.amount().equals(Money.of(new BigDecimal("40.00")))
         ));
 
         assertTrue(entries.stream().anyMatch(entry ->
                 entry.type() == LedgerEntryType.CREDIT
-                        && entry.accountRef().equals(LedgerAccountRef.platformClearing())
+                        && entry.accountRef().equals(LedgerAccountRef.platformBank())
                         && entry.amount().equals(Money.of(new BigDecimal("40.00")))
         ));
+
+        assertEquals(Money.zero(), ledgerQueryPort.netBalance(LedgerAccountRef.platformClearing()));
+        assertEquals(Money.of(new BigDecimal("40.00")), ledgerQueryPort.netBalance(LedgerAccountRef.platformBank()));
 
         assertTrue(auditEventJpaRepository.findAll().stream()
                 .anyMatch(event -> event.getAction().equals("AGENT_PAYOUT_COMPLETED"))
