@@ -53,6 +53,10 @@ public record Transaction(
         return new Transaction(id, TransactionType.AGENT_PAYOUT, amount, createdAt, null);
     }
 
+    public static Transaction agentBankDepositReceipt(TransactionId id, Money amount, Instant createdAt) {
+        return new Transaction(id, TransactionType.AGENT_BANK_DEPOSIT_RECEIPT, amount, createdAt, null);
+    }
+
     public static Transaction reversal(TransactionId id, TransactionId originalTransactionId, Money originalAmount, Instant createdAt) {
         return new Transaction(
                 id,

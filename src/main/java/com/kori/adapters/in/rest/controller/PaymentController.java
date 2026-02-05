@@ -4,22 +4,18 @@ import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.doc.IdempotencyRequestHasher;
 import com.kori.adapters.in.rest.doc.IdempotentOperation;
+import com.kori.adapters.in.rest.dto.Requests.AgentBankDepositReceiptRequest;
 import com.kori.adapters.in.rest.dto.Requests.CashInByAgentRequest;
 import com.kori.adapters.in.rest.dto.Requests.MerchantWithdrawAtAgentRequest;
 import com.kori.adapters.in.rest.dto.Requests.PayByCardRequest;
 import com.kori.adapters.in.rest.dto.Requests.ReversalRequest;
+import com.kori.adapters.in.rest.dto.Responses.AgentBankDepositReceiptResponse;
 import com.kori.adapters.in.rest.dto.Responses.CashInByAgentResponse;
 import com.kori.adapters.in.rest.dto.Responses.MerchantWithdrawAtAgentResponse;
 import com.kori.adapters.in.rest.dto.Responses.PayByCardResponse;
 import com.kori.adapters.in.rest.dto.Responses.ReversalResponse;
-import com.kori.application.command.CashInByAgentCommand;
-import com.kori.application.command.MerchantWithdrawAtAgentCommand;
-import com.kori.application.command.PayByCardCommand;
-import com.kori.application.command.ReversalCommand;
-import com.kori.application.port.in.CashInByAgentUseCase;
-import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
-import com.kori.application.port.in.PayByCardUseCase;
-import com.kori.application.port.in.ReversalUseCase;
+import com.kori.application.command.*;
+import com.kori.application.port.in.*;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -34,15 +30,17 @@ public class PaymentController {
     private final PayByCardUseCase payByCardUseCase;
     private final MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase;
     private final CashInByAgentUseCase cashInByAgentUseCase;
+    private final AgentBankDepositReceiptUseCase agentBankDepositReceiptUseCase;
     private final ReversalUseCase reversalUseCase;
     private final IdempotencyRequestHasher idempotencyRequestHasher;
 
     public PaymentController(PayByCardUseCase payByCardUseCase,
-                             MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase, CashInByAgentUseCase cashInByAgentUseCase,
+                             MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase, CashInByAgentUseCase cashInByAgentUseCase, AgentBankDepositReceiptUseCase agentBankDepositReceiptUseCase,
                              ReversalUseCase reversalUseCase, IdempotencyRequestHasher idempotencyRequestHasher) {
         this.payByCardUseCase = payByCardUseCase;
         this.merchantWithdrawAtAgentUseCase = merchantWithdrawAtAgentUseCase;
         this.cashInByAgentUseCase = cashInByAgentUseCase;
+        this.agentBankDepositReceiptUseCase = agentBankDepositReceiptUseCase;
         this.reversalUseCase = reversalUseCase;
         this.idempotencyRequestHasher = idempotencyRequestHasher;
     }
@@ -136,6 +134,33 @@ public class PaymentController {
                 result.agentId(),
                 result.clientId(),
                 result.clientPhoneNumber(),
+                result.amount()
+        );
+    }
+
+    @PostMapping("/agent-bank-deposits")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Admin records agent bank deposit receipt")
+    @IdempotentOperation
+    public AgentBankDepositReceiptResponse agentBankDepositReceipt(
+            @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
+            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
+            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            @Valid @RequestBody AgentBankDepositReceiptRequest request
+    ) {
+        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
+        var result = agentBankDepositReceiptUseCase.execute(
+                new AgentBankDepositReceiptCommand(
+                        idempotencyKey,
+                        idempotencyRequestHasher.hashPayload(request),
+                        actorContext,
+                        request.agentCode(),
+                        request.amount()
+                )
+        );
+        return new AgentBankDepositReceiptResponse(
+                result.transactionId(),
+                result.agentCode(),
                 result.amount()
         );
     }

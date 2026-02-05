@@ -53,6 +53,12 @@ public final class Responses {
             BigDecimal amount
     ) {}
 
+    public record AgentBankDepositReceiptResponse(
+            String transactionId,
+            String agentCode,
+            BigDecimal amount
+    ) {}
+
     public record AgentPayoutResponse(
             String transactionId,
             String payoutId,

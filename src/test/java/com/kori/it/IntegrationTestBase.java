@@ -189,4 +189,11 @@ public abstract class IntegrationTestBase {
         transactionRepositoryPort.save(tx);
         ledgerAppendPort.append(List.of(LedgerEntry.credit(tx.id(), accountRef, Money.of(amount))));
     }
+
+    protected void seedLedgerDebit(LedgerAccountRef accountRef, BigDecimal amount) {
+        TransactionId txId = new TransactionId(UUID.randomUUID());
+        Transaction tx = new Transaction(txId, TransactionType.PAY_BY_CARD, Money.of(amount), NOW.minusSeconds(720), null);
+        transactionRepositoryPort.save(tx);
+        ledgerAppendPort.append(List.of(LedgerEntry.debit(tx.id(), accountRef, Money.of(amount))));
+    }
 }

@@ -1,20 +1,11 @@
 package com.kori.adapters.in.rest;
 
 import com.kori.adapters.in.rest.controller.PaymentController;
-import com.kori.adapters.in.rest.dto.Requests.CashInByAgentRequest;
-import com.kori.adapters.in.rest.dto.Requests.MerchantWithdrawAtAgentRequest;
-import com.kori.adapters.in.rest.dto.Requests.PayByCardRequest;
-import com.kori.adapters.in.rest.dto.Requests.ReversalRequest;
+import com.kori.adapters.in.rest.dto.Requests.*;
 import com.kori.adapters.in.rest.error.RestExceptionHandler;
 import com.kori.application.exception.*;
-import com.kori.application.port.in.CashInByAgentUseCase;
-import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
-import com.kori.application.port.in.PayByCardUseCase;
-import com.kori.application.port.in.ReversalUseCase;
-import com.kori.application.result.CashInByAgentResult;
-import com.kori.application.result.MerchantWithdrawAtAgentResult;
-import com.kori.application.result.PayByCardResult;
-import com.kori.application.result.ReversalResult;
+import com.kori.application.port.in.*;
+import com.kori.application.result.*;
 import com.kori.bootstrap.config.JacksonConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -54,6 +45,9 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
 
     @MockitoBean
     private ReversalUseCase reversalUseCase;
+
+    @MockitoBean
+    private AgentBankDepositReceiptUseCase agentBankDepositReceiptUseCase;
 
     @Test
     void should_pay_by_card() throws Exception {
@@ -137,6 +131,24 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
                 .andExpect(jsonPath("$.clientId").value("client-1"))
                 .andExpect(jsonPath("$.clientPhoneNumber").value("+2690000000"))
                 .andExpect(jsonPath("$.amount").value(120));
+    }
+
+    @Test
+    void should_record_agent_bank_deposit_receipt() throws Exception {
+        var request = new AgentBankDepositReceiptRequest("A-123456", new BigDecimal("200"));
+        var result = new AgentBankDepositReceiptResult("tx-1", "A-123456", new BigDecimal("200"));
+        when(agentBankDepositReceiptUseCase.execute(any())).thenReturn(result);
+
+        mockMvc.perform(post(URL + "/agent-bank-deposits")
+                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.transactionId").value("tx-1"))
+                .andExpect(jsonPath("$.agentCode").value("A-123456"))
+                .andExpect(jsonPath("$.amount").value(200));
     }
 
     @Test

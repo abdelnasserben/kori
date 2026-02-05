@@ -66,3 +66,12 @@ Compatibilité descendante : si ces champs sont omis, la valeur appliquée est e
 - Les commissions agent utilisent `AGENT_WALLET`.
 - Les flux cash agent utilisent `AGENT_CASH_CLEARING`.
 - Lors de la création d'un agent, les deux profils de compte (`AGENT_WALLET` et `AGENT_CASH_CLEARING`) sont provisionnés.
+## Agent bank deposit receipt (`POST /api/v1/payments/agent-bank-deposits`)
+
+Use case admin-only pour constater un dépôt bancaire effectué par un agent.
+
+- Requête : `agentCode`, `amount` (+ headers idempotency standards).
+- Réponse : `transactionId`, `agentCode`, `amount`.
+- Écriture ledger : **Debit `PLATFORM_BANK` / Credit `AGENT_CASH_CLEARING`**.
+- Invariant métier : la position cash agent (`AGENT_CASH_CLEARING`) est créditée, ce qui réduit son exposition cash.
+- Traçabilité : audit `AGENT_BANK_DEPOSIT_RECEIPT`.

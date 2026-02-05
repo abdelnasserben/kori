@@ -60,6 +60,11 @@ public final class Requests {
             @NotNull @Positive BigDecimal amount
     ) {}
 
+    public record AgentBankDepositReceiptRequest(
+            @NotBlank @Size(max = 16) String agentCode,
+            @NotNull @Positive BigDecimal amount
+    ) {}
+
     public record RequestAgentPayoutRequest(
             @NotBlank @Size(max = 16) String agentCode
     ) {}

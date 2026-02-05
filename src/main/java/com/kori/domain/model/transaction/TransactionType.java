@@ -5,8 +5,9 @@ public enum TransactionType {
     PAY_BY_CARD,
     MERCHANT_WITHDRAW_AT_AGENT,
     AGENT_PAYOUT,
-    CASH_IN_BY_AGENT,
-    REVERSAL;
+    AGENT_BANK_DEPOSIT_RECEIPT,
+    REVERSAL,
+    CASH_IN_BY_AGENT;
 
     public boolean isCashBased() {
         return switch (this) {
