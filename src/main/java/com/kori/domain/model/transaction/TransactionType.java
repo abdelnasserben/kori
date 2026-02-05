@@ -6,5 +6,12 @@ public enum TransactionType {
     MERCHANT_WITHDRAW_AT_AGENT,
     AGENT_PAYOUT,
     CASH_IN_BY_AGENT,
-    REVERSAL
+    REVERSAL;
+
+    public boolean isCashBased() {
+        return switch (this) {
+            case ENROLL_CARD, CASH_IN_BY_AGENT, MERCHANT_WITHDRAW_AT_AGENT -> true;
+            default -> false;
+        };
+    }
 }

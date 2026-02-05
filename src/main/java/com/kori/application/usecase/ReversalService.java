@@ -4,13 +4,16 @@ import com.kori.application.command.ReversalCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.guard.ActorGuards;
+import com.kori.application.guard.AgentCashLimitGuard;
 import com.kori.application.port.in.ReversalUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.ReversalResult;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
+import com.kori.domain.ledger.LedgerAccountType;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.ledger.LedgerEntryType;
+import com.kori.domain.model.common.Money;
 import com.kori.domain.model.config.FeeConfig;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
@@ -23,7 +26,8 @@ import java.util.function.Predicate;
 
 public final class ReversalService implements ReversalUseCase {
     private static final LedgerAccountRef FEE_ACCOUNT = LedgerAccountRef.platformFeeRevenue();
-    private static final LedgerAccountRef CLEARING_ACCOUNT = LedgerAccountRef.platformClearing();
+    // Legacy compatibility: pre-slice cash withdraws were credited to PLATFORM_CLEARING.
+    private static final LedgerAccountRef LEGACY_PLATFORM_CLEARING_ACCOUNT = LedgerAccountRef.platformClearing();
 
     private final TimeProviderPort timeProviderPort;
     private final IdempotencyPort idempotencyPort;
@@ -34,13 +38,17 @@ public final class ReversalService implements ReversalUseCase {
     private final AuditPort auditPort;
     private final IdGeneratorPort idGeneratorPort;
     private final FeeConfigPort feeConfigPort;
+    private final AgentCashLimitGuard agentCashLimitGuard;
 
     public ReversalService(TimeProviderPort timeProviderPort,
                            IdempotencyPort idempotencyPort,
                            TransactionRepositoryPort transactionRepositoryPort,
                            LedgerQueryPort ledgerQueryPort,
                            LedgerAppendPort ledgerAppendPort,
-                           AuditPort auditPort, IdGeneratorPort idGeneratorPort, FeeConfigPort feeConfigPort) {
+                           AuditPort auditPort,
+                           IdGeneratorPort idGeneratorPort,
+                           FeeConfigPort feeConfigPort,
+                           PlatformConfigPort platformConfigPort) {
         this.timeProviderPort = timeProviderPort;
         this.idempotencyPort = idempotencyPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
@@ -49,6 +57,7 @@ public final class ReversalService implements ReversalUseCase {
         this.auditPort = auditPort;
         this.idGeneratorPort = idGeneratorPort;
         this.feeConfigPort = feeConfigPort;
+        this.agentCashLimitGuard = new AgentCashLimitGuard(ledgerQueryPort, platformConfigPort);
     }
 
     @Override
@@ -78,6 +87,8 @@ public final class ReversalService implements ReversalUseCase {
                 throw new ForbiddenOperationException("account reference is required");
         });
 
+        enforceCashAvailabilityForReversal(originalTx, originalEntries);
+
         Instant now = timeProviderPort.now();
 
         TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
@@ -104,10 +115,42 @@ public final class ReversalService implements ReversalUseCase {
         return result;
     }
 
+    private void enforceCashAvailabilityForReversal(Transaction originalTx, List<LedgerEntry> originalEntries) {
+        if (!originalTx.type().isCashBased()) {
+            return;
+        }
+
+        LedgerEntry cashClearingEntry = findRequiredEntry(
+                originalEntries,
+                null,
+                e -> e.accountRef().type() == LedgerAccountType.AGENT_CASH_CLEARING,
+                "Cash reversal not allowed: agent cash clearing entry not found"
+        );
+
+        MoneyDelta delta = reversalImpact(cashClearingEntry);
+        if (delta.debit.isZero() && delta.credit.isZero()) {
+            return;
+        }
+
+        agentCashLimitGuard.ensureProjectedBalanceWithinLimit(
+                cashClearingEntry.accountRef().ownerRef(),
+                delta.debit,
+                delta.credit
+        );
+    }
+
+    private MoneyDelta reversalImpact(LedgerEntry originalCashEntry) {
+        if (originalCashEntry.type() == LedgerEntryType.CREDIT) {
+            return new MoneyDelta(originalCashEntry.amount(), Money.zero());
+        }
+        return new MoneyDelta(Money.zero(), originalCashEntry.amount());
+    }
+
     private List<LedgerEntry> buildReversalEntries(Transaction originalTx, List<LedgerEntry> originalEntries, TransactionId reversalTxId) {
         return switch (originalTx.type()) {
             case PAY_BY_CARD -> buildPayByCardReversalEntries(originalEntries, reversalTxId);
             case MERCHANT_WITHDRAW_AT_AGENT -> buildMerchantWithdrawReversalEntries(originalEntries, reversalTxId);
+            case ENROLL_CARD -> buildEnrollCardReversalEntries(originalEntries, reversalTxId);
             default -> originalEntries.stream()
                     .map(e -> e.type() == LedgerEntryType.CREDIT
                             ? LedgerEntry.debit(reversalTxId, e.accountRef(), e.amount())
@@ -162,7 +205,8 @@ public final class ReversalService implements ReversalUseCase {
         LedgerEntry principalRecipientCredit = findRequiredEntry(
                 originalEntries,
                 LedgerEntryType.CREDIT,
-                e -> e.accountRef().equals(CLEARING_ACCOUNT),
+                e -> e.accountRef().equals(LEGACY_PLATFORM_CLEARING_ACCOUNT)
+                        || e.accountRef().type() == LedgerAccountType.AGENT_CASH_CLEARING,
                 "MERCHANT_WITHDRAW clearing credit not found"
         );
         LedgerEntry feeCredit = findOptionalEntry(
@@ -198,13 +242,50 @@ public final class ReversalService implements ReversalUseCase {
         return entry;
     }
 
+    private List<LedgerEntry> buildEnrollCardReversalEntries(List<LedgerEntry> originalEntries, TransactionId reversalTxId) {
+        LedgerEntry clearingDebit = findRequiredEntry(
+                originalEntries,
+                LedgerEntryType.DEBIT,
+                e -> e.accountRef().type() == LedgerAccountType.AGENT_CASH_CLEARING,
+                "ENROLL_CARD cash clearing debit not found"
+        );
+        LedgerEntry walletCredit = findRequiredEntry(
+                originalEntries,
+                LedgerEntryType.CREDIT,
+                e -> e.accountRef().type() == LedgerAccountType.AGENT_WALLET,
+                "ENROLL_CARD agent wallet credit not found"
+        );
+        LedgerEntry feeCredit = findOptionalEntry(
+                originalEntries,
+                LedgerEntryType.CREDIT,
+                e -> e.accountRef().equals(FEE_ACCOUNT)
+        );
+
+        boolean refundable = feeConfigPort.get().map(FeeConfig::cardEnrollmentPriceRefundable).orElse(false);
+
+        if (!refundable || feeCredit == null) {
+            return List.of(
+                    LedgerEntry.debit(reversalTxId, walletCredit.accountRef(), walletCredit.amount()),
+                    LedgerEntry.credit(reversalTxId, clearingDebit.accountRef(), walletCredit.amount())
+            );
+        }
+
+        return List.of(
+                LedgerEntry.debit(reversalTxId, walletCredit.accountRef(), walletCredit.amount()),
+                LedgerEntry.debit(reversalTxId, feeCredit.accountRef(), feeCredit.amount()),
+                LedgerEntry.credit(reversalTxId, clearingDebit.accountRef(), walletCredit.amount().plus(feeCredit.amount()))
+        );
+    }
+
     private LedgerEntry findOptionalEntry(List<LedgerEntry> entries,
                                           LedgerEntryType type,
                                           Predicate<LedgerEntry> predicate) {
         return entries.stream()
-                .filter(e -> e.type() == type)
+                .filter(e -> type == null || e.type() == type)
                 .filter(predicate)
                 .findFirst()
                 .orElse(null);
     }
+
+    private record MoneyDelta(Money debit, Money credit) {}
 }

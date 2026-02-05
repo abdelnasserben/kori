@@ -13,6 +13,7 @@ import com.kori.domain.ledger.LedgerEntryType;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.config.FeeConfig;
+import com.kori.domain.model.config.PlatformConfig;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,7 @@ final class ReversalServiceTest {
     @Mock AuditPort auditPort;
     @Mock IdGeneratorPort idGeneratorPort;
     @Mock FeeConfigPort feeConfigPort;
+    @Mock PlatformConfigPort platformConfigPort;
 
     @InjectMocks ReversalService reversalService;
 
@@ -65,7 +67,8 @@ final class ReversalServiceTest {
     private static final LedgerAccountRef CLIENT_ACC = LedgerAccountRef.client("C-1");
     private static final LedgerAccountRef MERCHANT_ACC = LedgerAccountRef.merchant("M-1");
     private static final LedgerAccountRef PLATFORM_FEE_ACC = LedgerAccountRef.platformFeeRevenue();
-    private static final LedgerAccountRef PLATFORM_CLEARING_ACC = LedgerAccountRef.platformClearing();
+    private static final LedgerAccountRef AGENT_CASH_CLEARING_ACC = LedgerAccountRef.agentCashClearing("A-1");
+    private static final LedgerAccountRef AGENT_WALLET_ACC = LedgerAccountRef.agentWallet("A-1");
 
     private static ActorContext adminActor() {
         return new ActorContext(ActorType.ADMIN, ADMIN_ACTOR_ID, Map.of());
@@ -252,11 +255,14 @@ final class ReversalServiceTest {
                 new BigDecimal("0.01"), new BigDecimal("1.00"), new BigDecimal("10.00"), false, true, false
         )));
 
+        when(platformConfigPort.get()).thenReturn(Optional.of(new PlatformConfig(new BigDecimal("1000.00"))));
+        when(ledgerQueryPort.getBalance(AGENT_CASH_CLEARING_ACC)).thenReturn(Money.of(new BigDecimal("0.00")));
+
         Money principal = Money.of(new BigDecimal("100.00"));
         Money feeRevenue = Money.of(new BigDecimal("3.00"));
         List<LedgerEntry> originalEntries = List.of(
                 LedgerEntry.debit(ORIGINAL_TX_ID, MERCHANT_ACC, principal.plus(feeRevenue)),
-                LedgerEntry.credit(ORIGINAL_TX_ID, PLATFORM_CLEARING_ACC, principal),
+                LedgerEntry.credit(ORIGINAL_TX_ID, AGENT_CASH_CLEARING_ACC, principal),
                 LedgerEntry.credit(ORIGINAL_TX_ID, PLATFORM_FEE_ACC, feeRevenue)
         );
         when(ledgerQueryPort.findByTransactionId(ORIGINAL_TX_ID)).thenReturn(originalEntries);
@@ -270,8 +276,69 @@ final class ReversalServiceTest {
         verify(ledgerAppendPort).append(captor.capture());
         List<LedgerEntry> reversalEntries = captor.getValue();
 
-        assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.DEBIT && e.accountRef().equals(PLATFORM_CLEARING_ACC) && e.amount().equals(principal)));
+        assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.DEBIT && e.accountRef().equals(AGENT_CASH_CLEARING_ACC) && e.amount().equals(principal)));
         assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.DEBIT && e.accountRef().equals(PLATFORM_FEE_ACC) && e.amount().equals(feeRevenue)));
         assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.CREDIT && e.accountRef().equals(MERCHANT_ACC) && e.amount().equals(principal.plus(feeRevenue))));
+    }
+
+    @Test
+    void enrollCard_refundableTrue_reversesWalletAndPlatformFeeToCashClearing() {
+        Transaction enrollTx = Transaction.enrollCard(ORIGINAL_TX_ID, Money.of(new BigDecimal("10.00")), NOW.minusSeconds(60));
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
+        when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(enrollTx));
+        when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
+        when(feeConfigPort.get()).thenReturn(Optional.of(new FeeConfig(
+                new BigDecimal("10.00"), new BigDecimal("0.01"), new BigDecimal("1.00"), new BigDecimal("10.00"),
+                new BigDecimal("0.01"), new BigDecimal("1.00"), new BigDecimal("10.00"), false, true, true
+        )));
+        when(platformConfigPort.get()).thenReturn(Optional.of(new com.kori.domain.model.config.PlatformConfig(new BigDecimal("1000.00"))));
+        when(ledgerQueryPort.getBalance(AGENT_CASH_CLEARING_ACC)).thenReturn(Money.of(new BigDecimal("-5.00")));
+
+        Money wallet = Money.of(new BigDecimal("3.00"));
+        Money fee = Money.of(new BigDecimal("7.00"));
+        List<LedgerEntry> originalEntries = List.of(
+                LedgerEntry.debit(ORIGINAL_TX_ID, AGENT_CASH_CLEARING_ACC, wallet.plus(fee)),
+                LedgerEntry.credit(ORIGINAL_TX_ID, AGENT_WALLET_ACC, wallet),
+                LedgerEntry.credit(ORIGINAL_TX_ID, PLATFORM_FEE_ACC, fee)
+        );
+        when(ledgerQueryPort.findByTransactionId(ORIGINAL_TX_ID)).thenReturn(originalEntries);
+        when(timeProviderPort.now()).thenReturn(NOW);
+        when(idGeneratorPort.newUuid()).thenReturn(REVERSAL_TX_UUID);
+
+        reversalService.execute(cmd(adminActor()));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<List<LedgerEntry>> captor = ArgumentCaptor.forClass(List.class);
+        verify(ledgerAppendPort).append(captor.capture());
+        List<LedgerEntry> reversalEntries = captor.getValue();
+
+        assertEquals(3, reversalEntries.size());
+        assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.DEBIT && e.accountRef().equals(AGENT_WALLET_ACC) && e.amount().equals(wallet)));
+        assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.DEBIT && e.accountRef().equals(PLATFORM_FEE_ACC) && e.amount().equals(fee)));
+        assertTrue(reversalEntries.stream().anyMatch(e -> e.type() == LedgerEntryType.CREDIT && e.accountRef().equals(AGENT_CASH_CLEARING_ACC) && e.amount().equals(wallet.plus(fee))));
+    }
+
+    @Test
+    void cashReversalBlocked_whenProjectedBalanceBelowGlobalLimit() {
+        Transaction withdrawTx = Transaction.merchantWithdrawAtAgent(ORIGINAL_TX_ID, Money.of(new BigDecimal("100.00")), NOW.minusSeconds(60));
+        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
+        when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(withdrawTx));
+        when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
+        when(platformConfigPort.get()).thenReturn(Optional.of(new com.kori.domain.model.config.PlatformConfig(new BigDecimal("100.00"))));
+        when(ledgerQueryPort.getBalance(AGENT_CASH_CLEARING_ACC)).thenReturn(Money.of(new BigDecimal("-50.00")));
+
+        List<LedgerEntry> originalEntries = List.of(
+                LedgerEntry.debit(ORIGINAL_TX_ID, MERCHANT_ACC, Money.of(new BigDecimal("103.00"))),
+                LedgerEntry.credit(ORIGINAL_TX_ID, AGENT_CASH_CLEARING_ACC, Money.of(new BigDecimal("100.00"))),
+                LedgerEntry.credit(ORIGINAL_TX_ID, PLATFORM_FEE_ACC, Money.of(new BigDecimal("3.00")))
+        );
+        when(ledgerQueryPort.findByTransactionId(ORIGINAL_TX_ID)).thenReturn(originalEntries);
+
+        ForbiddenOperationException ex = assertThrows(ForbiddenOperationException.class, () -> reversalService.execute(cmd(adminActor())));
+
+        assertTrue(ex.getMessage().contains("Agent cash limit exceeded"));
+        verify(transactionRepositoryPort, never()).save(any());
+        verifyNoInteractions(ledgerAppendPort);
+        verify(idempotencyPort, never()).save(any(), any(), any());
     }
 }
