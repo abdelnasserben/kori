@@ -10,7 +10,10 @@ public record FeeConfig(
         BigDecimal cardPaymentFeeMax,
         BigDecimal merchantWithdrawFeeRate,
         BigDecimal merchantWithdrawFeeMin,
-        BigDecimal merchantWithdrawFeeMax
+        BigDecimal merchantWithdrawFeeMax,
+        boolean cardPaymentFeeRefundable,
+        boolean merchantWithdrawFeeRefundable,
+        boolean cardEnrollmentPriceRefundable
 ) {
     public FeeConfig {
         Objects.requireNonNull(cardEnrollmentPrice, "cardEnrollmentPrice");
@@ -20,5 +23,28 @@ public record FeeConfig(
         Objects.requireNonNull(merchantWithdrawFeeRate, "merchantWithdrawFeeRate");
         Objects.requireNonNull(merchantWithdrawFeeMin, "merchantWithdrawFeeMin");
         Objects.requireNonNull(merchantWithdrawFeeMax, "merchantWithdrawFeeMax");
+    }
+
+    public FeeConfig(
+            BigDecimal cardEnrollmentPrice,
+            BigDecimal cardPaymentFeeRate,
+            BigDecimal cardPaymentFeeMin,
+            BigDecimal cardPaymentFeeMax,
+            BigDecimal merchantWithdrawFeeRate,
+            BigDecimal merchantWithdrawFeeMin,
+            BigDecimal merchantWithdrawFeeMax
+    ) {
+        this(
+                cardEnrollmentPrice,
+                cardPaymentFeeRate,
+                cardPaymentFeeMin,
+                cardPaymentFeeMax,
+                merchantWithdrawFeeRate,
+                merchantWithdrawFeeMin,
+                merchantWithdrawFeeMax,
+                false,
+                false,
+                false
+        );
     }
 }

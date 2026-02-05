@@ -28,12 +28,24 @@ public record LedgerAccountRef(LedgerAccountType type, String ownerRef) {
         return new LedgerAccountRef(LedgerAccountType.AGENT, agentId);
     }
 
+    public static LedgerAccountRef agentWallet(String agentId) {
+        return new LedgerAccountRef(LedgerAccountType.AGENT_WALLET, agentId);
+    }
+
+    public static LedgerAccountRef agentCashClearing(String agentId) {
+        return new LedgerAccountRef(LedgerAccountType.AGENT_CASH_CLEARING, agentId);
+    }
+
     public static LedgerAccountRef platformFeeRevenue() {
         return new LedgerAccountRef(LedgerAccountType.PLATFORM_FEE_REVENUE, "SYSTEM");
     }
 
     public static LedgerAccountRef platformClearing() {
         return new LedgerAccountRef(LedgerAccountType.PLATFORM_CLEARING, "SYSTEM");
+    }
+
+    public static LedgerAccountRef platformBank() {
+        return new LedgerAccountRef(LedgerAccountType.PLATFORM_BANK, "SYSTEM");
     }
 
     @Override
@@ -57,6 +69,8 @@ public record LedgerAccountRef(LedgerAccountType type, String ownerRef) {
     }
 
     public boolean isForAgent() {
-        return this.type == LedgerAccountType.AGENT;
+        return this.type == LedgerAccountType.AGENT
+                || this.type == LedgerAccountType.AGENT_WALLET
+                || this.type == LedgerAccountType.AGENT_CASH_CLEARING;
     }
 }

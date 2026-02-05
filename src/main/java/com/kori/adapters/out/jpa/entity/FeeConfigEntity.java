@@ -37,7 +37,42 @@ public class FeeConfigEntity {
     @Column(name = "merchant_withdraw_fee_max", nullable = false, precision = 19, scale = 2)
     private BigDecimal merchantWithdrawFeeMax;
 
+    @Column(name = "card_payment_fee_refundable", nullable = false)
+    private boolean cardPaymentFeeRefundable;
+
+    @Column(name = "merchant_withdraw_fee_refundable", nullable = false)
+    private boolean merchantWithdrawFeeRefundable;
+
+    @Column(name = "card_enrollment_price_refundable", nullable = false)
+    private boolean cardEnrollmentPriceRefundable;
+
     protected FeeConfigEntity() { }
+
+    public FeeConfigEntity(
+            Integer id,
+            BigDecimal cardEnrollmentPrice,
+            BigDecimal cardPaymentFeeRate,
+            BigDecimal cardPaymentFeeMin,
+            BigDecimal cardPaymentFeeMax,
+            BigDecimal merchantWithdrawFeeRate,
+            BigDecimal merchantWithdrawFeeMin,
+            BigDecimal merchantWithdrawFeeMax,
+            boolean cardPaymentFeeRefundable,
+            boolean merchantWithdrawFeeRefundable,
+            boolean cardEnrollmentPriceRefundable
+    ) {
+        this.id = Objects.requireNonNull(id, "id");
+        this.cardEnrollmentPrice = Objects.requireNonNull(cardEnrollmentPrice, "cardEnrollmentPrice");
+        this.cardPaymentFeeRate = Objects.requireNonNull(cardPaymentFeeRate, "cardPaymentFeeRate");
+        this.cardPaymentFeeMin = Objects.requireNonNull(cardPaymentFeeMin, "cardPaymentFeeMin");
+        this.cardPaymentFeeMax = Objects.requireNonNull(cardPaymentFeeMax, "cardPaymentFeeMax");
+        this.merchantWithdrawFeeRate = Objects.requireNonNull(merchantWithdrawFeeRate, "merchantWithdrawFeeRate");
+        this.merchantWithdrawFeeMin = Objects.requireNonNull(merchantWithdrawFeeMin, "merchantWithdrawFeeMin");
+        this.merchantWithdrawFeeMax = Objects.requireNonNull(merchantWithdrawFeeMax, "merchantWithdrawFeeMax");
+        this.cardPaymentFeeRefundable = cardPaymentFeeRefundable;
+        this.merchantWithdrawFeeRefundable = merchantWithdrawFeeRefundable;
+        this.cardEnrollmentPriceRefundable = cardEnrollmentPriceRefundable;
+    }
 
     public FeeConfigEntity(
             Integer id,
@@ -49,13 +84,18 @@ public class FeeConfigEntity {
             BigDecimal merchantWithdrawFeeMin,
             BigDecimal merchantWithdrawFeeMax
     ) {
-        this.id = Objects.requireNonNull(id, "id");
-        this.cardEnrollmentPrice = Objects.requireNonNull(cardEnrollmentPrice, "cardEnrollmentPrice");
-        this.cardPaymentFeeRate = Objects.requireNonNull(cardPaymentFeeRate, "cardPaymentFeeRate");
-        this.cardPaymentFeeMin = Objects.requireNonNull(cardPaymentFeeMin, "cardPaymentFeeMin");
-        this.cardPaymentFeeMax = Objects.requireNonNull(cardPaymentFeeMax, "cardPaymentFeeMax");
-        this.merchantWithdrawFeeRate = Objects.requireNonNull(merchantWithdrawFeeRate, "merchantWithdrawFeeRate");
-        this.merchantWithdrawFeeMin = Objects.requireNonNull(merchantWithdrawFeeMin, "merchantWithdrawFeeMin");
-        this.merchantWithdrawFeeMax = Objects.requireNonNull(merchantWithdrawFeeMax, "merchantWithdrawFeeMax");
+        this(
+                id,
+                cardEnrollmentPrice,
+                cardPaymentFeeRate,
+                cardPaymentFeeMin,
+                cardPaymentFeeMax,
+                merchantWithdrawFeeRate,
+                merchantWithdrawFeeMin,
+                merchantWithdrawFeeMax,
+                false,
+                false,
+                false
+        );
     }
 }

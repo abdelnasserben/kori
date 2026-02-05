@@ -77,7 +77,8 @@ public abstract class IntegrationTestBase {
                 + "account_profiles, "
                 + "fee_config, "
                 + "commission_config, "
-                + "security_config "
+                + "security_config, "
+                + "platform_config "
                 + "RESTART IDENTITY CASCADE"
         );
 
@@ -87,8 +88,9 @@ public abstract class IntegrationTestBase {
     protected void seedConfigRows() {
         jdbcTemplate.update(
                 "INSERT INTO fee_config (id, card_enrollment_price, card_payment_fee_rate, card_payment_fee_min, "
-                        + "card_payment_fee_max, merchant_withdraw_fee_rate, merchant_withdraw_fee_min, merchant_withdraw_fee_max) "
-                        + "VALUES (1, 10.00, 0.020000, 1.00, 5.00, 0.030000, 1.50, 6.00)"
+                        + "card_payment_fee_max, merchant_withdraw_fee_rate, merchant_withdraw_fee_min, merchant_withdraw_fee_max, "
+                        + "card_payment_fee_refundable, merchant_withdraw_fee_refundable, card_enrollment_price_refundable) "
+                        + "VALUES (1, 10.00, 0.020000, 1.00, 5.00, 0.030000, 1.50, 6.00, false, false, false)"
         );
         jdbcTemplate.update(
                 "INSERT INTO commission_config (id, card_enrollment_agent_commission, merchant_withdraw_commission_rate, "
@@ -97,6 +99,9 @@ public abstract class IntegrationTestBase {
         );
         jdbcTemplate.update(
                 "INSERT INTO security_config (id, max_failed_pin_attempts) VALUES (1, 3)"
+        );
+        jdbcTemplate.update(
+                "INSERT INTO platform_config (id, agent_cash_limit_global) VALUES (1, 0.00)"
         );
     }
 
