@@ -8,6 +8,7 @@ import com.kori.adapters.in.rest.dto.Requests.*;
 import com.kori.adapters.in.rest.dto.Responses.*;
 import com.kori.application.command.*;
 import com.kori.application.port.in.*;
+import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -43,11 +44,9 @@ public class PaymentController {
     @IdempotentOperation
     public PayByCardResponse payByCard(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody PayByCardRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = payByCardUseCase.execute(
                 new PayByCardCommand(
                         idempotencyKey,
@@ -75,11 +74,9 @@ public class PaymentController {
     @IdempotentOperation
     public MerchantWithdrawAtAgentResponse merchantWithdrawAtAgent(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody MerchantWithdrawAtAgentRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = merchantWithdrawAtAgentUseCase.execute(
                 new MerchantWithdrawAtAgentCommand(
                         idempotencyKey,
@@ -107,11 +104,9 @@ public class PaymentController {
     @IdempotentOperation
     public CashInByAgentResponse cashInByAgent(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody CashInByAgentRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = cashInByAgentUseCase.execute(
                 new CashInByAgentCommand(
                         idempotencyKey,
@@ -136,11 +131,9 @@ public class PaymentController {
     @IdempotentOperation
     public AgentBankDepositReceiptResponse agentBankDepositReceipt(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody AgentBankDepositReceiptRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = agentBankDepositReceiptUseCase.execute(
                 new AgentBankDepositReceiptCommand(
                         idempotencyKey,
@@ -163,11 +156,9 @@ public class PaymentController {
     @IdempotentOperation
     public ReversalResponse reversal(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody ReversalRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = reversalUseCase.execute(
                 new ReversalCommand(
                         idempotencyKey,

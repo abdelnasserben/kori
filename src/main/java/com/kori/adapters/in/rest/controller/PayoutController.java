@@ -13,6 +13,7 @@ import com.kori.application.command.RequestAgentPayoutCommand;
 import com.kori.application.port.in.CompleteAgentPayoutUseCase;
 import com.kori.application.port.in.FailAgentPayoutUseCase;
 import com.kori.application.port.in.RequestAgentPayoutUseCase;
+import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -44,11 +45,9 @@ public class PayoutController {
     @IdempotentOperation
     public AgentPayoutResponse requestAgentPayout(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody RequestAgentPayoutRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = requestAgentPayoutUseCase.execute(
                 new RequestAgentPayoutCommand(
                         idempotencyKey,
@@ -71,10 +70,8 @@ public class PayoutController {
     @Operation(summary = "Complete payout")
     public void completePayout(
             @PathVariable String payoutId,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId
+            ActorContext actorContext
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         completeAgentPayoutUseCase.execute(new CompleteAgentPayoutCommand(actorContext, payoutId));
     }
 
@@ -83,11 +80,9 @@ public class PayoutController {
     @Operation(summary = "Fail payout")
     public void failPayout(
             @PathVariable String payoutId,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody FailPayoutRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         failAgentPayoutUseCase.execute(new FailAgentPayoutCommand(actorContext, payoutId, request.reason()));
     }
 }

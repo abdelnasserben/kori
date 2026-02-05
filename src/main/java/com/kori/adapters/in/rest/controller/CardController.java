@@ -17,6 +17,7 @@ import com.kori.application.port.in.AdminUnblockCardUseCase;
 import com.kori.application.port.in.AdminUpdateCardStatusUseCase;
 import com.kori.application.port.in.AgentUpdateCardStatusUseCase;
 import com.kori.application.port.in.EnrollCardUseCase;
+import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -53,11 +54,9 @@ public class CardController {
     @IdempotentOperation
     public EnrollCardResponse enrollCard(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody EnrollCardRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = enrollCardUseCase.execute(
                 new EnrollCardCommand(
                         idempotencyKey,
@@ -84,11 +83,9 @@ public class CardController {
     @Operation(summary = "Update card status (admin)")
     public UpdateStatusResponse adminUpdateStatus(
             @PathVariable String cardUid,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody UpdateStatusRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = adminUpdateCardStatusUseCase.execute(
                 new AdminUpdateCardStatusCommand(
                         actorContext,
@@ -104,11 +101,9 @@ public class CardController {
     @Operation(summary = "Unblock card")
     public UpdateStatusResponse adminUnblock(
             @PathVariable String cardUid,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @RequestBody(required = false) UpdateStatusRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         String reason = request == null ? null : request.reason();
         var result = adminUnblockCardUseCase.execute(
                 new AdminUnblockCardCommand(
@@ -124,11 +119,9 @@ public class CardController {
     @Operation(summary = "Update card status (agent)")
     public UpdateStatusResponse agentUpdateStatus(
             @PathVariable String cardUid,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody AgentCardStatusRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = agentUpdateCardStatusUseCase.execute(
                 new AgentUpdateCardStatusCommand(
                         actorContext,

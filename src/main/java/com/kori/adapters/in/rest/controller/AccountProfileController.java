@@ -1,15 +1,18 @@
 package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
-import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.UpdateAccountProfileStatusRequest;
 import com.kori.adapters.in.rest.dto.Responses.UpdateAccountProfileStatusResponse;
 import com.kori.application.command.UpdateAccountProfileStatusCommand;
 import com.kori.application.port.in.UpdateAccountProfileStatusUseCase;
+import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping(ApiPaths.ACCOUNT_PROFILES)
@@ -25,11 +28,9 @@ public class AccountProfileController {
     @PatchMapping("/status")
     @Operation(summary = "Update account profile status")
     public UpdateAccountProfileStatusResponse updateStatus(
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody UpdateAccountProfileStatusRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = updateAccountProfileStatusUseCase.execute(
                 new UpdateAccountProfileStatusCommand(
                         actorContext,

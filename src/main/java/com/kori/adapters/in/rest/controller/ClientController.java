@@ -1,11 +1,11 @@
 package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
-import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.dto.Responses.UpdateStatusResponse;
 import com.kori.application.command.UpdateClientStatusCommand;
 import com.kori.application.port.in.UpdateClientStatusUseCase;
+import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -26,11 +26,9 @@ public class ClientController {
     @Operation(summary = "Update client status")
     public UpdateStatusResponse updateClientStatus(
             @PathVariable String clientId,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody UpdateStatusRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = updateClientStatusUseCase.execute(
                 new UpdateClientStatusCommand(actorContext, clientId, request.targetStatus(), request.reason())
         );

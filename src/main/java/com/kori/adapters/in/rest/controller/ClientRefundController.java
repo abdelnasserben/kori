@@ -13,6 +13,7 @@ import com.kori.application.command.RequestClientRefundCommand;
 import com.kori.application.port.in.CompleteClientRefundUseCase;
 import com.kori.application.port.in.FailClientRefundUseCase;
 import com.kori.application.port.in.RequestClientRefundUseCase;
+import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -45,11 +46,9 @@ public class ClientRefundController {
     @IdempotentOperation
     public ClientRefundResponse requestClientRefund(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody RequestClientRefundRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = requestClientRefundUseCase.execute(
                 new RequestClientRefundCommand(
                         idempotencyKey,
@@ -73,10 +72,8 @@ public class ClientRefundController {
     @Operation(summary = "Complete client refund")
     public void completeClientRefund(
             @PathVariable String refundId,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId
+            ActorContext actorContext
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         completeClientRefundUseCase.execute(new CompleteClientRefundCommand(actorContext, refundId));
     }
 
@@ -85,11 +82,9 @@ public class ClientRefundController {
     @Operation(summary = "Fail client refund")
     public void failClientRefund(
             @PathVariable String refundId,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody FailClientRefundRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         failClientRefundUseCase.execute(new FailClientRefundCommand(actorContext, refundId, request.reason()));
     }
 }

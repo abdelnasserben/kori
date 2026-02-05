@@ -12,6 +12,7 @@ import com.kori.application.command.CreateTerminalCommand;
 import com.kori.application.command.UpdateTerminalStatusCommand;
 import com.kori.application.port.in.CreateTerminalUseCase;
 import com.kori.application.port.in.UpdateTerminalStatusUseCase;
+import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -40,11 +41,9 @@ public class TerminalController {
     @IdempotentOperation
     public CreateTerminalResponse createTerminal(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody CreateTerminalRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = createTerminalUseCase.execute(
                 new CreateTerminalCommand(
                         idempotencyKey,

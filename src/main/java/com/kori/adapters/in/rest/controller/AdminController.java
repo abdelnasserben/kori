@@ -11,6 +11,7 @@ import com.kori.application.command.CreateAdminCommand;
 import com.kori.application.command.UpdateAdminStatusCommand;
 import com.kori.application.port.in.CreateAdminUseCase;
 import com.kori.application.port.in.UpdateAdminStatusUseCase;
+import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -38,10 +39,8 @@ public class AdminController {
     @IdempotentOperation
     public CreateAdminResponse createAdmin(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId
+            ActorContext actorContext
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = createAdminUseCase.execute(
                 new CreateAdminCommand(idempotencyKey, idempotencyRequestHasher.hashPayload(null), actorContext)
         );
@@ -52,11 +51,9 @@ public class AdminController {
     @Operation(summary = "Update admin status")
     public UpdateStatusResponse updateAdminStatus(
             @PathVariable String adminId,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody UpdateStatusRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = updateAdminStatusUseCase.execute(
                 new UpdateAdminStatusCommand(actorContext, adminId, request.targetStatus(), request.reason())
         );

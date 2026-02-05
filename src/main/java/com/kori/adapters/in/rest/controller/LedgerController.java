@@ -1,7 +1,6 @@
 package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
-import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.SearchLedgerRequest;
 import com.kori.adapters.in.rest.dto.Responses.BalanceResponse;
 import com.kori.adapters.in.rest.dto.Responses.LedgerScope;
@@ -12,6 +11,7 @@ import com.kori.application.command.SearchTransactionHistoryCommand;
 import com.kori.application.command.TransactionHistoryView;
 import com.kori.application.port.in.GetBalanceUseCase;
 import com.kori.application.port.in.SearchTransactionHistoryUseCase;
+import com.kori.application.security.ActorContext;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerAccountType;
 import io.swagger.v3.oas.annotations.Operation;
@@ -42,12 +42,10 @@ public class LedgerController {
     @GetMapping("/balance")
     @Operation(summary = "Get account balance")
     public BalanceResponse getBalance(
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @RequestParam(required = false) String accountType,
             @RequestParam(required = false) String ownerRef
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = getBalanceUseCase.execute(new GetBalanceCommand(actorContext, accountType, ownerRef));
         return new BalanceResponse(result.accountType(), result.ownerRef(), result.balance());
     }
@@ -88,11 +86,9 @@ public class LedgerController {
             )
     )
     public TransactionHistoryResponse searchTransactions(
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody SearchLedgerRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         LedgerAccountRef scope = null;
         if (request.accountType() != null && request.ownerRef() != null) {
             LedgerAccountType type = LedgerAccountType.valueOf(request.accountType().toUpperCase(Locale.ROOT));

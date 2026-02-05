@@ -1,7 +1,6 @@
 package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
-import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.dto.Requests.UpdateCommissionConfigRequest;
 import com.kori.adapters.in.rest.dto.Requests.UpdateFeeConfigRequest;
 import com.kori.adapters.in.rest.dto.Responses.UpdateCommissionConfigResponse;
@@ -10,10 +9,14 @@ import com.kori.application.command.UpdateCommissionConfigCommand;
 import com.kori.application.command.UpdateFeeConfigCommand;
 import com.kori.application.port.in.UpdateCommissionConfigUseCase;
 import com.kori.application.port.in.UpdateFeeConfigUseCase;
+import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping(ApiPaths.CONFIG)
@@ -32,11 +35,9 @@ public class ConfigController {
     @PatchMapping("/fees")
     @Operation(summary = "Update fees")
     public UpdateFeeConfigResponse updateFees(
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody UpdateFeeConfigRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = updateFeeConfigUseCase.execute(new UpdateFeeConfigCommand(
                 actorContext,
                 request.cardEnrollmentPrice(),
@@ -68,11 +69,9 @@ public class ConfigController {
     @PatchMapping("/commissions")
     @Operation(summary = "Update commissions")
     public UpdateCommissionConfigResponse updateCommissions(
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody UpdateCommissionConfigRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = updateCommissionConfigUseCase.execute(new UpdateCommissionConfigCommand(
                 actorContext,
                 request.cardEnrollmentAgentCommission(),

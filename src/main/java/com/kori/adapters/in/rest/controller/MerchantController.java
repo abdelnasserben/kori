@@ -11,6 +11,7 @@ import com.kori.application.command.CreateMerchantCommand;
 import com.kori.application.command.UpdateMerchantStatusCommand;
 import com.kori.application.port.in.CreateMerchantUseCase;
 import com.kori.application.port.in.UpdateMerchantStatusUseCase;
+import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -39,10 +40,8 @@ public class MerchantController {
     @IdempotentOperation
     public CreateMerchantResponse createMerchant(
             @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId
+            ActorContext actorContext
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = createMerchantUseCase.execute(
                 new CreateMerchantCommand(idempotencyKey, idempotencyRequestHasher.hashPayload(null), actorContext)
         );
@@ -53,11 +52,9 @@ public class MerchantController {
     @Operation(summary = "Update merchant status")
     public UpdateStatusResponse updateMerchantStatus(
             @PathVariable String merchantCode,
-            @RequestHeader(RestActorContextResolver.ACTOR_TYPE_HEADER) String actorType,
-            @RequestHeader(RestActorContextResolver.ACTOR_ID_HEADER) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody UpdateStatusRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = updateMerchantStatusUseCase.execute(
                 new UpdateMerchantStatusCommand(actorContext, merchantCode, request.targetStatus(), request.reason())
         );
