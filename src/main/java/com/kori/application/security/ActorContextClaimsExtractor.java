@@ -1,5 +1,7 @@
 package com.kori.application.security;
 
+import com.kori.application.exception.ActorContextAuthenticationException;
+
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -18,7 +20,7 @@ public class ActorContextClaimsExtractor {
         String actorIdRaw = firstPresentClaim(claims, ACTOR_ID_CLAIMS);
 
         if (actorTypeRaw == null || actorIdRaw == null) {
-            throw new IllegalArgumentException("Missing actor claims");
+            throw new ActorContextAuthenticationException("Authentication required");
         }
 
         ActorType actorType = ActorType.valueOf(actorTypeRaw.trim().toUpperCase(Locale.ROOT));

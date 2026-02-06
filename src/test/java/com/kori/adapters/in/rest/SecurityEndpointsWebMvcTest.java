@@ -31,6 +31,7 @@ import java.text.ParseException;
 import java.time.Instant;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -92,6 +93,20 @@ class SecurityEndpointsWebMvcTest {
         assertPayoutRequest(adminToken, agentToken);
         assertUpdateFees(adminToken, agentToken);
     }
+
+    @Test
+    void keycloak_claims_realm_and_resource_roles_are_mapped() throws Exception {
+        when(idempotencyRequestHasher.hashPayload(any())).thenReturn("request-hash");
+        when(payByCardUseCase.execute(any())).thenReturn(new PayByCardResult("tx-1", "m-1", "card-1", new BigDecimal("10"), new BigDecimal("1"), new BigDecimal("11")));
+
+        var realmRoleToken = bearerTokenWithClaims(Map.of("realm_access", Map.of("roles", List.of("terminal"))));
+        var resourceRoleToken = bearerTokenWithClaims(Map.of("resource_access", Map.of("kori-api", Map.of("roles", List.of("TERMINAL")))));
+
+        assertPaymentCard(realmRoleToken, bearerToken(List.of("ADMIN")));
+        assertPaymentCard(resourceRoleToken, bearerToken(List.of("ADMIN")));
+    }
+
+
 
     private void assertPaymentCard(String successToken, String wrongRoleToken) throws Exception {
         var request = new PayByCardRequest("terminal-1", "card-1", "1234", new BigDecimal("10"));
@@ -290,21 +305,25 @@ class SecurityEndpointsWebMvcTest {
     }
 
     private String bearerToken(List<String> roles) throws JOSEException, ParseException {
+        return bearerTokenWithClaims(Map.of("roles", roles));
+    }
+
+    private String bearerTokenWithClaims(Map<String, Object> customClaims) throws JOSEException, ParseException {
         var now = Instant.now();
-        var claims = new JWTClaimsSet.Builder()
+        var claimsBuilder = new JWTClaimsSet.Builder()
                 .issuer("kori-test")
                 .subject("test-user")
                 .jwtID(UUID.randomUUID().toString())
                 .issueTime(Date.from(now))
-                .expirationTime(Date.from(now.plusSeconds(3600)))
-                .claim("roles", roles)
-                .build();
+                .expirationTime(Date.from(now.plusSeconds(3600)));
+
+        customClaims.forEach(claimsBuilder::claim);
 
         var header = new JWSHeader.Builder(JWSAlgorithm.HS256)
                 .type(JOSEObjectType.JWT)
                 .build();
 
-        var jwt = new SignedJWT(header, claims);
+        var jwt = new SignedJWT(header, claimsBuilder.build());
         var signer = new MACSigner("changeit-changeit-changeit-changeit".getBytes(StandardCharsets.UTF_8));
         jwt.sign(signer);
 
