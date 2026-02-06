@@ -5,6 +5,7 @@ import com.kori.adapters.in.rest.error.SecurityAccessDeniedHandler;
 import com.kori.adapters.in.rest.error.SecurityAuthenticationEntryPoint;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -30,12 +31,16 @@ import java.util.stream.Stream;
 
 @Configuration
 @EnableWebSecurity
+@EnableConfigurationProperties(KoriSecurityProperties.class)
 public class SecurityConfig {
 
-    @Value("${kori.security.keycloak.client-id:kori-api}")
-    private String keycloakClientId;
-
     private static final String API_VERSION = "/api/v1";
+
+    private final KoriSecurityProperties securityProperties;
+
+    public SecurityConfig(KoriSecurityProperties securityProperties) {
+        this.securityProperties = securityProperties;
+    }
 
     @Bean
     SecurityFilterChain securityFilterChain(
@@ -110,14 +115,22 @@ public class SecurityConfig {
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "spring.security.oauth2.resourceserver.jwt", name = "issuer-uri")
-    JwtDecoder jwtDecoderFromIssuer(@Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuerUri) {
+    @ConditionalOnProperty(prefix = "kori.security.jwt", name = "mode", havingValue = "issuer", matchIfMissing = true)
+    JwtDecoder jwtDecoderFromIssuer(
+            @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:}") String issuerUri) {
+        if (issuerUri == null || issuerUri.isBlank()) {
+            throw new IllegalStateException("spring.security.oauth2.resourceserver.jwt.issuer-uri must be set when kori.security.jwt.mode=issuer");
+        }
         return JwtDecoders.fromIssuerLocation(issuerUri);
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "app.security", name = "jwt-secret")
-    JwtDecoder jwtDecoder(@Value("${app.security.jwt-secret}") String jwtSecret) {
+    @ConditionalOnProperty(prefix = "kori.security.jwt", name = "mode", havingValue = "hmac")
+    JwtDecoder jwtDecoder() {
+        String jwtSecret = securityProperties.getJwt().getHmacSecret();
+        if (jwtSecret == null || jwtSecret.isBlank()) {
+            throw new IllegalStateException("kori.security.jwt.hmac-secret must be set when kori.security.jwt.mode=hmac");
+        }
         var key = new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
         return NimbusJwtDecoder.withSecretKey(key).build();
     }
@@ -135,7 +148,7 @@ public class SecurityConfig {
                 mergedAuthorities.addAll(directAuthorities);
             }
             mergedAuthorities.addAll(extractRealmRoles(jwt));
-            mergedAuthorities.addAll(extractResourceRoles(jwt, keycloakClientId));
+            mergedAuthorities.addAll(extractResourceRoles(jwt, securityProperties.getKeycloak().getClientId()));
 
             return mergedAuthorities;
         });

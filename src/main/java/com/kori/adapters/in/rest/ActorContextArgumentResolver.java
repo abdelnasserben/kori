@@ -1,5 +1,6 @@
 package com.kori.adapters.in.rest;
 
+import com.kori.application.exception.ActorContextAuthenticationException;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorContextClaimsExtractor;
 import org.springframework.core.MethodParameter;
@@ -35,7 +36,7 @@ public class ActorContextArgumentResolver implements HandlerMethodArgumentResolv
         if (authentication instanceof AbstractAuthenticationToken token && token.getPrincipal() instanceof Jwt jwt) {
             try {
                 return actorContextClaimsExtractor.extract(jwt.getClaims());
-            } catch (IllegalArgumentException ex) {
+            } catch (ActorContextAuthenticationException | IllegalArgumentException ex) {
                 // In dev/test fallback mode, allow explicit headers when JWT does not carry actor claims.
                 if (!devHeaderFallbackEnabled) {
                     throw ex;
@@ -51,6 +52,6 @@ public class ActorContextArgumentResolver implements HandlerMethodArgumentResolv
             }
         }
 
-        throw new IllegalArgumentException("ActorContext cannot be resolved from request");
+        throw new ActorContextAuthenticationException("Authentication required");
     }
 }

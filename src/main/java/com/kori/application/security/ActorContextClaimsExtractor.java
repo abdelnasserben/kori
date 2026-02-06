@@ -23,10 +23,15 @@ public class ActorContextClaimsExtractor {
             throw new ActorContextAuthenticationException("Authentication required");
         }
 
-        ActorType actorType = ActorType.valueOf(actorTypeRaw.trim().toUpperCase(Locale.ROOT));
+        ActorType actorType;
+        try {
+            actorType = ActorType.valueOf(actorTypeRaw.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new ActorContextAuthenticationException("Authentication required");
+        }
         String actorId = actorIdRaw.trim();
         if (actorId.isBlank()) {
-            throw new IllegalArgumentException("actorId claim must not be blank");
+            throw new ActorContextAuthenticationException("Authentication required");
         }
 
         return new ActorContext(actorType, actorId, claims.entrySet().stream()

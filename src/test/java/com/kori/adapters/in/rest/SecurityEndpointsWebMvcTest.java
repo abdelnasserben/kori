@@ -43,7 +43,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest({PaymentController.class, PayoutController.class, ConfigController.class})
 @Import({JacksonConfig.class, SecurityConfig.class})
-@TestPropertySource(properties = "app.security.jwt-secret=changeit-changeit-changeit-changeit")
+@TestPropertySource(properties = {
+        "kori.security.jwt.mode=hmac",
+        "kori.security.jwt.hmac-secret=changeit-changeit-changeit-changeit",
+        "kori.security.actor-context.dev-header-fallback-enabled=false"
+})
 class SecurityEndpointsWebMvcTest {
 
     private static final String IDEMPOTENCY_KEY = "idem-1";
@@ -83,9 +87,9 @@ class SecurityEndpointsWebMvcTest {
                 new BigDecimal("0.01"), new BigDecimal("1"), new BigDecimal("5"), false, false, false
         ));
 
-        var adminToken = bearerToken(List.of("ADMIN"));
-        var agentToken = bearerToken(List.of("AGENT"));
-        var terminalToken = bearerToken(List.of("TERMINAL"));
+        var adminToken = bearerTokenWithActorContext(List.of("ADMIN"), "ADMIN");
+        var agentToken = bearerTokenWithActorContext(List.of("AGENT"), "AGENT");
+        var terminalToken = bearerTokenWithActorContext(List.of("TERMINAL"), "TERMINAL");
 
         assertPaymentCard(terminalToken, adminToken);
         assertMerchantWithdraw(agentToken, adminToken);
@@ -99,11 +103,55 @@ class SecurityEndpointsWebMvcTest {
         when(idempotencyRequestHasher.hashPayload(any())).thenReturn("request-hash");
         when(payByCardUseCase.execute(any())).thenReturn(new PayByCardResult("tx-1", "m-1", "card-1", new BigDecimal("10"), new BigDecimal("1"), new BigDecimal("11")));
 
-        var realmRoleToken = bearerTokenWithClaims(Map.of("realm_access", Map.of("roles", List.of("terminal"))));
-        var resourceRoleToken = bearerTokenWithClaims(Map.of("resource_access", Map.of("kori-api", Map.of("roles", List.of("TERMINAL")))));
+        var realmRoleToken = bearerTokenWithClaims(Map.of(
+                "realm_access", Map.of("roles", List.of("terminal")),
+                "actor_type", "TERMINAL",
+                "actor_id", ACTOR_ID
+        ));
+        var resourceRoleToken = bearerTokenWithClaims(Map.of(
+                "resource_access", Map.of("kori-api", Map.of("roles", List.of("TERMINAL"))),
+                "actor_type", "TERMINAL",
+                "actor_id", ACTOR_ID
+        ));
 
-        assertPaymentCard(realmRoleToken, bearerToken(List.of("ADMIN")));
-        assertPaymentCard(resourceRoleToken, bearerToken(List.of("ADMIN")));
+        assertPaymentCard(realmRoleToken, bearerTokenWithActorContext(List.of("ADMIN"), "ADMIN"));
+        assertPaymentCard(resourceRoleToken, bearerTokenWithActorContext(List.of("ADMIN"), "ADMIN"));
+    }
+
+    @Test
+    void actor_context_claims_are_required_for_authenticated_requests() throws Exception {
+        when(idempotencyRequestHasher.hashPayload(any())).thenReturn("request-hash");
+        when(payByCardUseCase.execute(any())).thenReturn(new PayByCardResult("tx-1", "m-1", "card-1", new BigDecimal("10"), new BigDecimal("1"), new BigDecimal("11")));
+
+        var tokenMissingActorClaims = bearerToken(List.of("TERMINAL"));
+        var tokenWithActorClaims = bearerTokenWithActorContext(List.of("TERMINAL"), "TERMINAL");
+
+        var request = new PayByCardRequest("terminal-1", "card-1", "1234", new BigDecimal("10"));
+        var payload = objectMapper.writeValueAsString(request);
+
+        mockMvc.perform(post(ApiPaths.PAYMENTS + "/card")
+                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("Authentication required"));
+
+        mockMvc.perform(post(ApiPaths.PAYMENTS + "/card")
+                        .header("Authorization", tokenMissingActorClaims)
+                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("Authentication required"));
+
+        mockMvc.perform(post(ApiPaths.PAYMENTS + "/card")
+                        .header("Authorization", tokenWithActorClaims)
+                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isCreated());
     }
 
 
@@ -114,8 +162,6 @@ class SecurityEndpointsWebMvcTest {
 
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/card")
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "TERMINAL")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isUnauthorized())
@@ -127,8 +173,6 @@ class SecurityEndpointsWebMvcTest {
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/card")
                         .header("Authorization", wrongRoleToken)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "TERMINAL")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isForbidden())
@@ -140,8 +184,6 @@ class SecurityEndpointsWebMvcTest {
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/card")
                         .header("Authorization", successToken)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "TERMINAL")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isCreated());
@@ -153,8 +195,6 @@ class SecurityEndpointsWebMvcTest {
 
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/merchant-withdraw")
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "AGENT")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isUnauthorized())
@@ -166,8 +206,6 @@ class SecurityEndpointsWebMvcTest {
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/merchant-withdraw")
                         .header("Authorization", wrongRoleToken)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "AGENT")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isForbidden())
@@ -179,8 +217,6 @@ class SecurityEndpointsWebMvcTest {
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/merchant-withdraw")
                         .header("Authorization", successToken)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "AGENT")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isCreated());
@@ -192,8 +228,6 @@ class SecurityEndpointsWebMvcTest {
 
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/agent-bank-deposits")
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "ADMIN")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isUnauthorized())
@@ -205,8 +239,6 @@ class SecurityEndpointsWebMvcTest {
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/agent-bank-deposits")
                         .header("Authorization", wrongRoleToken)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "ADMIN")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isForbidden())
@@ -218,8 +250,6 @@ class SecurityEndpointsWebMvcTest {
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/agent-bank-deposits")
                         .header("Authorization", adminToken)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "ADMIN")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isCreated());
@@ -231,8 +261,6 @@ class SecurityEndpointsWebMvcTest {
 
         mockMvc.perform(post(ApiPaths.PAYOUTS + "/requests")
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "ADMIN")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isUnauthorized())
@@ -244,8 +272,6 @@ class SecurityEndpointsWebMvcTest {
         mockMvc.perform(post(ApiPaths.PAYOUTS + "/requests")
                         .header("Authorization", wrongRoleToken)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "ADMIN")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isForbidden())
@@ -257,8 +283,6 @@ class SecurityEndpointsWebMvcTest {
         mockMvc.perform(post(ApiPaths.PAYOUTS + "/requests")
                         .header("Authorization", adminToken)
                         .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, IDEMPOTENCY_KEY)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "ADMIN")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isCreated());
@@ -273,8 +297,6 @@ class SecurityEndpointsWebMvcTest {
         var payload = objectMapper.writeValueAsString(request);
 
         mockMvc.perform(patch(ApiPaths.CONFIG + "/fees")
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "ADMIN")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isUnauthorized())
@@ -285,8 +307,6 @@ class SecurityEndpointsWebMvcTest {
 
         mockMvc.perform(patch(ApiPaths.CONFIG + "/fees")
                         .header("Authorization", wrongRoleToken)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "ADMIN")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isForbidden())
@@ -297,8 +317,6 @@ class SecurityEndpointsWebMvcTest {
 
         mockMvc.perform(patch(ApiPaths.CONFIG + "/fees")
                         .header("Authorization", adminToken)
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "ADMIN")
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isOk());
@@ -306,6 +324,14 @@ class SecurityEndpointsWebMvcTest {
 
     private String bearerToken(List<String> roles) throws JOSEException, ParseException {
         return bearerTokenWithClaims(Map.of("roles", roles));
+    }
+
+    private String bearerTokenWithActorContext(List<String> roles, String actorType) throws JOSEException, ParseException {
+        return bearerTokenWithClaims(Map.of(
+                "roles", roles,
+                "actor_type", actorType,
+                "actor_id", ACTOR_ID
+        ));
     }
 
     private String bearerTokenWithClaims(Map<String, Object> customClaims) throws JOSEException, ParseException {
