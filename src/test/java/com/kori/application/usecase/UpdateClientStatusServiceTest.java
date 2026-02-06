@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateClientStatusCommand;
 import com.kori.application.events.ClientStatusChangedEvent;
+import com.kori.application.exception.BalanceMustBeZeroException;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.out.*;
@@ -154,11 +155,11 @@ final class UpdateClientStatusServiceTest {
         when(clientRepositoryPort.findById(ClientId.of(CLIENT_ID_RAW))).thenReturn(Optional.of(client));
         when(ledgerQueryPort.netBalance(LedgerAccountRef.client(CLIENT_ID_RAW))).thenReturn(Money.of(BigDecimal.ONE));
 
-        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+        BalanceMustBeZeroException ex = assertThrows(BalanceMustBeZeroException.class, () ->
                 service.execute(cmd(adminActor(), Status.CLOSED.name(), REASON))
         );
 
-        assertEquals("CLIENT_WALLET_BALANCE_MUST_BE_ZERO_TO_CLOSE", ex.getMessage());
+        assertEquals("Client wallet balance must be zero to close", ex.getMessage());
         verify(clientRepositoryPort, never()).save(any());
         verifyNoInteractions(auditPort, timeProviderPort, domainEventPublisherPort);
     }

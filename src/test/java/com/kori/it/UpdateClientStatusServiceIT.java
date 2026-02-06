@@ -1,6 +1,7 @@
 package com.kori.it;
 
 import com.kori.application.command.UpdateClientStatusCommand;
+import com.kori.application.exception.BalanceMustBeZeroException;
 import com.kori.application.port.in.UpdateClientStatusUseCase;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.account.AccountProfile;
@@ -51,7 +52,7 @@ class UpdateClientStatusServiceIT extends IntegrationTestBase {
         Card card = createActiveCard(client, "CARD-CLIENT-333", "1234");
         seedLedgerCredit(LedgerAccountRef.client(client.id().value().toString()), java.math.BigDecimal.TEN);
 
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(BalanceMustBeZeroException.class, () ->
                 updateClientStatusUseCase.execute(new UpdateClientStatusCommand(
                         adminActor(),
                         client.id().value().toString(),

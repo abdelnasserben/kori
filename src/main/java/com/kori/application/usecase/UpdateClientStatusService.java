@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateClientStatusCommand;
 import com.kori.application.events.ClientStatusChangedEvent;
+import com.kori.application.exception.BalanceMustBeZeroException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateClientStatusUseCase;
@@ -100,7 +101,7 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
     private void ensureClientWalletIsZero(ClientId clientId) {
         LedgerAccountRef clientWallet = LedgerAccountRef.client(clientId.value().toString());
         if (!ledgerQueryPort.netBalance(clientWallet).isZero()) {
-            throw new IllegalStateException("CLIENT_WALLET_BALANCE_MUST_BE_ZERO_TO_CLOSE");
+            throw new BalanceMustBeZeroException("Client wallet balance must be zero to close");
         }
     }
 }

@@ -236,8 +236,8 @@ Le use case de clôture client passe par la mise à jour de statut client vers `
 - Si le client est déjà `CLOSED` : opération idempotente (no-op).
 - Aucune écriture ledger additionnelle n'est créée par la clôture (seulement changement d'état + audit/event existants).
 
-⚠️ Implémentation actuelle : le refus "solde non nul" est levé via `IllegalStateException`,
-ce qui produit un **500** côté API (non mappé en 4xx). Ce point ne reflète pas un contrat REST stable.
+Le refus "solde non nul" est traité comme un conflit métier (`409`) avec le code
+`BALANCE_MUST_BE_ZERO`.
 
 ## Client refunds (`/api/v1/client-refunds`)
 

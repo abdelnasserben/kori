@@ -4,15 +4,14 @@ import com.kori.application.command.UpdateMerchantStatusCommand;
 import com.kori.application.events.MerchantStatusChangedEvent;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.port.out.AuditPort;
-import com.kori.application.port.out.DomainEventPublisherPort;
-import com.kori.application.port.out.MerchantRepositoryPort;
-import com.kori.application.port.out.TimeProviderPort;
+import com.kori.application.port.out.*;
 import com.kori.application.result.UpdateMerchantStatusResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.common.InvalidStatusTransitionException;
+import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.audit.AuditEvent;
+import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
@@ -42,6 +41,7 @@ final class UpdateMerchantStatusServiceTest {
     @Mock AuditPort auditPort;
     @Mock TimeProviderPort timeProviderPort;
     @Mock DomainEventPublisherPort domainEventPublisherPort;
+    @Mock LedgerQueryPort ledgerQueryPort;
 
     @InjectMocks UpdateMerchantStatusService service;
 
@@ -153,6 +153,7 @@ final class UpdateMerchantStatusServiceTest {
 
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(merchant));
         when(timeProviderPort.now()).thenReturn(NOW);
+        when(ledgerQueryPort.netBalance(any(LedgerAccountRef.class))).thenReturn(Money.zero());
 
         UpdateMerchantStatusResult out = service.execute(cmd(adminActor(), Status.CLOSED.name(), REASON));
 

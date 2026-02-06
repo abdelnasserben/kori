@@ -1,6 +1,7 @@
 package com.kori.it;
 
 import com.kori.application.command.UpdateMerchantStatusCommand;
+import com.kori.application.exception.BalanceMustBeZeroException;
 import com.kori.application.port.in.UpdateMerchantStatusUseCase;
 import com.kori.application.result.UpdateMerchantStatusResult;
 import com.kori.domain.ledger.LedgerAccountRef;
@@ -65,7 +66,7 @@ class UpdateMerchantStatusServiceIT extends IntegrationTestBase {
         createActiveTerminal(merchant);
         seedLedgerCredit(LedgerAccountRef.merchant(merchant.id().value().toString()), java.math.BigDecimal.TEN);
 
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(BalanceMustBeZeroException.class, () ->
                 updateMerchantStatusUseCase.execute(new UpdateMerchantStatusCommand(
                         adminActor(),
                         merchant.code().value(),

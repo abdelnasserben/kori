@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateMerchantStatusCommand;
 import com.kori.application.events.MerchantStatusChangedEvent;
+import com.kori.application.exception.BalanceMustBeZeroException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateMerchantStatusUseCase;
@@ -94,7 +95,7 @@ public class UpdateMerchantStatusService implements UpdateMerchantStatusUseCase 
     private void ensureMerchantWalletIsZero(Merchant merchant) {
         LedgerAccountRef merchantWallet = LedgerAccountRef.merchant(merchant.id().value().toString());
         if (!ledgerQueryPort.netBalance(merchantWallet).isZero()) {
-            throw new IllegalStateException("MERCHANT_WALLET_BALANCE_MUST_BE_ZERO_TO_CLOSE");
+            throw new BalanceMustBeZeroException("Merchant wallet balance must be zero to close");
         }
     }
 }

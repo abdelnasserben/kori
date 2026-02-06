@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateAgentStatusCommand;
 import com.kori.application.events.AgentStatusChangedEvent;
+import com.kori.application.exception.BalanceMustBeZeroException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateAgentStatusUseCase;
@@ -96,12 +97,12 @@ public class UpdateAgentStatusService implements UpdateAgentStatusUseCase {
 
         LedgerAccountRef agentWallet = LedgerAccountRef.agentWallet(agentId);
         if (!ledgerQueryPort.netBalance(agentWallet).isZero()) {
-            throw new IllegalStateException("AGENT_WALLET_BALANCE_MUST_BE_ZERO_TO_CLOSE");
+            throw new BalanceMustBeZeroException("Agent wallet balance must be zero to close");
         }
 
         LedgerAccountRef agentCashClearing = LedgerAccountRef.agentCashClearing(agentId);
         if (!ledgerQueryPort.netBalance(agentCashClearing).isZero()) {
-            throw new IllegalStateException("AGENT_CASH_CLEARING_BALANCE_MUST_BE_ZERO_TO_CLOSE");
+            throw new BalanceMustBeZeroException("Agent cash clearing balance must be zero to close");
         }
     }
 }

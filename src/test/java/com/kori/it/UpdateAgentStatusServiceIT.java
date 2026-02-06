@@ -1,6 +1,7 @@
 package com.kori.it;
 
 import com.kori.application.command.UpdateAgentStatusCommand;
+import com.kori.application.exception.BalanceMustBeZeroException;
 import com.kori.application.port.in.UpdateAgentStatusUseCase;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.account.AccountProfile;
@@ -49,7 +50,7 @@ class UpdateAgentStatusServiceIT extends IntegrationTestBase {
         Agent agent = createActiveAgent("A-343434");
         seedLedgerCredit(LedgerAccountRef.agentWallet(agent.id().value().toString()), java.math.BigDecimal.TEN);
 
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(BalanceMustBeZeroException.class, () ->
                 updateAgentStatusUseCase.execute(new UpdateAgentStatusCommand(
                         adminActor(),
                         agent.code().value(),
@@ -73,7 +74,7 @@ class UpdateAgentStatusServiceIT extends IntegrationTestBase {
         Agent agent = createActiveAgent("A-565656");
         seedLedgerCredit(LedgerAccountRef.agentCashClearing(agent.id().value().toString()), java.math.BigDecimal.TEN);
 
-        assertThrows(IllegalStateException.class, () ->
+        assertThrows(BalanceMustBeZeroException.class, () ->
                 updateAgentStatusUseCase.execute(new UpdateAgentStatusCommand(
                         adminActor(),
                         agent.code().value(),
