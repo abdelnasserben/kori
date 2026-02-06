@@ -145,3 +145,35 @@ Flux admin-only pour rembourser intégralement le solde d'un client avant clôtu
 Contraintes:
 - montant de remboursement = solde intégral du client
 - un seul remboursement `REQUESTED` à la fois par client
+## Matrice d'erreurs REST (étape 3)
+
+Format JSON d'erreur unifié (métier + sécurité):
+- `timestamp`: horodatage UTC
+- `code`: code applicatif stable
+- `message`: message public
+- `details`: objet JSON (vide `{}` si rien à exposer)
+- `path`: chemin HTTP demandé
+
+### Sécurité
+- **401 Unauthorized**
+  - Code: `AUTHENTICATION_REQUIRED`
+  - Message: `Authentication required`
+  - Cas: token absent/invalide/expiré
+- **403 Forbidden**
+  - Code: `FORBIDDEN_OPERATION`
+  - Message: `Forbidden operation`
+  - Cas: token valide mais rôle insuffisant
+
+### Métier/validation
+- **400 Bad Request**
+  - Code: `INVALID_INPUT` (ou code validation dédié)
+  - Cas: validation Bean Validation / contraintes d'entrée
+- **409 Conflict**
+  - Code: `IDEMPOTENCY_CONFLICT`, `INSUFFICIENT_FUNDS`, ou autre code métier de conflit
+  - Cas: invariants métier/idempotence
+
+### Technique
+- **5xx Server Error**
+  - Code: `TECHNICAL_FAILURE`
+  - Message: `Unexpected error`
+  - `details`: `{}` (aucune fuite d'information technique)

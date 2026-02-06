@@ -37,6 +37,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest({PaymentController.class, PayoutController.class, ConfigController.class})
@@ -102,7 +103,11 @@ class SecurityEndpointsWebMvcTest {
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("Authentication required"))
+                .andExpect(jsonPath("$.details").isMap())
+                .andExpect(jsonPath("$.path").exists());
 
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/card")
                         .header("Authorization", wrongRoleToken)
@@ -111,7 +116,11 @@ class SecurityEndpointsWebMvcTest {
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN_OPERATION"))
+                .andExpect(jsonPath("$.message").value("Forbidden operation"))
+                .andExpect(jsonPath("$.details").isMap())
+                .andExpect(jsonPath("$.path").exists());
 
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/card")
                         .header("Authorization", successToken)
@@ -133,7 +142,11 @@ class SecurityEndpointsWebMvcTest {
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("Authentication required"))
+                .andExpect(jsonPath("$.details").isMap())
+                .andExpect(jsonPath("$.path").exists());
 
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/merchant-withdraw")
                         .header("Authorization", wrongRoleToken)
@@ -142,7 +155,11 @@ class SecurityEndpointsWebMvcTest {
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN_OPERATION"))
+                .andExpect(jsonPath("$.message").value("Forbidden operation"))
+                .andExpect(jsonPath("$.details").isMap())
+                .andExpect(jsonPath("$.path").exists());
 
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/merchant-withdraw")
                         .header("Authorization", successToken)
@@ -164,7 +181,11 @@ class SecurityEndpointsWebMvcTest {
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("Authentication required"))
+                .andExpect(jsonPath("$.details").isMap())
+                .andExpect(jsonPath("$.path").exists());
 
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/agent-bank-deposits")
                         .header("Authorization", wrongRoleToken)
@@ -173,7 +194,11 @@ class SecurityEndpointsWebMvcTest {
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN_OPERATION"))
+                .andExpect(jsonPath("$.message").value("Forbidden operation"))
+                .andExpect(jsonPath("$.details").isMap())
+                .andExpect(jsonPath("$.path").exists());
 
         mockMvc.perform(post(ApiPaths.PAYMENTS + "/agent-bank-deposits")
                         .header("Authorization", adminToken)
@@ -195,7 +220,11 @@ class SecurityEndpointsWebMvcTest {
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("Authentication required"))
+                .andExpect(jsonPath("$.details").isMap())
+                .andExpect(jsonPath("$.path").exists());
 
         mockMvc.perform(post(ApiPaths.PAYOUTS + "/requests")
                         .header("Authorization", wrongRoleToken)
@@ -204,7 +233,11 @@ class SecurityEndpointsWebMvcTest {
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN_OPERATION"))
+                .andExpect(jsonPath("$.message").value("Forbidden operation"))
+                .andExpect(jsonPath("$.details").isMap())
+                .andExpect(jsonPath("$.path").exists());
 
         mockMvc.perform(post(ApiPaths.PAYOUTS + "/requests")
                         .header("Authorization", adminToken)
@@ -229,7 +262,11 @@ class SecurityEndpointsWebMvcTest {
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.message").value("Authentication required"))
+                .andExpect(jsonPath("$.details").isMap())
+                .andExpect(jsonPath("$.path").exists());
 
         mockMvc.perform(patch(ApiPaths.CONFIG + "/fees")
                         .header("Authorization", wrongRoleToken)
@@ -237,7 +274,11 @@ class SecurityEndpointsWebMvcTest {
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
-                .andExpect(status().isForbidden());
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN_OPERATION"))
+                .andExpect(jsonPath("$.message").value("Forbidden operation"))
+                .andExpect(jsonPath("$.details").isMap())
+                .andExpect(jsonPath("$.path").exists());
 
         mockMvc.perform(patch(ApiPaths.CONFIG + "/fees")
                         .header("Authorization", adminToken)

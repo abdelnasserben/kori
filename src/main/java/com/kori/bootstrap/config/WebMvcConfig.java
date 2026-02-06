@@ -2,7 +2,7 @@ package com.kori.bootstrap.config;
 
 import com.kori.adapters.in.rest.ActorContextArgumentResolver;
 import com.kori.application.security.ActorContextClaimsExtractor;
-import org.springframework.context.annotation.Bean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
@@ -12,19 +12,12 @@ import java.util.List;
 @Configuration
 public class WebMvcConfig implements WebMvcConfigurer {
 
-    @Bean
-    ActorContextClaimsExtractor actorContextClaimsExtractor() {
-        return new ActorContextClaimsExtractor();
-    }
-
-    private final ActorContextArgumentResolver actorContextArgumentResolver;
-
-    public WebMvcConfig(ActorContextArgumentResolver actorContextArgumentResolver) {
-        this.actorContextArgumentResolver = actorContextArgumentResolver;
-    }
+    private final ActorContextClaimsExtractor actorContextClaimsExtractor = new ActorContextClaimsExtractor();
+    @Value("${kori.security.actor-context.dev-header-fallback-enabled:false}")
+    private boolean devHeaderFallbackEnabled;
 
     @Override
     public void addArgumentResolvers(List<HandlerMethodArgumentResolver> resolvers) {
-        resolvers.add(actorContextArgumentResolver);
+        resolvers.add(new ActorContextArgumentResolver(actorContextClaimsExtractor, devHeaderFallbackEnabled));
     }
 }

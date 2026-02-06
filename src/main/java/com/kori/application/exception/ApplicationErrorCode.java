@@ -1,6 +1,7 @@
 package com.kori.application.exception;
 
 public enum ApplicationErrorCode {
+    AUTHENTICATION_REQUIRED,
     INVALID_INPUT,
     FORBIDDEN_OPERATION,
     RESOURCE_NOT_FOUND,

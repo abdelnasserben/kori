@@ -2,25 +2,21 @@ package com.kori.adapters.in.rest;
 
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorContextClaimsExtractor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.MethodParameter;
 import org.springframework.security.authentication.AbstractAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.stereotype.Component;
 import org.springframework.web.bind.support.WebDataBinderFactory;
 import org.springframework.web.context.request.NativeWebRequest;
 import org.springframework.web.method.support.HandlerMethodArgumentResolver;
 import org.springframework.web.method.support.ModelAndViewContainer;
 
-@Component
 public class ActorContextArgumentResolver implements HandlerMethodArgumentResolver {
 
     private final ActorContextClaimsExtractor actorContextClaimsExtractor;
     private final boolean devHeaderFallbackEnabled;
 
-    public ActorContextArgumentResolver(ActorContextClaimsExtractor actorContextClaimsExtractor,
-                                        @Value("${kori.security.actor-context.dev-header-fallback-enabled:false}") boolean devHeaderFallbackEnabled) {
+    public ActorContextArgumentResolver(ActorContextClaimsExtractor actorContextClaimsExtractor, boolean devHeaderFallbackEnabled) {
         this.actorContextClaimsExtractor = actorContextClaimsExtractor;
         this.devHeaderFallbackEnabled = devHeaderFallbackEnabled;
     }
@@ -37,7 +33,14 @@ public class ActorContextArgumentResolver implements HandlerMethodArgumentResolv
                                   WebDataBinderFactory binderFactory) {
         var authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication instanceof AbstractAuthenticationToken token && token.getPrincipal() instanceof Jwt jwt) {
-            return actorContextClaimsExtractor.extract(jwt.getClaims());
+            try {
+                return actorContextClaimsExtractor.extract(jwt.getClaims());
+            } catch (IllegalArgumentException ex) {
+                // In dev/test fallback mode, allow explicit headers when JWT does not carry actor claims.
+                if (!devHeaderFallbackEnabled) {
+                    throw ex;
+                }
+            }
         }
 
         if (devHeaderFallbackEnabled) {
