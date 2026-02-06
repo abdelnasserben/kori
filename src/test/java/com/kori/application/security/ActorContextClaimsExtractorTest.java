@@ -1,5 +1,6 @@
 package com.kori.application.security;
 
+import com.kori.application.exception.ActorContextAuthenticationException;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -56,7 +57,7 @@ class ActorContextClaimsExtractorTest {
     void should_fail_when_actor_type_is_missing() {
         Map<String, Object> claims = Map.of("sub", "admin-1");
 
-        assertThrows(IllegalArgumentException.class, () -> extractor.extract(claims));
+        assertThrows(ActorContextAuthenticationException.class, () -> extractor.extract(claims));
     }
 
 }
