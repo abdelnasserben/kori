@@ -5,8 +5,7 @@ import java.time.Instant;
 import java.util.List;
 
 public final class Responses {
-    private Responses() {
-    }
+    private Responses() {}
 
     public record CreateAdminResponse(String adminId) {}
 
@@ -24,6 +23,14 @@ public final class Responses {
             BigDecimal agentCommission,
             boolean clientCreated,
             boolean clientAccountProfileCreated
+    ) {}
+
+    public record AddCardToExistingClientResponse(
+            String transactionId,
+            String clientId,
+            String cardUid,
+            BigDecimal cardPrice,
+            BigDecimal agentCommission
     ) {}
 
     public record PayByCardResponse(

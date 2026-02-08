@@ -64,6 +64,47 @@ public class ApplicationWiringConfig {
     }
 
     @Bean
+    public AddCardToExistingClientUseCase addCardToExistingClientUseCase(
+            PlatformTransactionManager transactionManager,
+            TimeProviderPort timeProviderPort,
+            IdempotencyPort idempotencyPort,
+            IdGeneratorPort idGeneratorPort,
+            ClientRepositoryPort clientRepositoryPort,
+            CardRepositoryPort cardRepositoryPort,
+            AgentRepositoryPort agentRepositoryPort,
+            TransactionRepositoryPort transactionRepositoryPort,
+            FeePolicyPort feePolicyPort,
+            CommissionPolicyPort commissionPolicyPort,
+            LedgerAppendPort ledgerAppendPort,
+            LedgerQueryPort ledgerQueryPort,
+            PlatformConfigPort platformConfigPort,
+            AuditPort auditPort,
+            PinHasherPort pinHasherPort,
+            OperationStatusGuards operationStatusGuards
+    ) {
+        var useCase = new AddCardToExistingClientService(
+                timeProviderPort,
+                idempotencyPort,
+                idGeneratorPort,
+                clientRepositoryPort,
+                cardRepositoryPort,
+                agentRepositoryPort,
+                transactionRepositoryPort,
+                feePolicyPort,
+                commissionPolicyPort,
+                ledgerAppendPort,
+                ledgerQueryPort,
+                platformConfigPort,
+                auditPort,
+                pinHasherPort,
+                operationStatusGuards
+        );
+
+        var transactionTemplate = new TransactionTemplate(transactionManager);
+        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
+    }
+
+    @Bean
     public PayByCardUseCase payByCardUseCase(
             PlatformTransactionManager transactionManager,
             TimeProviderPort timeProviderPort,

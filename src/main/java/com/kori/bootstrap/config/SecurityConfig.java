@@ -84,6 +84,7 @@ public class SecurityConfig {
 
                         // Agent-only endpoints
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/cards/enroll").hasRole("AGENT")
+                        .requestMatchers(HttpMethod.POST, API_VERSION + "/cards/add").hasRole("AGENT")
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/cards/*/status/agent").hasRole("AGENT")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payments/merchant-withdraw").hasRole("AGENT")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payments/cash-in").hasRole("AGENT")

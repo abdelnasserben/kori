@@ -4,30 +4,21 @@ import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.guard.ActorGuards;
-import com.kori.application.guard.AgentCashLimitGuard;
 import com.kori.application.guard.OperationStatusGuards;
-import com.kori.application.guard.PricingGuards;
 import com.kori.application.port.in.EnrollCardUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.EnrollCardResult;
-import com.kori.application.security.PinFormatValidator;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
-import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.account.AccountProfile;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
-import com.kori.domain.model.card.Card;
 import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientId;
-import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
-import com.kori.domain.model.transaction.Transaction;
-import com.kori.domain.model.transaction.TransactionId;
 
 import java.time.Instant;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -41,18 +32,12 @@ public final class EnrollCardService implements EnrollCardUseCase {
     private final CardRepositoryPort cardRepositoryPort;
 
     private final AgentRepositoryPort agentRepositoryPort;
-    private final TransactionRepositoryPort transactionRepositoryPort;
 
     private final AccountProfilePort accountProfilePort;
 
-    private final FeePolicyPort feePolicyPort;
-    private final CommissionPolicyPort commissionPolicyPort;
-
-    private final LedgerAppendPort ledgerAppendPort;
-    private final AgentCashLimitGuard agentCashLimitGuard;
     private final AuditPort auditPort;
-    private final PinHasherPort pinHasherPort;
     private final OperationStatusGuards operationStatusGuards;
+    private final CardEnrollmentWorkflow enrollmentWorkflow;
 
     public EnrollCardService(TimeProviderPort timeProviderPort,
                              IdempotencyPort idempotencyPort,
@@ -76,15 +61,21 @@ public final class EnrollCardService implements EnrollCardUseCase {
         this.clientRepositoryPort = clientRepositoryPort;
         this.cardRepositoryPort = cardRepositoryPort;
         this.agentRepositoryPort = agentRepositoryPort;
-        this.transactionRepositoryPort = transactionRepositoryPort;
         this.accountProfilePort = accountProfilePort;
-        this.feePolicyPort = feePolicyPort;
-        this.commissionPolicyPort = commissionPolicyPort;
-        this.ledgerAppendPort = ledgerAppendPort;
-        this.agentCashLimitGuard = new AgentCashLimitGuard(ledgerQueryPort, platformConfigPort);
         this.auditPort = auditPort;
-        this.pinHasherPort = pinHasherPort;
         this.operationStatusGuards = operationStatusGuards;
+        this.enrollmentWorkflow = new CardEnrollmentWorkflow(
+                idGeneratorPort,
+                cardRepositoryPort,
+                agentRepositoryPort,
+                transactionRepositoryPort,
+                feePolicyPort,
+                commissionPolicyPort,
+                ledgerAppendPort,
+                ledgerQueryPort,
+                platformConfigPort,
+                pinHasherPort
+        );
     }
 
     @Override
@@ -104,8 +95,6 @@ public final class EnrollCardService implements EnrollCardUseCase {
                 .orElseThrow(() -> new NotFoundException("Agent not found"));
 
         operationStatusGuards.requireActiveAgent(agent);
-
-        var agentWalletAccount = LedgerAccountRef.agentWallet(agent.id().value().toString());
 
         // 3) Card UID must be unique
         if (cardRepositoryPort.findByCardUid(command.cardUid()).isPresent()) {
@@ -142,41 +131,15 @@ public final class EnrollCardService implements EnrollCardUseCase {
             }
         }
 
-        // 6) Card (active) linked to ClientId
-        PinFormatValidator.validate(command.pin());
-        var hashed = pinHasherPort.hash(command.pin());
-
-        Card card = Card.activeNew(client.id(), command.cardUid(), hashed, now);
-        card = cardRepositoryPort.save(card);
-
-        // 7) pricing / commissions
-        Money cardPrice = feePolicyPort.cardEnrollmentPrice();
-        Money agentCommission = commissionPolicyPort.cardEnrollmentAgentCommission();
-
-        var breakdown = PricingGuards.feeMinusCommission(cardPrice, agentCommission, "ENROLL_CARD");
-        Money platformRevenue = breakdown.platformRevenue();
-
-        // 8) transaction
-        TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
-        Transaction tx = Transaction.enrollCard(txId, cardPrice, now);
-        tx = transactionRepositoryPort.save(tx);
-
-        // 9) ledger entries
-        agentRepositoryPort.findByIdForUpdate(agent.id());
-        agentCashLimitGuard.ensureProjectedBalanceWithinLimit(agent.id().value().toString(), cardPrice, Money.zero());
-
-        ledgerAppendPort.append(List.of(
-                LedgerEntry.debit(tx.id(), LedgerAccountRef.agentCashClearing(agent.id().value().toString()), cardPrice),
-                LedgerEntry.credit(tx.id(), agentWalletAccount, agentCommission),
-                LedgerEntry.credit(tx.id(), LedgerAccountRef.platformFeeRevenue(), platformRevenue)
-        ));
+        // 6-9) card enrollment workflow (create card, transaction, ledger entries, etc.)
+        var outcome = enrollmentWorkflow.enrollCard(client, agent, command.cardUid(), command.pin(), now);
 
         // 10) audit
         Map<String, String> metadata = new HashMap<>();
-        metadata.put("transactionId", tx.id().value().toString());
+        metadata.put("transactionId", outcome.transaction().id().value().toString());
         metadata.put("agentCode", command.agentCode());
         metadata.put("clientPhoneNumber", client.phoneNumber());
-        metadata.put("cardUid", card.cardUid());
+        metadata.put("cardUid", outcome.card().cardUid());
 
         auditPort.publish(AuditBuilder.buildBasicAudit(
                 "ENROLL_CARD",
@@ -186,11 +149,11 @@ public final class EnrollCardService implements EnrollCardUseCase {
         ));
 
         EnrollCardResult result = new EnrollCardResult(
-                tx.id().value().toString(),
+                outcome.transaction().id().value().toString(),
                 client.phoneNumber(),
-                card.cardUid(),
-                cardPrice.asBigDecimal(),
-                agentCommission.asBigDecimal(),
+                outcome.card().cardUid(),
+                outcome.cardPrice().asBigDecimal(),
+                outcome.agentCommission().asBigDecimal(),
                 clientCreated,
                 clientAccountProfileCreated
         );

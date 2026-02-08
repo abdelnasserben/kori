@@ -1,15 +1,14 @@
 package com.kori.adapters.in.rest;
 
 import com.kori.adapters.in.rest.controller.CardController;
+import com.kori.adapters.in.rest.dto.Requests.AddCardToExistingClientRequest;
 import com.kori.adapters.in.rest.dto.Requests.AgentCardStatusRequest;
 import com.kori.adapters.in.rest.dto.Requests.EnrollCardRequest;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.error.RestExceptionHandler;
 import com.kori.application.exception.*;
-import com.kori.application.port.in.AdminUnblockCardUseCase;
-import com.kori.application.port.in.AdminUpdateCardStatusUseCase;
-import com.kori.application.port.in.AgentUpdateCardStatusUseCase;
-import com.kori.application.port.in.EnrollCardUseCase;
+import com.kori.application.port.in.*;
+import com.kori.application.result.AddCardToExistingClientResult;
 import com.kori.application.result.EnrollCardResult;
 import com.kori.application.result.UpdateCardStatusResult;
 import com.kori.bootstrap.config.JacksonConfig;
@@ -42,9 +41,13 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
 
     private final static String URL = ApiPaths.CARDS;
     private final static String URL_ENROLL = ApiPaths.CARDS + "/enroll";
+    private final static String URL_ADD = ApiPaths.CARDS + "/add";
 
     @MockitoBean
     private EnrollCardUseCase enrollCardUseCase;
+
+    @MockitoBean
+    private AddCardToExistingClientUseCase addCardToExistingClientUseCase;
 
     @MockitoBean
     private AdminUpdateCardStatusUseCase adminUpdateCardStatusUseCase;
@@ -83,6 +86,32 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
                 .andExpect(jsonPath("$.agentCommission").value(50))
                 .andExpect(jsonPath("$.clientCreated").value(true))
                 .andExpect(jsonPath("$.clientAccountProfileCreated").value(true));
+    }
+
+    @Test
+    void should_add_card_to_existing_client() throws Exception {
+        var request = new AddCardToExistingClientRequest("+2691234567", "card-456", "1234", "agent-1");
+        var result = new AddCardToExistingClientResult(
+                "tx-2",
+                "11111111-1111-1111-1111-111111111111",
+                "card-456",
+                new BigDecimal("500"),
+                new BigDecimal("50")
+        );
+        when(addCardToExistingClientUseCase.execute(any())).thenReturn(result);
+
+        mockMvc.perform(post(URL_ADD)
+                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-2")
+                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
+                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.transactionId").value("tx-2"))
+                .andExpect(jsonPath("$.clientId").value("11111111-1111-1111-1111-111111111111"))
+                .andExpect(jsonPath("$.cardUid").value("card-456"))
+                .andExpect(jsonPath("$.cardPrice").value(500))
+                .andExpect(jsonPath("$.agentCommission").value(50));
     }
 
     @Test

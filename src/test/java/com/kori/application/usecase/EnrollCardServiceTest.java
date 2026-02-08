@@ -332,8 +332,6 @@ final class EnrollCardServiceTest {
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
         doNothing().when(operationStatusGuards).requireActiveAgent(agent);
 
-        when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.empty());
-
         Client client = new Client(new ClientId(CLIENT_UUID), CLIENT_PHONE, Status.ACTIVE, NOW);
         when(clientRepositoryPort.findByPhoneNumber(CLIENT_PHONE)).thenReturn(Optional.of(client));
         doNothing().when(operationStatusGuards).requireClientEligibleForEnroll(client);

@@ -28,6 +28,7 @@ Endpoints idempotents (extraits du code) :
 - `POST /api/v1/merchants`
 - `POST /api/v1/terminals`
 - `POST /api/v1/cards/enroll`
+- `POST /api/v1/cards/add`
 - `POST /api/v1/payments/card`
 - `POST /api/v1/payments/merchant-withdraw`
 - `POST /api/v1/payments/cash-in`
@@ -72,6 +73,7 @@ Mapping endpoint -> rôle attendu (scan de tous les contrôleurs REST):
 
 - **Agent uniquement**
   - `POST /api/v1/cards/enroll`
+  - `POST /api/v1/cards/add`
   - `PATCH /api/v1/cards/{cardUid}/status/agent`
   - `POST /api/v1/payments/merchant-withdraw`
   - `POST /api/v1/payments/cash-in`
@@ -129,6 +131,9 @@ Mapping endpoint -> rôle attendu (scan de tous les contrôleurs REST):
 - `POST /api/v1/cards/enroll` (idempotent)
   - **Requête**: `{ "phoneNumber": "+269xxxxxxx", "cardUid": "...", "pin": "1234", "agentCode": "..." }`
   - **Réponse**: `{ "transactionId": "...", "clientPhoneNumber": "...", "cardUid": "...", "cardPrice": 0, "agentCommission": 0, "clientCreated": true|false, "clientAccountProfileCreated": true|false }`
+- `POST /api/v1/cards/add` (idempotent)
+  - **Requête**: `{ "phoneNumber": "+269xxxxxxx", "cardUid": "...", "pin": "1234", "agentCode": "..." }`
+  - **Réponse**: `{ "transactionId": "...", "clientId": "...", "cardUid": "...", "cardPrice": 0, "agentCommission": 0 }`
 - `PATCH /api/v1/cards/{cardUid}/status/admin`
   - **Requête**: `{ "targetStatus": "...", "reason": "..."? }`
   - **Réponse**: `{ "subjectId": "...", "previousStatus": "...", "newStatus": "..." }`

@@ -21,8 +21,7 @@ public final class Requests {
      */
     public static final String COMOROS_PHONE_REGEX = "^(\\+269)?\\d{7}$";
 
-    private Requests() {
-    }
+    private Requests() {}
 
     public record CreateTerminalRequest(
             @NotBlank @Size(max = 16) String merchantCode
@@ -37,6 +36,16 @@ public final class Requests {
             String pin,
             @NotBlank @Size(max = 16)
             String agentCode
+    ) {}
+
+    public record AddCardToExistingClientRequest(
+            @NotBlank
+            @Pattern(regexp = COMOROS_PHONE_REGEX, message = "Phone number must be (+269 + 7 digits) or 7 digits local")
+            String phoneNumber,
+            @NotBlank @Size(max = 64) String cardUid,
+            @Pattern(regexp = PIN_REGEX_4_DIGITS, message = "PIN must be exactly 4 digits")
+            String pin,
+            @NotBlank @Size(max = 16) String agentCode
     ) {}
 
     public record PayByCardRequest(

@@ -1,5 +1,6 @@
 package com.kori.adapters.in.rest;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.in.rest.controller.ConfigController;
 import com.kori.adapters.in.rest.controller.PaymentController;
 import com.kori.adapters.in.rest.controller.PayoutController;
@@ -57,7 +58,7 @@ class SecurityEndpointsWebMvcTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private ObjectMapper objectMapper;
 
     @MockitoBean
     private IdempotencyRequestHasher idempotencyRequestHasher;

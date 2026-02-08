@@ -4,19 +4,15 @@ import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.doc.IdempotencyRequestHasher;
 import com.kori.adapters.in.rest.doc.IdempotentOperation;
+import com.kori.adapters.in.rest.dto.Requests.AddCardToExistingClientRequest;
 import com.kori.adapters.in.rest.dto.Requests.AgentCardStatusRequest;
 import com.kori.adapters.in.rest.dto.Requests.EnrollCardRequest;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
+import com.kori.adapters.in.rest.dto.Responses.AddCardToExistingClientResponse;
 import com.kori.adapters.in.rest.dto.Responses.EnrollCardResponse;
 import com.kori.adapters.in.rest.dto.Responses.UpdateStatusResponse;
-import com.kori.application.command.AdminUnblockCardCommand;
-import com.kori.application.command.AdminUpdateCardStatusCommand;
-import com.kori.application.command.AgentUpdateCardStatusCommand;
-import com.kori.application.command.EnrollCardCommand;
-import com.kori.application.port.in.AdminUnblockCardUseCase;
-import com.kori.application.port.in.AdminUpdateCardStatusUseCase;
-import com.kori.application.port.in.AgentUpdateCardStatusUseCase;
-import com.kori.application.port.in.EnrollCardUseCase;
+import com.kori.application.command.*;
+import com.kori.application.port.in.*;
 import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -32,16 +28,18 @@ import java.util.UUID;
 public class CardController {
 
     private final EnrollCardUseCase enrollCardUseCase;
+    private final AddCardToExistingClientUseCase addCardToExistingClientUseCase;
     private final AdminUpdateCardStatusUseCase adminUpdateCardStatusUseCase;
     private final AdminUnblockCardUseCase adminUnblockCardUseCase;
     private final AgentUpdateCardStatusUseCase agentUpdateCardStatusUseCase;
     private final IdempotencyRequestHasher idempotencyRequestHasher;
 
-    public CardController(EnrollCardUseCase enrollCardUseCase,
+    public CardController(EnrollCardUseCase enrollCardUseCase, AddCardToExistingClientUseCase addCardToExistingClientUseCase,
                           AdminUpdateCardStatusUseCase adminUpdateCardStatusUseCase,
                           AdminUnblockCardUseCase adminUnblockCardUseCase,
                           AgentUpdateCardStatusUseCase agentUpdateCardStatusUseCase, IdempotencyRequestHasher idempotencyRequestHasher) {
         this.enrollCardUseCase = enrollCardUseCase;
+        this.addCardToExistingClientUseCase = addCardToExistingClientUseCase;
         this.adminUpdateCardStatusUseCase = adminUpdateCardStatusUseCase;
         this.adminUnblockCardUseCase = adminUnblockCardUseCase;
         this.agentUpdateCardStatusUseCase = agentUpdateCardStatusUseCase;
@@ -76,6 +74,35 @@ public class CardController {
                 result.agentCommission(),
                 result.clientCreated(),
                 result.accountCreated()
+        );
+    }
+
+    @PostMapping("/add")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Add card to existing client")
+    @IdempotentOperation
+    public AddCardToExistingClientResponse addCardToExistingClient(
+            @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
+            ActorContext actorContext,
+            @Valid @RequestBody AddCardToExistingClientRequest request
+    ) {
+        var result = addCardToExistingClientUseCase.execute(
+                new AddCardToExistingClientCommand(
+                        idempotencyKey,
+                        idempotencyRequestHasher.hashPayload(request),
+                        actorContext,
+                        request.phoneNumber(),
+                        request.cardUid(),
+                        request.pin(),
+                        request.agentCode()
+                )
+        );
+        return new AddCardToExistingClientResponse(
+                result.transactionId(),
+                result.clientId(),
+                result.cardUid(),
+                result.cardPrice(),
+                result.agentCommission()
         );
     }
 
