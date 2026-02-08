@@ -73,7 +73,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
         when(enrollCardUseCase.execute(any())).thenReturn(result);
 
         mockMvc.perform(post(URL_ENROLL)
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -101,7 +101,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
         when(addCardToExistingClientUseCase.execute(any())).thenReturn(result);
 
         mockMvc.perform(post(URL_ADD)
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-2")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-2")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -170,7 +170,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
         var request = new EnrollCardRequest("123", "", "12", "");
 
         mockMvc.perform(post(URL_ENROLL)
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -187,7 +187,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
         when(enrollCardUseCase.execute(any())).thenThrow(exception);
 
         mockMvc.perform(post(URL_ENROLL)
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)

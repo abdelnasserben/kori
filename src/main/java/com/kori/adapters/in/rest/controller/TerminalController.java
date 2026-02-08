@@ -2,7 +2,6 @@ package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiHeaders;
 import com.kori.adapters.in.rest.ApiPaths;
-import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.doc.IdempotencyRequestHasher;
 import com.kori.adapters.in.rest.doc.IdempotentOperation;
 import com.kori.adapters.in.rest.dto.Requests.CreateTerminalRequest;
@@ -15,7 +14,6 @@ import com.kori.application.port.in.CreateTerminalUseCase;
 import com.kori.application.port.in.UpdateTerminalStatusUseCase;
 import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -61,11 +59,9 @@ public class TerminalController {
     @Operation(summary = "Update terminal status")
     public UpdateStatusResponse updateTerminalStatus(
             @PathVariable String terminalId,
-            @Parameter(hidden = true) @RequestHeader(ApiHeaders.ACTOR_TYPE) String actorType,
-            @Parameter(hidden = true) @RequestHeader(ApiHeaders.ACTOR_ID) String actorId,
+            ActorContext actorContext,
             @Valid @RequestBody UpdateStatusRequest request
     ) {
-        var actorContext = RestActorContextResolver.resolve(actorType, actorId);
         var result = updateTerminalStatusUseCase.execute(
                 new UpdateTerminalStatusCommand(actorContext, terminalId, request.targetStatus(), request.reason())
         );

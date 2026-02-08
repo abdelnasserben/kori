@@ -59,7 +59,7 @@ class PayoutControllerWebMvcTest extends BaseWebMvcTest {
         when(requestAgentPayoutUseCase.execute(any())).thenReturn(result);
 
         mockMvc.perform(post(URL + "/requests")
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -97,7 +97,7 @@ class PayoutControllerWebMvcTest extends BaseWebMvcTest {
         var request = new RequestAgentPayoutRequest("");
 
         mockMvc.perform(post(URL + "/requests")
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -114,7 +114,7 @@ class PayoutControllerWebMvcTest extends BaseWebMvcTest {
         when(requestAgentPayoutUseCase.execute(any())).thenThrow(exception);
 
         mockMvc.perform(post(URL + "/requests")
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)

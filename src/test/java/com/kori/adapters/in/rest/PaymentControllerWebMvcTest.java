@@ -63,7 +63,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
         when(payByCardUseCase.execute(any())).thenReturn(result);
 
         mockMvc.perform(post(URL + "/card")
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -92,7 +92,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
         when(merchantWithdrawAtAgentUseCase.execute(any())).thenReturn(result);
 
         mockMvc.perform(post(URL + "/merchant-withdraw")
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -120,7 +120,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
         when(cashInByAgentUseCase.execute(any())).thenReturn(result);
 
         mockMvc.perform(post(URL + "/cash-in")
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, "AGENT")
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, "agent-1")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -140,7 +140,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
         when(agentBankDepositReceiptUseCase.execute(any())).thenReturn(result);
 
         mockMvc.perform(post(URL + "/agent-bank-deposits")
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -158,7 +158,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
         when(reversalUseCase.execute(any())).thenReturn(result);
 
         mockMvc.perform(post(URL + "/reversals")
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -174,7 +174,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
         var request = new PayByCardRequest("terminal-1", "card-1", "12", new BigDecimal("100"));
 
         mockMvc.perform(post(URL + "/card")
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
@@ -191,7 +191,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
         when(payByCardUseCase.execute(any())).thenThrow(exception);
 
         mockMvc.perform(post(URL + "/card")
-                        .header(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER, "idem-1")
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
                         .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
                         .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
