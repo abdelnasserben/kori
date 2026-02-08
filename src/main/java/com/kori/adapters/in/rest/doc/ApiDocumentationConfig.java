@@ -1,5 +1,6 @@
 package com.kori.adapters.in.rest.doc;
 
+import com.kori.adapters.in.rest.ApiHeaders;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.filter.CorrelationIdFilter;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
@@ -13,10 +14,14 @@ import io.swagger.v3.oas.models.media.StringSchema;
 import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.responses.ApiResponse;
 import io.swagger.v3.oas.models.responses.ApiResponses;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.customizers.OperationCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 @Configuration
 @OpenAPIDefinition(
@@ -29,6 +34,8 @@ import org.springframework.context.annotation.Configuration;
 )
 public class ApiDocumentationConfig {
 
+    private static final String SECURITY_SCHEME = "bearerAuth";
+
     @Bean
     public OpenApiCustomizer globalHeadersAndErrorsCustomizer() {
         return openApi -> {
@@ -38,47 +45,46 @@ public class ApiDocumentationConfig {
                 openApi.setComponents(components);
             }
 
+            components.addSecuritySchemes(SECURITY_SCHEME, new SecurityScheme()
+                    .type(SecurityScheme.Type.HTTP)
+                    .scheme("bearer")
+                    .bearerFormat("JWT")
+                    .description("JWT Bearer token for API access."));
+
             Content errorContent = new Content()
                     .addMediaType("application/json",
                             new MediaType().schema(new Schema<>().$ref("#/components/schemas/ApiErrorResponse")));
 
             components.addResponses("BadRequest",
                     new ApiResponse().description("Invalid request").content(errorContent));
+            components.addResponses("Unauthorized",
+                    new ApiResponse().description("Authentication required (missing/invalid/expired token).").content(errorContent));
+            components.addResponses("Forbidden",
+                    new ApiResponse().description("Authenticated but not authorized to perform this operation.").content(errorContent));
             components.addResponses("Conflict",
                     new ApiResponse().description("Conflict / idempotency").content(errorContent));
-            components.addResponses("UnprocessableEntity",
-                    new ApiResponse().description("Business rule violation").content(errorContent));
             components.addResponses("InternalServerError",
                     new ApiResponse().description("Internal error").content(errorContent));
 
-            Parameter actorType = new Parameter()
-                    .in("header")
-                    .name(RestActorContextResolver.ACTOR_TYPE_HEADER)
-                    .required(true)
-                    .schema(new StringSchema());
-            Parameter actorId = new Parameter()
-                    .in("header")
-                    .name(RestActorContextResolver.ACTOR_ID_HEADER)
-                    .required(true)
-                    .schema(new StringSchema());
-
-            Parameter correlationId = new Parameter()
-                    .in("header")
-                    .name(CorrelationIdFilter.CORRELATION_ID_HEADER)
-                    .required(false)
-                    .schema(new StringSchema());
+            openApi.setSecurity(List.of(new SecurityRequirement().addList(SECURITY_SCHEME)));
 
             if (openApi.getPaths() == null) {
                 return;
             }
 
-            openApi.getPaths().values().forEach(pathItem ->
+            openApi.getPaths().forEach((path, pathItem) ->
                     pathItem.readOperations().forEach(operation -> {
-                        if (!hasParameter(operation.getParameters(), actorType.getName())) {
-                            operation.addParametersItem(actorType);
+                        if (isPublicPath(path)) {
+                            operation.setSecurity(List.of());
+                            return;
                         }
-                        if (!hasParameter(operation.getParameters(), actorId.getName())) {
-                            operation.addParametersItem(actorId);
+                        Parameter correlationId = headerParameter(
+                                CorrelationIdFilter.CORRELATION_ID_HEADER,
+                                false,
+                                "Optional correlation identifier for request tracing."
+                        );
+                        if (!hasParameter(operation.getParameters(), correlationId.getName())) {
+                            operation.addParametersItem(correlationId);
                         }
 
                         ApiResponses responses = operation.getResponses();
@@ -89,8 +95,9 @@ public class ApiDocumentationConfig {
 
                         // Common errors (only add if missing)
                         addResponseIfMissing(responses, "400", "#/components/responses/BadRequest");
+                        addResponseIfMissing(responses, "401", "#/components/responses/Unauthorized");
+                        addResponseIfMissing(responses, "403", "#/components/responses/Forbidden");
                         addResponseIfMissing(responses, "409", "#/components/responses/Conflict");
-                        addResponseIfMissing(responses, "422", "#/components/responses/UnprocessableEntity");
                         addResponseIfMissing(responses, "500", "#/components/responses/InternalServerError");
                     })
             );
@@ -103,7 +110,7 @@ public class ApiDocumentationConfig {
             if (handlerMethod.hasMethodAnnotation(IdempotentOperation.class)) { // :contentReference[oaicite:0]{index=0}
                 Parameter idempotencyKey = new Parameter()
                         .in("header")
-                        .name(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER)
+                        .name(ApiHeaders.IDEMPOTENCY_KEY)
                         .required(true)
                         .schema(new StringSchema());
 
@@ -116,11 +123,31 @@ public class ApiDocumentationConfig {
         };
     }
 
+    private Parameter headerParameter(String name, boolean required, String description) {
+        return new Parameter()
+                .in("header")
+                .name(name)
+                .required(required)
+                .description(description)
+                .schema(new StringSchema());
+    }
+
     private boolean hasParameter(java.util.List<Parameter> parameters, String name) {
         if (parameters == null || name == null) {
             return false;
         }
         return parameters.stream().anyMatch(param -> name.equalsIgnoreCase(param.getName()));
+    }
+
+    private boolean isPublicPath(String path) {
+        if (path == null) {
+            return false;
+        }
+        return path.startsWith("/api-docs")
+                || path.startsWith("/v3/api-docs")
+                || path.startsWith("/swagger-ui")
+                || path.startsWith("/swagger-ui.html")
+                || path.startsWith("/actuator/health");
     }
 
     private void addResponseIfMissing(ApiResponses responses, String code, String ref) {

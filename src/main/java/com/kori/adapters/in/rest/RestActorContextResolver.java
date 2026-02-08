@@ -11,12 +11,10 @@ import java.util.Objects;
 
 public final class RestActorContextResolver {
 
-    public static final String ACTOR_TYPE_HEADER = "X-Actor-Type";
-    public static final String ACTOR_ID_HEADER = "X-Actor-Id";
-    public static final String IDEMPOTENCY_KEY_HEADER = "Idempotency-Key";
+    public static final String ACTOR_TYPE_HEADER = ApiHeaders.ACTOR_TYPE;
+    public static final String ACTOR_ID_HEADER = ApiHeaders.ACTOR_ID;
 
-    private RestActorContextResolver() {
-    }
+    private RestActorContextResolver() {}
 
     public static ActorContext resolve(String actorTypeRaw, String actorIdRaw) {
         Objects.requireNonNull(actorTypeRaw, "actorType");

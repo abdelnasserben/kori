@@ -1,5 +1,6 @@
 package com.kori.adapters.in.rest.controller;
 
+import com.kori.adapters.in.rest.ApiHeaders;
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.doc.IdempotencyRequestHasher;
@@ -43,7 +44,7 @@ public class PaymentController {
     @Operation(summary = "Pay by card")
     @IdempotentOperation
     public PayByCardResponse payByCard(
-            @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
+            @RequestHeader(ApiHeaders.IDEMPOTENCY_KEY) String idempotencyKey,
             ActorContext actorContext,
             @Valid @RequestBody PayByCardRequest request
     ) {
@@ -73,7 +74,7 @@ public class PaymentController {
     @Operation(summary = "Merchant withdrawal")
     @IdempotentOperation
     public MerchantWithdrawAtAgentResponse merchantWithdrawAtAgent(
-            @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
+            @RequestHeader(ApiHeaders.IDEMPOTENCY_KEY) String idempotencyKey,
             ActorContext actorContext,
             @Valid @RequestBody MerchantWithdrawAtAgentRequest request
     ) {
@@ -103,7 +104,7 @@ public class PaymentController {
     @Operation(summary = "Cash-in by agent")
     @IdempotentOperation
     public CashInByAgentResponse cashInByAgent(
-            @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
+            @RequestHeader(ApiHeaders.IDEMPOTENCY_KEY) String idempotencyKey,
             ActorContext actorContext,
             @Valid @RequestBody CashInByAgentRequest request
     ) {
@@ -130,7 +131,7 @@ public class PaymentController {
     @Operation(summary = "Admin records agent bank deposit receipt")
     @IdempotentOperation
     public AgentBankDepositReceiptResponse agentBankDepositReceipt(
-            @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
+            @RequestHeader(ApiHeaders.IDEMPOTENCY_KEY) String idempotencyKey,
             ActorContext actorContext,
             @Valid @RequestBody AgentBankDepositReceiptRequest request
     ) {
@@ -155,7 +156,7 @@ public class PaymentController {
     @Operation(summary = "Reverse transaction")
     @IdempotentOperation
     public ReversalResponse reversal(
-            @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
+            @RequestHeader(ApiHeaders.IDEMPOTENCY_KEY) String idempotencyKey,
             ActorContext actorContext,
             @Valid @RequestBody ReversalRequest request
     ) {

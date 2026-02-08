@@ -1,5 +1,6 @@
 package com.kori.adapters.in.rest.filter;
 
+import com.kori.adapters.in.rest.ApiHeaders;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,7 +15,7 @@ import java.util.UUID;
 @Component
 public class CorrelationIdFilter extends OncePerRequestFilter {
 
-    public static final String CORRELATION_ID_HEADER = "X-Correlation-Id";
+    public static final String CORRELATION_ID_HEADER = ApiHeaders.CORRELATION_ID;
     public static final String MDC_KEY = "correlationId";
 
     @Override

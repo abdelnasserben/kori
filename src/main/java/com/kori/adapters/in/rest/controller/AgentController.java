@@ -1,5 +1,6 @@
 package com.kori.adapters.in.rest.controller;
 
+import com.kori.adapters.in.rest.ApiHeaders;
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.doc.IdempotencyRequestHasher;
@@ -38,7 +39,7 @@ public class AgentController {
     @Operation(summary = "Create agent")
     @IdempotentOperation
     public CreateAgentResponse createAgent(
-            @RequestHeader(RestActorContextResolver.IDEMPOTENCY_KEY_HEADER) String idempotencyKey,
+            @RequestHeader(ApiHeaders.IDEMPOTENCY_KEY) String idempotencyKey,
             ActorContext actorContext
     ) {
         var result = createAgentUseCase.execute(

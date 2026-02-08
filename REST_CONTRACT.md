@@ -1,12 +1,3 @@
-Parfait.
-Je te livre ci-dessous **un contrat REST complet, propre, stable et livrable tel quel à un partenaire**.
-Il est **dé-techniqué**, **orienté consommateurs d’API**, et **sans trace de l’historique du projet**.
-
-> 📌 Ce document remplace intégralement l’existant et peut être versionné comme **API Contract v1**.
-> Il est basé sur ton API actuelle , mais nettoyé et normalisé.
-
----
-
 # KORI – REST API Contract
 
 **Version : v1**
