@@ -6,4 +6,6 @@ public interface IdempotencyPort {
     <T> Optional<T> find(String idempotencyKey, String requestHash, Class<T> type);
 
     void save(String idempotencyKey, String requestHash, Object result);
+
+    boolean reserve(String idempotencyKey, String requestHash, Class<?> type);
 }

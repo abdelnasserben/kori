@@ -20,6 +20,7 @@ import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -90,6 +91,11 @@ final class CashInByAgentServiceTest {
 
     private static Client activeClient() {
         return new Client(new ClientId(CLIENT_UUID), PHONE, Status.ACTIVE, NOW.minusSeconds(120));
+    }
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
     }
 
     @Test

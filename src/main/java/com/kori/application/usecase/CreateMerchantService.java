@@ -59,6 +59,16 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
         MerchantId id = new MerchantId(idGeneratorPort.newUuid());
         Instant now = timeProviderPort.now();
 
+        var inProgress = IdempotencyReservations.reserveOrLoad(
+                idempotencyPort,
+                command.idempotencyKey(),
+                command.idempotencyRequestHash(),
+                CreateMerchantResult.class
+        );
+        if (inProgress.isPresent()) {
+            return inProgress.get();
+        }
+
         Merchant merchant = new Merchant(id, code, Status.ACTIVE, now);
         merchantRepository.save(merchant);
 

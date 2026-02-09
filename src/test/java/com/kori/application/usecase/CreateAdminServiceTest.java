@@ -9,6 +9,7 @@ import com.kori.application.security.ActorType;
 import com.kori.domain.model.admin.Admin;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Status;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -54,6 +55,11 @@ final class CreateAdminServiceTest {
 
     private static CreateAdminCommand cmd(ActorContext actor) {
         return new CreateAdminCommand(IDEM_KEY, REQUEST_HASH, actor);
+    }
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
     }
 
     @Test

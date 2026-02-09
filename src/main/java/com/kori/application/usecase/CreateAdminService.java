@@ -43,6 +43,17 @@ public final class CreateAdminService implements CreateAdminUseCase {
         }
 
         Instant now = timeProviderPort.now();
+
+        var inProgress = IdempotencyReservations.reserveOrLoad(
+                idempotencyPort,
+                command.idempotencyKey(),
+                command.idempotencyRequestHash(),
+                CreateAdminResult.class
+        );
+        if (inProgress.isPresent()) {
+            return inProgress.get();
+        }
+
         AdminId adminId = new AdminId(idGeneratorPort.newUuid());
         Admin admin = Admin.activeNew(adminId, now);
         adminRepositoryPort.save(admin);

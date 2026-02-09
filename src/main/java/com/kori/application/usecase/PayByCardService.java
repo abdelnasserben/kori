@@ -159,6 +159,16 @@ public final class PayByCardService implements PayByCardUseCase {
             );
         }
 
+        var inProgress = IdempotencyReservations.reserveOrLoad(
+                idempotencyPort,
+                command.idempotencyKey(),
+                command.idempotencyRequestHash(),
+                PayByCardResult.class
+        );
+        if (inProgress.isPresent()) {
+            return inProgress.get();
+        }
+
         TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
         Transaction tx = Transaction.payByCard(txId, amount, now);
         tx = transactionRepositoryPort.save(tx);

@@ -54,6 +54,9 @@ public class JpaIdempotencyAdapter implements IdempotencyPort {
             if (!r.getResultType().equals(type.getName())) {
                 throw new IllegalStateException("Idempotency type mismatch for key=" + idempotencyKey);
             }
+            if (r.getResultJson() == null || r.getResultJson().isBlank()) {
+                return Optional.empty();
+            }
             try {
                 return Optional.of(objectMapper.readValue(r.getResultJson(), type));
             } catch (Exception e) {
@@ -70,11 +73,15 @@ public class JpaIdempotencyAdapter implements IdempotencyPort {
             String type = result.getClass().getName();
             OffsetDateTime expiresAt = OffsetDateTime.now(ZoneOffset.UTC).plus(idempotencyTtl);
 
-            // INSERT ONLY (first write wins)
-            em.createNativeQuery("""
-                INSERT INTO idempotency_records (idempotency_key, result_type, result_json, request_hash, expires_at)
-                VALUES (?1, ?2, ?3, ?4, ?5)
-                ON CONFLICT (idempotency_key) DO NOTHING
+            int updated = em.createNativeQuery("""
+                UPDATE idempotency_records
+                SET result_type = ?2,
+                    result_json = ?3,
+                    request_hash = ?4,
+                    expires_at = ?5
+                WHERE idempotency_key = ?1
+                  AND request_hash = ?4
+                  AND result_json IS NULL
             """)
                     .setParameter(1, idempotencyKey)
                     .setParameter(2, type)
@@ -83,8 +90,73 @@ public class JpaIdempotencyAdapter implements IdempotencyPort {
                     .setParameter(5, expiresAt)
                     .executeUpdate();
 
+            if (updated == 0) {
+                em.createNativeQuery("""
+                    INSERT INTO idempotency_records (idempotency_key, result_type, result_json, request_hash, expires_at)
+                    VALUES (?1, ?2, ?3, ?4, ?5)
+                    ON CONFLICT (idempotency_key) DO NOTHING
+                """)
+                        .setParameter(1, idempotencyKey)
+                        .setParameter(2, type)
+                        .setParameter(3, json)
+                        .setParameter(4, requestHash)
+                        .setParameter(5, expiresAt)
+                        .executeUpdate();
+            }
+
         } catch (Exception e) {
             throw new IllegalStateException("Failed to save idempotency key=" + idempotencyKey, e);
         }
+    }
+
+    @Override
+    @Transactional
+    public boolean reserve(String idempotencyKey, String requestHash, Class<?> type) {
+        OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
+        repo.findById(idempotencyKey)
+                .filter(r -> r.getExpiresAt() != null && r.getExpiresAt().isBefore(now))
+                .ifPresent(r -> repo.deleteById(idempotencyKey));
+
+        OffsetDateTime expiresAt = OffsetDateTime.now(ZoneOffset.UTC).plus(idempotencyTtl);
+        int inserted = em.createNativeQuery("""
+                INSERT INTO idempotency_records (idempotency_key, result_type, result_json, request_hash, expires_at)
+                VALUES (?1, ?2, NULL, ?3, ?4)
+                ON CONFLICT (idempotency_key) DO NOTHING
+            """)
+                .setParameter(1, idempotencyKey)
+                .setParameter(2, type.getName())
+                .setParameter(3, requestHash)
+                .setParameter(4, expiresAt)
+                .executeUpdate();
+
+        if (inserted > 0) {
+            return true;
+        }
+
+        return repo.findById(idempotencyKey)
+                .map(record -> {
+                    if (record.getRequestHash() != null
+                            && !record.getRequestHash().isBlank()
+                            && !record.getRequestHash().equals(requestHash)) {
+                        throw new IdempotencyConflictException(
+                                "Idempotency key reuse with different payload.",
+                                Map.of("idempotencyKey", idempotencyKey)
+                        );
+                    }
+                    if (!record.getResultType().equals(type.getName())) {
+                        throw new IllegalStateException("Idempotency type mismatch for key=" + idempotencyKey);
+                    }
+                    return false;
+                })
+                .orElseGet(() -> em.createNativeQuery("""
+                        INSERT INTO idempotency_records (idempotency_key, result_type, result_json, request_hash, expires_at)
+                        VALUES (?1, ?2, NULL, ?3, ?4)
+                        ON CONFLICT (idempotency_key) DO NOTHING
+                    """)
+                        .setParameter(1, idempotencyKey)
+                        .setParameter(2, type.getName())
+                        .setParameter(3, requestHash)
+                        .setParameter(4, expiresAt)
+                        .executeUpdate() > 0);
     }
 }

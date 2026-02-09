@@ -82,6 +82,17 @@ public class RequestClientRefundService implements RequestClientRefundUseCase {
         }
 
         Instant now = timeProviderPort.now();
+
+        var inProgress = IdempotencyReservations.reserveOrLoad(
+                idempotencyPort,
+                cmd.idempotencyKey(),
+                cmd.idempotencyRequestHash(),
+                ClientRefundResult.class
+        );
+        if (inProgress.isPresent()) {
+            return inProgress.get();
+        }
+
         TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
         Transaction tx = Transaction.clientRefund(txId, due, now);
         transactionRepositoryPort.save(tx);

@@ -14,6 +14,7 @@ import com.kori.domain.model.agent.AgentId;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionType;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -50,6 +51,11 @@ class AgentBankDepositReceiptServiceTest {
     private static final UUID AGENT_UUID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final UUID TX_UUID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
+    }
 
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {

@@ -22,6 +22,7 @@ import com.kori.domain.model.merchant.MerchantCode;
 import com.kori.domain.model.merchant.MerchantId;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -119,7 +120,10 @@ final class MerchantWithdrawAtAgentServiceTest {
         return new Merchant(new MerchantId(MERCHANT_UUID), MERCHANT_CODE, Status.ACTIVE, NOW.minusSeconds(120));
     }
 
-    // ======= tests =======
+    @BeforeEach
+    void setUp() {
+        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
+    }
 
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {

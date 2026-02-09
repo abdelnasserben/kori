@@ -91,6 +91,16 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
 
         Instant now = timeProviderPort.now();
 
+        var inProgress = IdempotencyReservations.reserveOrLoad(
+                idempotencyPort,
+                command.idempotencyKey(),
+                command.idempotencyRequestHash(),
+                AgentPayoutResult.class
+        );
+        if (inProgress.isPresent()) {
+            return inProgress.get();
+        }
+
         TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
         Transaction tx = Transaction.agentPayout(txId, due, now);
         transactionRepositoryPort.save(tx);

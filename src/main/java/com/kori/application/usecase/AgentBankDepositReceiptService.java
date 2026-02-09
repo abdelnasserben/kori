@@ -70,6 +70,16 @@ public final class AgentBankDepositReceiptService implements AgentBankDepositRec
         Money amount = Money.positive(command.amount());
         Instant now = timeProviderPort.now();
 
+        var inProgress = IdempotencyReservations.reserveOrLoad(
+                idempotencyPort,
+                command.idempotencyKey(),
+                command.idempotencyRequestHash(),
+                AgentBankDepositReceiptResult.class
+        );
+        if (inProgress.isPresent()) {
+            return inProgress.get();
+        }
+
         agentRepositoryPort.findByIdForUpdate(agent.id());
 
         TransactionId txId = new TransactionId(idGeneratorPort.newUuid());

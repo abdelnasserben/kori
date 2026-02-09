@@ -103,6 +103,16 @@ public final class EnrollCardService implements EnrollCardUseCase {
 
         Instant now = timeProviderPort.now();
 
+        var inProgress = IdempotencyReservations.reserveOrLoad(
+                idempotencyPort,
+                command.idempotencyKey(),
+                command.idempotencyRequestHash(),
+                EnrollCardResult.class
+        );
+        if (inProgress.isPresent()) {
+            return inProgress.get();
+        }
+
         // 4) client (find or create by phone)
         boolean clientCreated = false;
         Optional<Client> existingClient = clientRepositoryPort.findByPhoneNumber(command.phoneNumber());

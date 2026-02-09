@@ -60,6 +60,16 @@ public final class CreateAgentService implements CreateAgentUseCase {
         AgentId id = new AgentId(idGeneratorPort.newUuid());
         Instant now = timeProviderPort.now();
 
+        var inProgress = IdempotencyReservations.reserveOrLoad(
+                idempotencyPort,
+                command.idempotencyKey(),
+                command.idempotencyRequestHash(),
+                CreateAgentResult.class
+        );
+        if (inProgress.isPresent()) {
+            return inProgress.get();
+        }
+
         Agent agent = Agent.activeNew(id, code, now);
         agentRepositoryPort.save(agent);
 

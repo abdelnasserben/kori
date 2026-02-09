@@ -24,6 +24,7 @@ import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -115,6 +116,11 @@ final class EnrollCardServiceTest {
 
     private static Agent activeAgent() {
         return new Agent(new AgentId(AGENT_UUID), AGENT_CODE, NOW.minusSeconds(60), Status.ACTIVE);
+    }
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
     }
 
     @Test

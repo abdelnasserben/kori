@@ -96,6 +96,17 @@ public final class AddCardToExistingClientService implements AddCardToExistingCl
         }
 
         Instant now = timeProviderPort.now();
+
+        var inProgress = IdempotencyReservations.reserveOrLoad(
+                idempotencyPort,
+                command.idempotencyKey(),
+                command.idempotencyRequestHash(),
+                AddCardToExistingClientResult.class
+        );
+        if (inProgress.isPresent()) {
+            return inProgress.get();
+        }
+
         var outcome = enrollmentWorkflow.enrollCard(client, agent, command.cardUid(), command.pin(), now);
 
         Map<String, String> metadata = new HashMap<>();

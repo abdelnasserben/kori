@@ -58,6 +58,16 @@ public class CreateTerminalService implements CreateTerminalUseCase {
 
         Instant now = timeProviderPort.now();
 
+        var inProgress = IdempotencyReservations.reserveOrLoad(
+                idempotencyPort,
+                command.idempotencyKey(),
+                command.idempotencyRequestHash(),
+                CreateTerminalResult.class
+        );
+        if (inProgress.isPresent()) {
+            return inProgress.get();
+        }
+
         TerminalId terminalId = new TerminalId(idGeneratorPort.newUuid());
         Terminal terminal = new Terminal(terminalId, merchant.id(), Status.ACTIVE, now);
         terminalRepositoryPort.save(terminal);

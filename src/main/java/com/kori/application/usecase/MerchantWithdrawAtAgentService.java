@@ -118,6 +118,16 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
             );
         }
 
+        var inProgress = IdempotencyReservations.reserveOrLoad(
+                idempotencyPort,
+                command.idempotencyKey(),
+                command.idempotencyRequestHash(),
+                MerchantWithdrawAtAgentResult.class
+        );
+        if (inProgress.isPresent()) {
+            return inProgress.get();
+        }
+
         agentRepositoryPort.findByIdForUpdate(agent.id());
         agentCashLimitGuard.ensureProjectedBalanceWithinLimit(agent.id().value().toString(), Money.zero(), amount);
 

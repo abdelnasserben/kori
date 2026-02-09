@@ -10,6 +10,7 @@ import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -41,6 +42,11 @@ class RequestClientRefundServiceTest {
     @Mock IdGeneratorPort idGeneratorPort;
 
     @InjectMocks RequestClientRefundService service;
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
+    }
 
     @Test
     void forbidden_when_client_wallet_zero() {

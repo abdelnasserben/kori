@@ -14,6 +14,7 @@ import com.kori.domain.model.merchant.MerchantCode;
 import com.kori.domain.model.merchant.MerchantId;
 import com.kori.domain.model.terminal.Terminal;
 import com.kori.domain.model.terminal.TerminalId;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -73,6 +74,11 @@ final class CreateTerminalServiceTest {
 
     private static Merchant activeMerchant() {
         return new Merchant(MERCHANT_ID, MERCHANT_CODE, Status.ACTIVE, NOW.minusSeconds(120));
+    }
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
     }
 
     @Test

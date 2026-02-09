@@ -14,6 +14,7 @@ import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
 import com.kori.domain.model.merchant.MerchantId;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -71,6 +72,11 @@ final class CreateMerchantServiceTest {
 
     private static CreateMerchantCommand cmd(ActorContext actor) {
         return new CreateMerchantCommand(IDEM_KEY, REQUEST_HASH, actor);
+    }
+
+    @BeforeEach
+    void setUp() {
+        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
     }
 
     @Test

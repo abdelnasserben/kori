@@ -26,6 +26,7 @@ import com.kori.domain.model.terminal.Terminal;
 import com.kori.domain.model.terminal.TerminalId;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -150,7 +151,10 @@ final class PayByCardServiceTest {
         );
     }
 
-    // ======= tests =======
+    @BeforeEach
+    void setUp() {
+        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
+    }
 
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {

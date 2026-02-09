@@ -91,6 +91,16 @@ public final class ReversalService implements ReversalUseCase {
 
         Instant now = timeProviderPort.now();
 
+        var inProgress = IdempotencyReservations.reserveOrLoad(
+                idempotencyPort,
+                cmd.idempotencyKey(),
+                cmd.idempotencyRequestHash(),
+                ReversalResult.class
+        );
+        if (inProgress.isPresent()) {
+            return inProgress.get();
+        }
+
         TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
         Transaction reversalTx = Transaction.reversal(txId, originalTxId, originalTx.amount(), now);
         transactionRepositoryPort.save(reversalTx);

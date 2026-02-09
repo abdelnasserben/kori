@@ -20,7 +20,7 @@ public class IdempotencyRecordEntity {
     private String resultType;
 
     @Getter
-    @Column(name = "result_json", nullable = false, columnDefinition = "text")
+    @Column(name = "result_json", columnDefinition = "text")
     private String resultJson;
 
     @Getter
