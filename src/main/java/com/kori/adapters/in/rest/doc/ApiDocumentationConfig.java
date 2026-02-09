@@ -1,7 +1,6 @@
 package com.kori.adapters.in.rest.doc;
 
 import com.kori.adapters.in.rest.ApiHeaders;
-import com.kori.adapters.in.rest.RestActorContextResolver;
 import com.kori.adapters.in.rest.filter.CorrelationIdFilter;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;

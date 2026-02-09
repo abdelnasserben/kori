@@ -86,6 +86,21 @@ public class RestExceptionHandler {
                 safeMessage(ex.getMessage()), sanitize(ex.metadata()), request);
     }
 
+    @ExceptionHandler(ActorContextAuthenticationException.class)
+    public ResponseEntity<ApiErrorResponse> handleActorContextAuth(
+            ActorContextAuthenticationException ex,
+            HttpServletRequest request
+    ) {
+        // Auth missing/invalid at the application boundary
+        return buildResponse(
+                HttpStatus.UNAUTHORIZED,
+                ApplicationErrorCode.AUTHENTICATION_REQUIRED.name(),
+                "Authentication required",
+                Map.of(),
+                request
+        );
+    }
+
     @ExceptionHandler(ForbiddenOperationException.class)
     public ResponseEntity<ApiErrorResponse> handleForbidden(
             ForbiddenOperationException ex,

@@ -28,12 +28,13 @@ import java.util.stream.Stream;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(ClientRefundController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class ClientRefundControllerWebMvcTest extends BaseWebMvcTest {
 
@@ -50,9 +51,11 @@ class ClientRefundControllerWebMvcTest extends BaseWebMvcTest {
         when(requestClientRefundUseCase.execute(any())).thenReturn(result);
 
         mockMvc.perform(post(URL + "/requests")
+                        .with(jwt().jwt(jwt -> jwt
+                                .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)
+                                .claim(ACTOR_ID_KEY, ACTOR_ID)
+                        ))
                         .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
@@ -66,16 +69,20 @@ class ClientRefundControllerWebMvcTest extends BaseWebMvcTest {
     @Test
     void should_complete_client_refund() throws Exception {
         mockMvc.perform(post(URL + "/{refundId}/complete", "refund-1")
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID))
+                        .with(jwt().jwt(jwt -> jwt
+                                .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)
+                                .claim(ACTOR_ID_KEY, ACTOR_ID)
+                        )))
                 .andExpect(status().isNoContent());
     }
 
     @Test
     void should_fail_client_refund() throws Exception {
         mockMvc.perform(post(URL + "/{refundId}/fail", "refund-1")
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
+                        .with(jwt().jwt(jwt -> jwt
+                                .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)
+                                .claim(ACTOR_ID_KEY, ACTOR_ID)
+                        ))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new FailClientRefundRequest("bank error"))))
                 .andExpect(status().isNoContent());
@@ -87,9 +94,11 @@ class ClientRefundControllerWebMvcTest extends BaseWebMvcTest {
         when(requestClientRefundUseCase.execute(any())).thenThrow(exception);
 
         mockMvc.perform(post(URL + "/requests")
+                        .with(jwt().jwt(jwt -> jwt
+                                .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)
+                                .claim(ACTOR_ID_KEY, ACTOR_ID)
+                        ))
                         .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new RequestClientRefundRequest("client-1"))))
                 .andExpect(status().is(status.value()))
@@ -97,7 +106,7 @@ class ClientRefundControllerWebMvcTest extends BaseWebMvcTest {
                 .andExpect(jsonPath("$.message").value(message));
     }
 
-    private static Stream<Arguments> applicationExceptions() {
+    protected static Stream<Arguments> applicationExceptions() {
         return Stream.of(
                 Arguments.of(new ValidationException("Invalid input"), HttpStatus.BAD_REQUEST, "INVALID_INPUT", "Invalid input"),
                 Arguments.of(new ForbiddenOperationException("Forbidden"), HttpStatus.FORBIDDEN, "FORBIDDEN_OPERATION", "Forbidden"),

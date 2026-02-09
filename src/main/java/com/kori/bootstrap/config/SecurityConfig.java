@@ -3,8 +3,6 @@ package com.kori.bootstrap.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.in.rest.error.SecurityAccessDeniedHandler;
 import com.kori.adapters.in.rest.error.SecurityAuthenticationEntryPoint;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,15 +14,10 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
-import org.springframework.security.oauth2.jwt.JwtDecoder;
-import org.springframework.security.oauth2.jwt.JwtDecoders;
-import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
-import javax.crypto.spec.SecretKeySpec;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -113,27 +106,6 @@ public class SecurityConfig {
     @Bean
     SecurityAccessDeniedHandler securityAccessDeniedHandler(ObjectMapper objectMapper) {
         return new SecurityAccessDeniedHandler(objectMapper);
-    }
-
-    @Bean
-    @ConditionalOnProperty(prefix = "kori.security.jwt", name = "mode", havingValue = "issuer", matchIfMissing = true)
-    JwtDecoder jwtDecoderFromIssuer(
-            @Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri:}") String issuerUri) {
-        if (issuerUri == null || issuerUri.isBlank()) {
-            throw new IllegalStateException("spring.security.oauth2.resourceserver.jwt.issuer-uri must be set when kori.security.jwt.mode=issuer");
-        }
-        return JwtDecoders.fromIssuerLocation(issuerUri);
-    }
-
-    @Bean
-    @ConditionalOnProperty(prefix = "kori.security.jwt", name = "mode", havingValue = "hmac")
-    JwtDecoder jwtDecoder() {
-        String jwtSecret = securityProperties.getJwt().getHmacSecret();
-        if (jwtSecret == null || jwtSecret.isBlank()) {
-            throw new IllegalStateException("kori.security.jwt.hmac-secret must be set when kori.security.jwt.mode=hmac");
-        }
-        var key = new SecretKeySpec(jwtSecret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
-        return NimbusJwtDecoder.withSecretKey(key).build();
     }
 
     private JwtAuthenticationConverter jwtAuthenticationConverter() {

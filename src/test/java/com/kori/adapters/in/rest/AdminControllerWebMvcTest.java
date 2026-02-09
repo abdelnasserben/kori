@@ -3,7 +3,6 @@ package com.kori.adapters.in.rest;
 import com.kori.adapters.in.rest.controller.AdminController;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.error.RestExceptionHandler;
-import com.kori.application.exception.*;
 import com.kori.application.port.in.CreateAdminUseCase;
 import com.kori.application.port.in.UpdateAdminStatusUseCase;
 import com.kori.application.result.CreateAdminResult;
@@ -11,7 +10,6 @@ import com.kori.application.result.UpdateAdminStatusResult;
 import com.kori.bootstrap.config.JacksonConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -20,17 +18,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
-import java.util.stream.Stream;
-
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AdminController.class)
-@AutoConfigureMockMvc(addFilters = false)
+@AutoConfigureMockMvc
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class AdminControllerWebMvcTest extends BaseWebMvcTest {
 
@@ -49,9 +46,11 @@ class AdminControllerWebMvcTest extends BaseWebMvcTest {
         when(createAdminUseCase.execute(any())).thenReturn(result);
 
         mockMvc.perform(post(URL)
-                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1")
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID))
+                        .with(jwt().jwt(jwt -> jwt
+                                .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)
+                                .claim(ACTOR_ID_KEY, ACTOR_ID)
+                        ))
+                        .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.adminId").value("admin-123"));
     }
@@ -63,8 +62,10 @@ class AdminControllerWebMvcTest extends BaseWebMvcTest {
         when(updateAdminStatusUseCase.execute(any())).thenReturn(result);
 
         mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "admin-123")
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
+                        .with(jwt().jwt(jwt -> jwt
+                                .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)
+                                .claim(ACTOR_ID_KEY, ACTOR_ID)
+                        ))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
@@ -78,8 +79,10 @@ class AdminControllerWebMvcTest extends BaseWebMvcTest {
         var request = new UpdateStatusRequest("", "ok");
 
         mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "admin-123")
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
+                        .with(jwt().jwt(jwt -> jwt
+                                .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)
+                                .claim(ACTOR_ID_KEY, ACTOR_ID)
+                        ))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
@@ -94,27 +97,14 @@ class AdminControllerWebMvcTest extends BaseWebMvcTest {
         when(updateAdminStatusUseCase.execute(any())).thenThrow(exception);
 
         mockMvc.perform(patch(URL_PATH_VARIABLE_STATUS, "admin-123")
-                        .header(RestActorContextResolver.ACTOR_TYPE_HEADER, ACTOR_TYPE)
-                        .header(RestActorContextResolver.ACTOR_ID_HEADER, ACTOR_ID)
+                        .with(jwt().jwt(jwt -> jwt
+                                .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)
+                                .claim(ACTOR_ID_KEY, ACTOR_ID)
+                        ))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().is(status.value()))
                 .andExpect(jsonPath("$.code").value(code))
                 .andExpect(jsonPath("$.message").value(message));
-    }
-
-    private static Stream<Arguments> applicationExceptions() {
-        return Stream.of(
-                Arguments.of(new ValidationException("Invalid input"), HttpStatus.BAD_REQUEST, "INVALID_INPUT", "Invalid input"),
-                Arguments.of(new ForbiddenOperationException("Forbidden"), HttpStatus.FORBIDDEN, "FORBIDDEN_OPERATION", "Forbidden"),
-                Arguments.of(new NotFoundException("Not found"), HttpStatus.NOT_FOUND, "RESOURCE_NOT_FOUND", "Not found"),
-                Arguments.of(new IdempotencyConflictException("Conflict"), HttpStatus.CONFLICT, "IDEMPOTENCY_CONFLICT", "Conflict"),
-                Arguments.of(
-                        new ApplicationException(ApplicationErrorCode.TECHNICAL_FAILURE, ApplicationErrorCategory.TECHNICAL, "Boom"),
-                        HttpStatus.INTERNAL_SERVER_ERROR,
-                        "TECHNICAL_FAILURE",
-                        "Unexpected error"
-                )
-        );
     }
 }
