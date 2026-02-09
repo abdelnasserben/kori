@@ -107,8 +107,11 @@ Idempotency-Key: <string>
 
 #### Comportement garanti
 
-* Une même clé + même payload → même résultat
-* Collision de clé avec payload différent → **409 Conflict**
+* Le serveur calcule un hash SHA-256 du payload JSON.
+* Une même clé + même payload (hash identique) → même résultat (réponse mise en cache).
+* Clé déjà réservée mais résultat pas encore disponible → **409 Conflict** (`IDEMPOTENCY_CONFLICT`).
+* Collision de clé avec payload différent → **409 Conflict** (`IDEMPOTENCY_CONFLICT`).
+* Les enregistrements d’idempotence expirent après 24h (TTL configurable côté serveur).
 
 Les endpoints idempotents sont explicitement indiqués.
 
