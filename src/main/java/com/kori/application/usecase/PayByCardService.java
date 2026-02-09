@@ -7,6 +7,7 @@ import com.kori.application.exception.NotFoundException;
 import com.kori.application.exception.ValidationException;
 import com.kori.application.guard.ActorGuards;
 import com.kori.application.guard.OperationStatusGuards;
+import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.PayByCardUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.PayByCardResult;
@@ -33,7 +34,6 @@ import java.util.Map;
 public final class PayByCardService implements PayByCardUseCase {
 
     private final TimeProviderPort timeProviderPort;
-    private final IdempotencyPort idempotencyPort;
     private final IdGeneratorPort idGeneratorPort;
 
     private final TerminalRepositoryPort terminalRepositoryPort;
@@ -53,6 +53,7 @@ public final class PayByCardService implements PayByCardUseCase {
     private final AuditPort auditPort;
     private final PinHasherPort pinHasherPort;
     private final OperationStatusGuards operationStatusGuards;
+    private final IdempotencyExecutor idempotencyExecutor;
 
     public PayByCardService(TimeProviderPort timeProviderPort,
                             IdempotencyPort idempotencyPort,
@@ -70,7 +71,6 @@ public final class PayByCardService implements PayByCardUseCase {
                             PinHasherPort pinHasherPort,
                             OperationStatusGuards operationStatusGuards) {
         this.timeProviderPort = timeProviderPort;
-        this.idempotencyPort = idempotencyPort;
         this.idGeneratorPort = idGeneratorPort;
         this.terminalRepositoryPort = terminalRepositoryPort;
         this.merchantRepositoryPort = merchantRepositoryPort;
@@ -84,126 +84,118 @@ public final class PayByCardService implements PayByCardUseCase {
         this.auditPort = auditPort;
         this.pinHasherPort = pinHasherPort;
         this.operationStatusGuards = operationStatusGuards;
+        this.idempotencyExecutor = new IdempotencyExecutor(idempotencyPort);
     }
 
     @Override
     public PayByCardResult execute(PayByCardCommand command) {
-        var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), PayByCardResult.class);
-        if (cached.isPresent()) {
-            return cached.get();
-        }
-
-        ActorGuards.requireTerminal(command.actorContext(), "initiate PayByCard");
-
-        TerminalId terminalId = new TerminalId(UuidParser.parse(command.terminalUid(), "terminalId"));
-        Terminal terminal = terminalRepositoryPort.findById(terminalId)
-                .orElseThrow(() -> new NotFoundException("Terminal not found"));
-
-        if (terminal.status() != Status.ACTIVE) {
-            throw new ForbiddenOperationException("Terminal is not active");
-        }
-
-        Merchant merchant = merchantRepositoryPort.findById(terminal.merchantId())
-                .orElseThrow(() -> new NotFoundException("Merchant not found"));
-
-        // Merchant status + merchant account profile status
-        operationStatusGuards.requireActiveMerchant(merchant);
-
-        var merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
-
-        Card card = cardRepositoryPort.findByCardUid(command.cardUid())
-                .orElseThrow(() -> new NotFoundException("Card not found"));
-
-        Client client = clientRepositoryPort.findById(card.clientId())
-                .orElseThrow(() -> new NotFoundException("Client not found"));
-
-        // Client status + client account profile status
-        operationStatusGuards.requireActiveClient(client);
-
-        if (!card.isPayable()) {
-            throw new ForbiddenOperationException("Card not payable");
-        }
-
-        int maxAttempts = cardSecurityPolicyPort.maxFailedPinAttempts();
-        if (maxAttempts <= 0) {
-            throw new ValidationException(
-                    "Invalid maxFailedPinAttempts policy value",
-                    Map.of("maxFailedPinAttempts", maxAttempts)
-            );
-        }
-
-        PinFormatValidator.validate(command.pin());
-
-        if (!pinHasherPort.matches(command.pin(), card.hashedPin())) {
-            card.onPinFailure(maxAttempts);
-            cardRepositoryPort.save(card);
-            throw new ForbiddenOperationException("Invalid PIN");
-        }
-
-        card.onPinSuccess();
-        cardRepositoryPort.save(card);
-
-        // accountRef client
-        var clientAcc = LedgerAccountRef.client(card.clientId().value().toString());
-
-        Instant now = timeProviderPort.now();
-
-        Money amount = Money.positive(command.amount());
-        Money fee = feePolicyPort.cardPaymentFee(amount);
-        Money totalDebited = amount.plus(fee);
-
-        Money available = ledgerQueryPort.netBalance(clientAcc);
-        if (totalDebited.isGreaterThan(available)) {
-            throw new InsufficientFundsException(
-                    "Insufficient funds: need " + totalDebited + " but available " + available
-            );
-        }
-
-        var inProgress = IdempotencyReservations.reserveOrLoad(
-                idempotencyPort,
+        return idempotencyExecutor.execute(
                 command.idempotencyKey(),
                 command.idempotencyRequestHash(),
-                PayByCardResult.class
+                PayByCardResult.class,
+                () -> {
+                    // business logic
+
+                    ActorGuards.requireTerminal(command.actorContext(), "initiate PayByCard");
+
+                    TerminalId terminalId = new TerminalId(UuidParser.parse(command.terminalUid(), "terminalId"));
+                    Terminal terminal = terminalRepositoryPort.findById(terminalId)
+                            .orElseThrow(() -> new NotFoundException("Terminal not found"));
+
+                    if (terminal.status() != Status.ACTIVE) {
+                        throw new ForbiddenOperationException("Terminal is not active");
+                    }
+
+                    Merchant merchant = merchantRepositoryPort.findById(terminal.merchantId())
+                            .orElseThrow(() -> new NotFoundException("Merchant not found"));
+
+                    // Merchant status + merchant account profile status
+                    operationStatusGuards.requireActiveMerchant(merchant);
+
+                    var merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
+
+                    Card card = cardRepositoryPort.findByCardUid(command.cardUid())
+                            .orElseThrow(() -> new NotFoundException("Card not found"));
+
+                    Client client = clientRepositoryPort.findById(card.clientId())
+                            .orElseThrow(() -> new NotFoundException("Client not found"));
+
+                    // Client status + client account profile status
+                    operationStatusGuards.requireActiveClient(client);
+
+                    if (!card.isPayable()) {
+                        throw new ForbiddenOperationException("Card not payable");
+                    }
+
+                    int maxAttempts = cardSecurityPolicyPort.maxFailedPinAttempts();
+                    if (maxAttempts <= 0) {
+                        throw new ValidationException(
+                                "Invalid maxFailedPinAttempts policy value",
+                                Map.of("maxFailedPinAttempts", maxAttempts)
+                        );
+                    }
+
+                    PinFormatValidator.validate(command.pin());
+
+                    if (!pinHasherPort.matches(command.pin(), card.hashedPin())) {
+                        card.onPinFailure(maxAttempts);
+                        cardRepositoryPort.save(card);
+                        throw new ForbiddenOperationException("Invalid PIN");
+                    }
+
+                    card.onPinSuccess();
+                    cardRepositoryPort.save(card);
+
+                    // accountRef client
+                    var clientAcc = LedgerAccountRef.client(card.clientId().value().toString());
+
+                    Instant now = timeProviderPort.now();
+
+                    Money amount = Money.positive(command.amount());
+                    Money fee = feePolicyPort.cardPaymentFee(amount);
+                    Money totalDebited = amount.plus(fee);
+
+                    Money available = ledgerQueryPort.netBalance(clientAcc);
+                    if (totalDebited.isGreaterThan(available)) {
+                        throw new InsufficientFundsException(
+                                "Insufficient funds: need " + totalDebited + " but available " + available
+                        );
+                    }
+
+                    TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
+                    Transaction tx = Transaction.payByCard(txId, amount, now);
+                    tx = transactionRepositoryPort.save(tx);
+
+                    var feeAcc = LedgerAccountRef.platformFeeRevenue();
+
+                    ledgerAppendPort.append(List.of(
+                            LedgerEntry.debit(tx.id(), clientAcc, totalDebited),
+                            LedgerEntry.credit(tx.id(), merchantAcc, amount),
+                            LedgerEntry.credit(tx.id(), feeAcc, fee)
+                    ));
+
+                    Map<String, String> metadata = new HashMap<>();
+                    metadata.put("terminalUid", command.terminalUid());
+                    metadata.put("merchantCode", merchant.code().value());
+                    metadata.put("transactionId", tx.id().value().toString());
+                    metadata.put("cardUid", command.cardUid());
+
+                    auditPort.publish(AuditBuilder.buildBasicAudit(
+                            "PAY_BY_CARD",
+                            command.actorContext(),
+                            now,
+                            metadata
+                    ));
+
+                    return new PayByCardResult(
+                            tx.id().value().toString(),
+                            merchant.code().value(),
+                            card.cardUid(),
+                            amount.asBigDecimal(),
+                            fee.asBigDecimal(),
+                            totalDebited.asBigDecimal()
+                    );
+                }
         );
-        if (inProgress.isPresent()) {
-            return inProgress.get();
-        }
-
-        TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
-        Transaction tx = Transaction.payByCard(txId, amount, now);
-        tx = transactionRepositoryPort.save(tx);
-
-        var feeAcc = LedgerAccountRef.platformFeeRevenue();
-
-        ledgerAppendPort.append(List.of(
-                LedgerEntry.debit(tx.id(), clientAcc, totalDebited),
-                LedgerEntry.credit(tx.id(), merchantAcc, amount),
-                LedgerEntry.credit(tx.id(), feeAcc, fee)
-        ));
-
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("terminalUid", command.terminalUid());
-        metadata.put("merchantCode", merchant.code().value());
-        metadata.put("transactionId", tx.id().value().toString());
-        metadata.put("cardUid", command.cardUid());
-
-        auditPort.publish(AuditBuilder.buildBasicAudit(
-                "PAY_BY_CARD",
-                command.actorContext(),
-                now,
-                metadata
-        ));
-
-        PayByCardResult result = new PayByCardResult(
-                tx.id().value().toString(),
-                merchant.code().value(),
-                card.cardUid(),
-                amount.asBigDecimal(),
-                fee.asBigDecimal(),
-                totalDebited.asBigDecimal()
-        );
-
-        idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
-        return result;
     }
 }

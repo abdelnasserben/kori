@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.CreateAdminCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CreateAdminResult;
 import com.kori.application.security.ActorContext;
@@ -9,7 +10,6 @@ import com.kori.application.security.ActorType;
 import com.kori.domain.model.admin.Admin;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Status;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -19,7 +19,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.Instant;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -31,7 +30,8 @@ import static org.mockito.Mockito.*;
 final class CreateAdminServiceTest {
 
     @Mock AdminRepositoryPort adminRepositoryPort;
-    @Mock IdempotencyPort idempotencyPort;
+    @Mock
+    IdempotencyPort idempotencyPort;
     @Mock TimeProviderPort timeProviderPort;
     @Mock IdGeneratorPort idGeneratorPort;
     @Mock AuditPort auditPort;
@@ -57,34 +57,33 @@ final class CreateAdminServiceTest {
         return new CreateAdminCommand(IDEM_KEY, REQUEST_HASH, actor);
     }
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
-    }
-
     @Test
     void forbidden_whenActorIsNotAdmin() {
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateAdminResult.class))
+                .thenReturn(IdempotencyClaim.claimed());
+
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(nonAdminActor())));
 
-        verifyNoInteractions(idempotencyPort, adminRepositoryPort, timeProviderPort, idGeneratorPort, auditPort);
+        verify(idempotencyPort).fail(IDEM_KEY, REQUEST_HASH);
+        verifyNoInteractions(adminRepositoryPort, timeProviderPort, idGeneratorPort, auditPort);
     }
 
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         CreateAdminResult cached = new CreateAdminResult("admin-1");
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAdminResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateAdminResult.class)).thenReturn(IdempotencyClaim.completed(cached));
 
         CreateAdminResult out = service.execute(cmd(adminActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, CreateAdminResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateAdminResult.class);
 
         verifyNoMoreInteractions(idGeneratorPort, timeProviderPort, adminRepositoryPort, auditPort, idempotencyPort);
     }
 
     @Test
     void happyPath_createsAdmin_audits_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAdminResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateAdminResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(idGeneratorPort.newUuid()).thenReturn(ADMIN_UUID);
         when(timeProviderPort.now()).thenReturn(NOW);
 
@@ -111,6 +110,6 @@ final class CreateAdminServiceTest {
         assertEquals(ADMIN_ID, event.metadata().get("adminId"));
         assertEquals(ADMIN_UUID.toString(), event.metadata().get("createdAdminId"));
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateAdminResult.class));
+        verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateAdminResult.class));
     }
 }

@@ -5,6 +5,7 @@ import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.guard.ActorGuards;
 import com.kori.application.guard.AgentCashLimitGuard;
+import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.ReversalUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.ReversalResult;
@@ -30,7 +31,6 @@ public final class ReversalService implements ReversalUseCase {
     private static final LedgerAccountRef LEGACY_PLATFORM_CLEARING_ACCOUNT = LedgerAccountRef.platformClearing();
 
     private final TimeProviderPort timeProviderPort;
-    private final IdempotencyPort idempotencyPort;
 
     private final TransactionRepositoryPort transactionRepositoryPort;
     private final LedgerQueryPort ledgerQueryPort;
@@ -39,6 +39,7 @@ public final class ReversalService implements ReversalUseCase {
     private final IdGeneratorPort idGeneratorPort;
     private final FeeConfigPort feeConfigPort;
     private final AgentCashLimitGuard agentCashLimitGuard;
+    private final IdempotencyExecutor idempotencyExecutor;
 
     public ReversalService(TimeProviderPort timeProviderPort,
                            IdempotencyPort idempotencyPort,
@@ -50,7 +51,6 @@ public final class ReversalService implements ReversalUseCase {
                            FeeConfigPort feeConfigPort,
                            PlatformConfigPort platformConfigPort) {
         this.timeProviderPort = timeProviderPort;
-        this.idempotencyPort = idempotencyPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.ledgerQueryPort = ledgerQueryPort;
         this.ledgerAppendPort = ledgerAppendPort;
@@ -58,71 +58,64 @@ public final class ReversalService implements ReversalUseCase {
         this.idGeneratorPort = idGeneratorPort;
         this.feeConfigPort = feeConfigPort;
         this.agentCashLimitGuard = new AgentCashLimitGuard(ledgerQueryPort, platformConfigPort);
+        this.idempotencyExecutor = new IdempotencyExecutor(idempotencyPort);
     }
 
     @Override
     public ReversalResult execute(ReversalCommand cmd) {
-        var cached = idempotencyPort.find(cmd.idempotencyKey(), cmd.idempotencyRequestHash(), ReversalResult.class);
-        if (cached.isPresent()) {
-            return cached.get();
-        }
-
-        ActorGuards.requireAdmin(cmd.actorContext(), "initiate reversal");
-
-        TransactionId originalTxId = TransactionId.of(cmd.originalTransactionId());
-        Transaction originalTx = transactionRepositoryPort.findById(originalTxId)
-                .orElseThrow(() -> new NotFoundException("Original transaction not found"));
-
-        if (transactionRepositoryPort.existsReversalFor(originalTxId)) {
-            throw new ForbiddenOperationException("Transaction already reversed");
-        }
-
-        List<LedgerEntry> originalEntries = ledgerQueryPort.findByTransactionId(originalTxId);
-        if (originalEntries.isEmpty()) {
-            throw new ForbiddenOperationException("Original transaction has no ledger entries");
-        }
-
-        originalEntries.forEach(l -> {
-            if(l.accountRef() == null)
-                throw new ForbiddenOperationException("account reference is required");
-        });
-
-        enforceCashAvailabilityForReversal(originalTx, originalEntries);
-
-        Instant now = timeProviderPort.now();
-
-        var inProgress = IdempotencyReservations.reserveOrLoad(
-                idempotencyPort,
+        return idempotencyExecutor.execute(
                 cmd.idempotencyKey(),
                 cmd.idempotencyRequestHash(),
-                ReversalResult.class
+                ReversalResult.class,
+                () -> {
+                    // business logic
+
+                    ActorGuards.requireAdmin(cmd.actorContext(), "initiate reversal");
+
+                    TransactionId originalTxId = TransactionId.of(cmd.originalTransactionId());
+                    Transaction originalTx = transactionRepositoryPort.findById(originalTxId)
+                            .orElseThrow(() -> new NotFoundException("Original transaction not found"));
+
+                    if (transactionRepositoryPort.existsReversalFor(originalTxId)) {
+                        throw new ForbiddenOperationException("Transaction already reversed");
+                    }
+
+                    List<LedgerEntry> originalEntries = ledgerQueryPort.findByTransactionId(originalTxId);
+                    if (originalEntries.isEmpty()) {
+                        throw new ForbiddenOperationException("Original transaction has no ledger entries");
+                    }
+
+                    originalEntries.forEach(l -> {
+                        if(l.accountRef() == null)
+                            throw new ForbiddenOperationException("account reference is required");
+                    });
+
+                    enforceCashAvailabilityForReversal(originalTx, originalEntries);
+
+                    Instant now = timeProviderPort.now();
+
+                    TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
+                    Transaction reversalTx = Transaction.reversal(txId, originalTxId, originalTx.amount(), now);
+                    transactionRepositoryPort.save(reversalTx);
+
+                    List<LedgerEntry> reversalEntries = buildReversalEntries(originalTx, originalEntries, reversalTx.id());
+
+                    ledgerAppendPort.append(reversalEntries);
+
+                    Map<String, String> metadata = new HashMap<>();
+                    metadata.put("transactionId", reversalTx.id().value().toString());
+                    metadata.put("originalTransactionId", originalTxId.value().toString());
+
+                    auditPort.publish(AuditBuilder.buildBasicAudit(
+                            "REVERSAL",
+                            cmd.actorContext(),
+                            now,
+                            metadata
+                    ));
+
+                    return new ReversalResult(reversalTx.id().value().toString(), originalTxId.value().toString());
+                }
         );
-        if (inProgress.isPresent()) {
-            return inProgress.get();
-        }
-
-        TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
-        Transaction reversalTx = Transaction.reversal(txId, originalTxId, originalTx.amount(), now);
-        transactionRepositoryPort.save(reversalTx);
-
-        List<LedgerEntry> reversalEntries = buildReversalEntries(originalTx, originalEntries, reversalTx.id());
-
-        ledgerAppendPort.append(reversalEntries);
-
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("transactionId", reversalTx.id().value().toString());
-        metadata.put("originalTransactionId", originalTxId.value().toString());
-
-        auditPort.publish(AuditBuilder.buildBasicAudit(
-                "REVERSAL",
-                cmd.actorContext(),
-                now,
-                metadata
-        ));
-
-        ReversalResult result = new ReversalResult(reversalTx.id().value().toString(), originalTxId.value().toString());
-        idempotencyPort.save(cmd.idempotencyKey(), cmd.idempotencyRequestHash(), result);
-        return result;
     }
 
     private void enforceCashAvailabilityForReversal(Transaction originalTx, List<LedgerEntry> originalEntries) {

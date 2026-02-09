@@ -5,6 +5,7 @@ import com.kori.application.exception.NotFoundException;
 import com.kori.application.guard.ActorGuards;
 import com.kori.application.guard.AgentCashLimitGuard;
 import com.kori.application.guard.OperationStatusGuards;
+import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.CashInByAgentUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CashInByAgentResult;
@@ -27,7 +28,6 @@ import java.util.Map;
 public final class CashInByAgentService implements CashInByAgentUseCase {
 
     private final TimeProviderPort timeProviderPort;
-    private final IdempotencyPort idempotencyPort;
     private final IdGeneratorPort idGeneratorPort;
     private final AgentRepositoryPort agentRepositoryPort;
     private final ClientRepositoryPort clientRepositoryPort;
@@ -36,6 +36,7 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
     private final OperationStatusGuards operationStatusGuards;
+    private final IdempotencyExecutor idempotencyExecutor;
 
     public CashInByAgentService(TimeProviderPort timeProviderPort,
                                 IdempotencyPort idempotencyPort,
@@ -49,7 +50,6 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
                                 AuditPort auditPort,
                                 OperationStatusGuards operationStatusGuards) {
         this.timeProviderPort = timeProviderPort;
-        this.idempotencyPort = idempotencyPort;
         this.idGeneratorPort = idGeneratorPort;
         this.agentRepositoryPort = agentRepositoryPort;
         this.clientRepositoryPort = clientRepositoryPort;
@@ -58,84 +58,72 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
         this.ledgerAppendPort = ledgerAppendPort;
         this.auditPort = auditPort;
         this.operationStatusGuards = operationStatusGuards;
+        this.idempotencyExecutor = new IdempotencyExecutor(idempotencyPort);
     }
 
     @Override
     public CashInByAgentResult execute(CashInByAgentCommand command) {
-        var cached = idempotencyPort.find(
+        return idempotencyExecutor.execute(
                 command.idempotencyKey(),
                 command.idempotencyRequestHash(),
-                CashInByAgentResult.class
+                CashInByAgentResult.class,
+                () -> {
+                    // business logic
+
+                    ActorGuards.requireAgent(command.actorContext(), "initiate cash-in");
+
+                    AgentId agentId = new AgentId(UuidParser.parse(command.actorContext().actorId(), "agentId"));
+                    Agent agent = agentRepositoryPort.findById(agentId)
+                            .orElseThrow(() -> new NotFoundException("Agent not found"));
+
+                    operationStatusGuards.requireActiveAgent(agent);
+
+                    Client client = clientRepositoryPort.findByPhoneNumber(command.clientPhoneNumber())
+                            .orElseThrow(() -> new NotFoundException("Client not found"));
+
+                    operationStatusGuards.requireActiveClient(client);
+
+                    Money amount = Money.positive(command.amount());
+                    Instant now = timeProviderPort.now();
+
+                    TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
+                    Transaction tx = Transaction.cashInByAgent(txId, amount, now);
+                    tx = transactionRepositoryPort.save(tx);
+
+                    // Cash-in is free (no fees, no commissions)
+                    agentRepositoryPort.findByIdForUpdate(agent.id());
+                    agentCashLimitGuard.ensureProjectedBalanceWithinLimit(agent.id().value().toString(), amount, Money.zero());
+
+                    var clearingAcc = LedgerAccountRef.agentCashClearing(agent.id().value().toString());
+                    var clientAcc = LedgerAccountRef.client(client.id().value().toString());
+
+                    ledgerAppendPort.append(List.of(
+                            LedgerEntry.debit(tx.id(), clearingAcc, amount),
+                            LedgerEntry.credit(tx.id(), clientAcc, amount)
+                    ));
+
+                    Map<String, String> metadata = new HashMap<>();
+                    metadata.put("transactionId", tx.id().value().toString());
+                    metadata.put("agentId", agent.id().value().toString());
+                    metadata.put("clientId", client.id().value().toString());
+                    metadata.put("clientPhoneNumber", client.phoneNumber());
+                    metadata.put("amount", amount.asBigDecimal().toPlainString());
+
+                    auditPort.publish(AuditBuilder.buildBasicAudit(
+                            "AGENT_CASH_IN",
+                            command.actorContext(),
+                            now,
+                            metadata
+                    ));
+
+                    return new CashInByAgentResult(
+                            tx.id().value().toString(),
+                            agent.id().value().toString(),
+                            client.id().value().toString(),
+                            client.phoneNumber(),
+                            amount.asBigDecimal()
+                    );
+                }
         );
-        if (cached.isPresent()) {
-            return cached.get();
-        }
-
-        ActorGuards.requireAgent(command.actorContext(), "initiate cash-in");
-
-        AgentId agentId = new AgentId(UuidParser.parse(command.actorContext().actorId(), "agentId"));
-        Agent agent = agentRepositoryPort.findById(agentId)
-                .orElseThrow(() -> new NotFoundException("Agent not found"));
-
-        operationStatusGuards.requireActiveAgent(agent);
-
-        Client client = clientRepositoryPort.findByPhoneNumber(command.clientPhoneNumber())
-                .orElseThrow(() -> new NotFoundException("Client not found"));
-
-        operationStatusGuards.requireActiveClient(client);
-
-        Money amount = Money.positive(command.amount());
-        Instant now = timeProviderPort.now();
-
-        var inProgress = IdempotencyReservations.reserveOrLoad(
-                idempotencyPort,
-                command.idempotencyKey(),
-                command.idempotencyRequestHash(),
-                CashInByAgentResult.class
-        );
-        if (inProgress.isPresent()) {
-            return inProgress.get();
-        }
-
-        TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
-        Transaction tx = Transaction.cashInByAgent(txId, amount, now);
-        tx = transactionRepositoryPort.save(tx);
-
-        // Cash-in is free (no fees, no commissions)
-        agentRepositoryPort.findByIdForUpdate(agent.id());
-        agentCashLimitGuard.ensureProjectedBalanceWithinLimit(agent.id().value().toString(), amount, Money.zero());
-
-        var clearingAcc = LedgerAccountRef.agentCashClearing(agent.id().value().toString());
-        var clientAcc = LedgerAccountRef.client(client.id().value().toString());
-
-        ledgerAppendPort.append(List.of(
-                LedgerEntry.debit(tx.id(), clearingAcc, amount),
-                LedgerEntry.credit(tx.id(), clientAcc, amount)
-        ));
-
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("transactionId", tx.id().value().toString());
-        metadata.put("agentId", agent.id().value().toString());
-        metadata.put("clientId", client.id().value().toString());
-        metadata.put("clientPhoneNumber", client.phoneNumber());
-        metadata.put("amount", amount.asBigDecimal().toPlainString());
-
-        auditPort.publish(AuditBuilder.buildBasicAudit(
-                "AGENT_CASH_IN",
-                command.actorContext(),
-                now,
-                metadata
-        ));
-
-        CashInByAgentResult result = new CashInByAgentResult(
-                tx.id().value().toString(),
-                agent.id().value().toString(),
-                client.id().value().toString(),
-                client.phoneNumber(),
-                amount.asBigDecimal()
-        );
-
-        idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
-        return result;
     }
 }

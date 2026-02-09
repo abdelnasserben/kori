@@ -3,6 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.CreateTerminalCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CreateTerminalResult;
 import com.kori.application.security.ActorContext;
@@ -14,7 +15,6 @@ import com.kori.domain.model.merchant.MerchantCode;
 import com.kori.domain.model.merchant.MerchantId;
 import com.kori.domain.model.terminal.Terminal;
 import com.kori.domain.model.terminal.TerminalId;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -37,7 +37,8 @@ final class CreateTerminalServiceTest {
     // ======= mocks =======
     @Mock TerminalRepositoryPort terminalRepositoryPort;
     @Mock MerchantRepositoryPort merchantRepositoryPort;
-    @Mock IdempotencyPort idempotencyPort;
+    @Mock
+    IdempotencyPort idempotencyPort;
     @Mock TimeProviderPort timeProviderPort;
     @Mock IdGeneratorPort idGeneratorPort;
     @Mock AuditPort auditPort;
@@ -76,28 +77,27 @@ final class CreateTerminalServiceTest {
         return new Merchant(MERCHANT_ID, MERCHANT_CODE, Status.ACTIVE, NOW.minusSeconds(120));
     }
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
-    }
-
     @Test
     void forbidden_whenActorIsNotAdmin() {
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class))
+                .thenReturn(IdempotencyClaim.claimed());
+
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(nonAdminActor())));
 
         // actor check happens before idempotency
-        verifyNoInteractions(idempotencyPort, merchantRepositoryPort, terminalRepositoryPort, timeProviderPort, idGeneratorPort, auditPort);
+        verify(idempotencyPort).fail(IDEM_KEY, REQUEST_HASH);
+        verifyNoInteractions(merchantRepositoryPort, terminalRepositoryPort, timeProviderPort, idGeneratorPort, auditPort);
     }
 
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         CreateTerminalResult cached = new CreateTerminalResult("t-1", MERCHANT_CODE_RAW);
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class)).thenReturn(IdempotencyClaim.completed(cached));
 
         CreateTerminalResult out = service.execute(cmd(adminActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class);
 
         verifyNoMoreInteractions(
                 merchantRepositoryPort,
@@ -111,19 +111,19 @@ final class CreateTerminalServiceTest {
 
     @Test
     void throwsNotFound_whenMerchantDoesNotExist() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> service.execute(cmd(adminActor())));
 
         verify(merchantRepositoryPort).findByCode(MERCHANT_CODE);
         verifyNoInteractions(terminalRepositoryPort, timeProviderPort, idGeneratorPort, auditPort);
-        verify(idempotencyPort, never()).save(anyString(), anyString(), any());
+        verify(idempotencyPort, never()).complete(anyString(), anyString(), any());
     }
 
     @Test
     void forbidden_whenMerchantIsNotActive() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         Merchant inactive = new Merchant(MERCHANT_ID, MERCHANT_CODE, Status.SUSPENDED, NOW.minusSeconds(120));
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(inactive));
@@ -131,12 +131,12 @@ final class CreateTerminalServiceTest {
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(adminActor())));
 
         verifyNoInteractions(terminalRepositoryPort, timeProviderPort, idGeneratorPort, auditPort);
-        verify(idempotencyPort, never()).save(anyString(), anyString(), any());
+        verify(idempotencyPort, never()).complete(anyString(), anyString(), any());
     }
 
     @Test
     void happyPath_createsTerminal_audits_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateTerminalResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(activeMerchant()));
         when(timeProviderPort.now()).thenReturn(NOW);
         when(idGeneratorPort.newUuid()).thenReturn(TERMINAL_UUID);
@@ -171,6 +171,6 @@ final class CreateTerminalServiceTest {
         assertEquals(TERMINAL_UUID.toString(), event.metadata().get("terminalId"));
         assertEquals(MERCHANT_CODE_RAW, event.metadata().get("merchantCode"));
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateTerminalResult.class));
+        verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateTerminalResult.class));
     }
 }

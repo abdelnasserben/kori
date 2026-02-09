@@ -3,6 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.RequestAgentPayoutCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.AgentPayoutResult;
 import com.kori.application.security.ActorContext;
@@ -19,7 +20,6 @@ import com.kori.domain.model.payout.PayoutId;
 import com.kori.domain.model.payout.PayoutStatus;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -43,7 +43,8 @@ final class RequestAgentPayoutServiceTest {
 
     // ======= mocks =======
     @Mock TimeProviderPort timeProviderPort;
-    @Mock IdempotencyPort idempotencyPort;
+    @Mock
+    IdempotencyPort idempotencyPort;
 
     @Mock AgentRepositoryPort agentRepositoryPort;
     @Mock LedgerAppendPort ledgerAppendPort;
@@ -94,11 +95,6 @@ final class RequestAgentPayoutServiceTest {
         return new Agent(AGENT_ID, AGENT_CODE, NOW.minusSeconds(60), Status.ACTIVE);
     }
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
-    }
-
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         AgentPayoutResult cached = new AgentPayoutResult(
@@ -109,7 +105,7 @@ final class RequestAgentPayoutServiceTest {
                 PayoutStatus.REQUESTED.name()
         );
 
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(IdempotencyClaim.completed(cached));
 
         AgentPayoutResult out = service.execute(cmd(adminActor()));
 
@@ -130,11 +126,12 @@ final class RequestAgentPayoutServiceTest {
 
     @Test
     void forbidden_whenActorIsNotAdmin() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(nonAdminActor())));
 
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class);
+        verify(idempotencyPort).fail(IDEM_KEY, REQUEST_HASH);
         verifyNoMoreInteractions(idempotencyPort);
 
         verifyNoInteractions(
@@ -151,7 +148,7 @@ final class RequestAgentPayoutServiceTest {
 
     @Test
     void forbidden_whenAgentNotFound() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> service.execute(cmd(adminActor())));
@@ -162,7 +159,7 @@ final class RequestAgentPayoutServiceTest {
 
     @Test
     void forbidden_whenAgentNotActive() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         Agent inactive = new Agent(AGENT_ID, AGENT_CODE, NOW.minusSeconds(60), Status.SUSPENDED);
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(inactive));
@@ -174,7 +171,7 @@ final class RequestAgentPayoutServiceTest {
 
     @Test
     void forbidden_whenPayoutAlreadyRequestedForAgent() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(activeAgent()));
         when(payoutRepositoryPort.existsRequestedForAgent(AGENT_ID)).thenReturn(true);
 
@@ -186,7 +183,7 @@ final class RequestAgentPayoutServiceTest {
 
     @Test
     void forbidden_whenNoPayoutDue() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(activeAgent()));
         when(payoutRepositoryPort.existsRequestedForAgent(AGENT_ID)).thenReturn(false);
 
@@ -201,7 +198,7 @@ final class RequestAgentPayoutServiceTest {
 
     @Test
     void happyPath_createsTransactionAndRequestedPayout_audits_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AgentPayoutResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(activeAgent()));
         when(payoutRepositoryPort.existsRequestedForAgent(AGENT_ID)).thenReturn(false);
 
@@ -262,6 +259,6 @@ final class RequestAgentPayoutServiceTest {
         assertEquals(AGENT_CODE_RAW, event.metadata().get("agentCode"));
         assertEquals(PAYOUT_UUID.toString(), event.metadata().get("payoutId"));
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(AgentPayoutResult.class));
+        verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(AgentPayoutResult.class));
     }
 }

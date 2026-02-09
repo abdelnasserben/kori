@@ -3,6 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.PayByCardCommand;
 import com.kori.application.exception.*;
 import com.kori.application.guard.OperationStatusGuards;
+import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.PayByCardResult;
 import com.kori.application.security.ActorContext;
@@ -26,7 +27,6 @@ import com.kori.domain.model.terminal.Terminal;
 import com.kori.domain.model.terminal.TerminalId;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -51,7 +51,8 @@ final class PayByCardServiceTest {
 
     // ======= mocks =======
     @Mock TimeProviderPort timeProviderPort;
-    @Mock IdempotencyPort idempotencyPort;
+    @Mock
+    IdempotencyPort idempotencyPort;
     @Mock IdGeneratorPort idGeneratorPort;
 
     @Mock TerminalRepositoryPort terminalRepositoryPort;
@@ -151,11 +152,6 @@ final class PayByCardServiceTest {
         );
     }
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
-    }
-
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         PayByCardResult cached = new PayByCardResult(
@@ -167,12 +163,12 @@ final class PayByCardServiceTest {
                 new BigDecimal("52.00")
         );
 
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.completed(cached));
 
         PayByCardResult out = payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class);
 
         verifyNoMoreInteractions(
                 timeProviderPort,
@@ -196,7 +192,7 @@ final class PayByCardServiceTest {
 
     @Test
     void forbidden_whenActorIsNotTerminal() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         PayByCardCommand cmd = new PayByCardCommand(
                 IDEM_KEY,
@@ -210,7 +206,8 @@ final class PayByCardServiceTest {
 
         assertThrows(ForbiddenOperationException.class, () -> payByCardService.execute(cmd));
 
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class);
+        verify(idempotencyPort).fail(IDEM_KEY, REQUEST_HASH);
         verifyNoMoreInteractions(idempotencyPort);
 
         verifyNoInteractions(
@@ -234,7 +231,7 @@ final class PayByCardServiceTest {
 
     @Test
     void throwsNotFound_whenTerminalDoesNotExist() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal())));
@@ -242,7 +239,7 @@ final class PayByCardServiceTest {
 
     @Test
     void forbidden_whenTerminalIsNotActive() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         Terminal terminal = new Terminal(new TerminalId(TERMINAL_UUID), MERCHANT_ID, Status.SUSPENDED, NOW.minusSeconds(60));
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(terminal));
@@ -252,7 +249,7 @@ final class PayByCardServiceTest {
 
     @Test
     void throwsNotFound_whenMerchantDoesNotExist() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
         when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.empty());
 
@@ -261,7 +258,7 @@ final class PayByCardServiceTest {
 
     @Test
     void forbidden_whenMerchantAccountProfileDoesNotExist_orNotActive_isHandledByGuard() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
 
         Merchant merchant = activeMerchant();
@@ -275,7 +272,7 @@ final class PayByCardServiceTest {
 
     @Test
     void throwsNotFound_whenCardDoesNotExist() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
 
         Merchant merchant = activeMerchant();
@@ -289,7 +286,7 @@ final class PayByCardServiceTest {
 
     @Test
     void forbidden_whenClientNotActive_isHandledByGuard() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
 
         Merchant merchant = activeMerchant();
@@ -309,7 +306,7 @@ final class PayByCardServiceTest {
 
     @Test
     void forbidden_whenCardIsNotPayable() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
 
         Merchant merchant = activeMerchant();
@@ -336,7 +333,7 @@ final class PayByCardServiceTest {
 
     @Test
     void validation_whenMaxFailedPinAttemptsPolicyIsInvalid() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
 
         Merchant merchant = activeMerchant();
@@ -356,7 +353,7 @@ final class PayByCardServiceTest {
 
     @Test
     void invalidPinFormat_throws_andDoesNotSaveCard() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
 
         Merchant merchant = activeMerchant();
@@ -379,7 +376,7 @@ final class PayByCardServiceTest {
 
     @Test
     void invalidPin_incrementsAttempts_savesCard_andThrowsForbidden() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
 
         Merchant merchant = activeMerchant();
@@ -408,7 +405,7 @@ final class PayByCardServiceTest {
 
     @Test
     void insufficientFunds_throws_andDoesNotCreateTransactionOrLedger() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
 
         Merchant merchant = activeMerchant();
@@ -440,7 +437,7 @@ final class PayByCardServiceTest {
 
     @Test
     void happyPath_createsTx_postsLedger_publishesAudit_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, PayByCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(terminalRepositoryPort.findById(new TerminalId(TERMINAL_UUID))).thenReturn(Optional.of(activeTerminal()));
 
         Merchant merchant = activeMerchant();
@@ -523,6 +520,6 @@ final class PayByCardServiceTest {
         assertEquals(TX_UUID.toString(), event.metadata().get("transactionId"));
         assertEquals(CARD_UID, event.metadata().get("cardUid"));
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(PayByCardResult.class));
+        verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(PayByCardResult.class));
     }
 }

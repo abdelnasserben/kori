@@ -3,6 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.CreateMerchantCommand;
 import com.kori.application.exception.ApplicationException;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CreateMerchantResult;
 import com.kori.application.security.ActorContext;
@@ -14,7 +15,6 @@ import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
 import com.kori.domain.model.merchant.MerchantId;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -39,7 +39,8 @@ final class CreateMerchantServiceTest {
     @Mock AccountProfilePort accountProfilePort;
     @Mock AuditPort auditPort;
     @Mock TimeProviderPort timeProviderPort;
-    @Mock IdempotencyPort idempotencyPort;
+    @Mock
+    IdempotencyPort idempotencyPort;
     @Mock CodeGeneratorPort codeGeneratorPort;
     @Mock IdGeneratorPort idGeneratorPort;
 
@@ -74,18 +75,16 @@ final class CreateMerchantServiceTest {
         return new CreateMerchantCommand(IDEM_KEY, REQUEST_HASH, actor);
     }
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
-    }
-
     @Test
     void forbidden_whenActorIsNotAdmin() {
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class))
+                .thenReturn(IdempotencyClaim.claimed());
+
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(nonAdminActor())));
 
         // actor check happens before idempotency
+        verify(idempotencyPort).fail(IDEM_KEY, REQUEST_HASH);
         verifyNoInteractions(
-                idempotencyPort,
                 merchantRepositoryPort,
                 accountProfilePort,
                 auditPort,
@@ -98,12 +97,12 @@ final class CreateMerchantServiceTest {
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         CreateMerchantResult cached = new CreateMerchantResult("m-1", "M-000001");
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(IdempotencyClaim.completed(cached));
 
         CreateMerchantResult out = service.execute(cmd(adminActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class);
 
         verifyNoMoreInteractions(
                 merchantRepositoryPort,
@@ -118,7 +117,7 @@ final class CreateMerchantServiceTest {
 
     @Test
     void happyPath_createsMerchantAndAccountProfile_audits_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         when(codeGeneratorPort.next6Digits()).thenReturn(DIGITS_1);
         when(merchantRepositoryPort.existsByCode(MERCHANT_CODE_1)).thenReturn(false);
@@ -166,12 +165,12 @@ final class CreateMerchantServiceTest {
         assertEquals(MERCHANT_CODE_1_RAW, event.metadata().get("merchantCode"));
 
         // idempotency saved
-        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateMerchantResult.class));
+        verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateMerchantResult.class));
     }
 
     @Test
     void codeGeneration_retriesOnCollision_thenSucceeds() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         when(codeGeneratorPort.next6Digits()).thenReturn(DIGITS_1, DIGITS_2);
         when(merchantRepositoryPort.existsByCode(MERCHANT_CODE_1)).thenReturn(true);
@@ -193,7 +192,7 @@ final class CreateMerchantServiceTest {
 
     @Test
     void throwsApplicationException_whenCannotGenerateUniqueCode_afterMaxAttempts() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         when(codeGeneratorPort.next6Digits()).thenReturn("000001");
         when(merchantRepositoryPort.existsByCode(any(MerchantCode.class))).thenReturn(true);
@@ -204,12 +203,12 @@ final class CreateMerchantServiceTest {
         verify(merchantRepositoryPort, times(20)).existsByCode(any(MerchantCode.class));
 
         verifyNoInteractions(idGeneratorPort, timeProviderPort, accountProfilePort, auditPort);
-        verify(idempotencyPort, never()).save(anyString(), anyString(), any());
+        verify(idempotencyPort, never()).complete(anyString(), anyString(), any());
     }
 
     @Test
     void forbidden_whenAccountProfileAlreadyExists() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateMerchantResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         when(codeGeneratorPort.next6Digits()).thenReturn(DIGITS_1);
         when(merchantRepositoryPort.existsByCode(MERCHANT_CODE_1)).thenReturn(false);
@@ -226,7 +225,7 @@ final class CreateMerchantServiceTest {
         verify(merchantRepositoryPort).save(any(Merchant.class));
 
         verify(accountProfilePort, never()).save(any(AccountProfile.class));
-        verify(idempotencyPort, never()).save(anyString(), anyString(), any());
+        verify(idempotencyPort, never()).complete(anyString(), anyString(), any());
         verifyNoInteractions(auditPort);
     }
 }

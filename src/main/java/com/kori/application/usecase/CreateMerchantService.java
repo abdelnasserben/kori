@@ -6,6 +6,7 @@ import com.kori.application.exception.ApplicationErrorCode;
 import com.kori.application.exception.ApplicationException;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.guard.ActorGuards;
+import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.CreateMerchantUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CreateMerchantResult;
@@ -29,74 +30,64 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
     private final AccountProfilePort accountProfilePort;
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
-    private final IdempotencyPort idempotencyPort;
     private final CodeGeneratorPort codeGeneratorPort;
     private final IdGeneratorPort idGeneratorPort;
+    private final IdempotencyExecutor idempotencyExecutor;
 
     public CreateMerchantService(MerchantRepositoryPort merchantRepository, AccountProfilePort accountProfilePort, AuditPort auditPort, TimeProviderPort timeProviderPort, IdempotencyPort idempotencyPort, CodeGeneratorPort codeGeneratorPort, IdGeneratorPort idGeneratorPort) {
         this.merchantRepository = merchantRepository;
         this.accountProfilePort = accountProfilePort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
-        this.idempotencyPort = idempotencyPort;
         this.codeGeneratorPort = codeGeneratorPort;
         this.idGeneratorPort = idGeneratorPort;
+        this.idempotencyExecutor = new IdempotencyExecutor(idempotencyPort);
     }
 
     @Override
     public CreateMerchantResult execute(CreateMerchantCommand command) {
-        var actorContext = command.actorContext();
-
-        ActorGuards.requireAdmin(actorContext, "create a merchant.");
-
-        // Idempotency first (same key => same result, no side effects)
-        var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), CreateMerchantResult.class);
-        if (cached.isPresent()) {
-            return cached.get();
-        }
-
-        MerchantCode code = generateUniqueMerchantCode();
-        MerchantId id = new MerchantId(idGeneratorPort.newUuid());
-        Instant now = timeProviderPort.now();
-
-        var inProgress = IdempotencyReservations.reserveOrLoad(
-                idempotencyPort,
+        return idempotencyExecutor.execute(
                 command.idempotencyKey(),
                 command.idempotencyRequestHash(),
-                CreateMerchantResult.class
+                CreateMerchantResult.class,
+                () -> {
+                    // business logic
+
+                    var actorContext = command.actorContext();
+
+                    ActorGuards.requireAdmin(actorContext, "create a merchant.");
+
+                    MerchantCode code = generateUniqueMerchantCode();
+                    MerchantId id = new MerchantId(idGeneratorPort.newUuid());
+                    Instant now = timeProviderPort.now();
+
+                    Merchant merchant = new Merchant(id, code, Status.ACTIVE, now);
+                    merchantRepository.save(merchant);
+
+                    // Create ledger accountRef ref + profile
+                    LedgerAccountRef merchantAccount = LedgerAccountRef.merchant(id.value().toString());
+
+                    accountProfilePort.findByAccount(merchantAccount).ifPresent(existing -> {
+                        throw new ForbiddenOperationException("Merchant account already exists for " + merchantAccount);
+                    });
+
+                    AccountProfile profile = AccountProfile.activeNew(merchantAccount, now);
+                    accountProfilePort.save(profile);
+
+                    Map<String, String> metadata = new HashMap<>();
+                    metadata.put("adminId", actorContext.actorId());
+                    metadata.put("merchantCode", merchant.code().value());
+
+                    auditPort.publish(AuditBuilder.buildBasicAudit(
+                            "MERCHANT_CREATED",
+                            actorContext,
+                            now,
+                            metadata
+                    ));
+
+                    return new CreateMerchantResult(id.value().toString(), code.value());
+                }
         );
-        if (inProgress.isPresent()) {
-            return inProgress.get();
-        }
-
-        Merchant merchant = new Merchant(id, code, Status.ACTIVE, now);
-        merchantRepository.save(merchant);
-
-        // Create ledger accountRef ref + profile
-        LedgerAccountRef merchantAccount = LedgerAccountRef.merchant(id.value().toString());
-
-        accountProfilePort.findByAccount(merchantAccount).ifPresent(existing -> {
-            throw new ForbiddenOperationException("Merchant account already exists for " + merchantAccount);
-        });
-
-        AccountProfile profile = AccountProfile.activeNew(merchantAccount, now);
-        accountProfilePort.save(profile);
-
-        CreateMerchantResult result = new CreateMerchantResult(id.value().toString(), code.value());
-        idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
-
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("adminId", actorContext.actorId());
-        metadata.put("merchantCode", merchant.code().value());
-
-        auditPort.publish(AuditBuilder.buildBasicAudit(
-                "MERCHANT_CREATED",
-                actorContext,
-                now,
-                metadata
-        ));
-
-        return result;
     }
 
     private MerchantCode generateUniqueMerchantCode() {

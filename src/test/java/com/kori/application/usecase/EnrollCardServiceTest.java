@@ -4,6 +4,7 @@ import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.guard.OperationStatusGuards;
+import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.EnrollCardResult;
 import com.kori.application.security.ActorContext;
@@ -24,7 +25,6 @@ import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -49,7 +49,8 @@ final class EnrollCardServiceTest {
 
     // ======= mocks =======
     @Mock TimeProviderPort timeProviderPort;
-    @Mock IdempotencyPort idempotencyPort;
+    @Mock
+    IdempotencyPort idempotencyPort;
     @Mock IdGeneratorPort idGeneratorPort;
 
     @Mock ClientRepositoryPort clientRepositoryPort;
@@ -118,11 +119,6 @@ final class EnrollCardServiceTest {
         return new Agent(new AgentId(AGENT_UUID), AGENT_CODE, NOW.minusSeconds(60), Status.ACTIVE);
     }
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
-    }
-
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         EnrollCardResult cached = new EnrollCardResult(
@@ -135,12 +131,12 @@ final class EnrollCardServiceTest {
                 false
         );
 
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class)).thenReturn(IdempotencyClaim.completed(cached));
 
         EnrollCardResult out = enrollCardService.execute(cmd(agentActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class);
 
         verifyNoMoreInteractions(
                 timeProviderPort,
@@ -162,10 +158,11 @@ final class EnrollCardServiceTest {
 
     @Test
     void forbidden_whenActorIsNotAgent() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         assertThrows(ForbiddenOperationException.class, () -> enrollCardService.execute(cmd(adminActor())));
 
+        verify(idempotencyPort).fail(IDEM_KEY, REQUEST_HASH);
         verifyNoMoreInteractions(idempotencyPort);
 
         verifyNoInteractions(
@@ -187,13 +184,14 @@ final class EnrollCardServiceTest {
 
     @Test
     void throwsNotFound_whenAgentDoesNotExist() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> enrollCardService.execute(cmd(agentActor())));
 
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class);
         verify(agentRepositoryPort).findByCode(AGENT_CODE);
+        verify(idempotencyPort).fail(IDEM_KEY, REQUEST_HASH);
         verifyNoMoreInteractions(idempotencyPort, agentRepositoryPort);
 
         verifyNoInteractions(
@@ -214,7 +212,7 @@ final class EnrollCardServiceTest {
 
     @Test
     void happyPath_createsClientAndAccountProfile_postsLedger_andAudits() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(timeProviderPort.now()).thenReturn(NOW);
 
         // create client + tx ids
@@ -295,12 +293,12 @@ final class EnrollCardServiceTest {
         assertEquals(CLIENT_PHONE, event.metadata().get("clientPhoneNumber"));
         assertEquals(CARD_UID, event.metadata().get("cardUid"));
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(EnrollCardResult.class));
+        verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(EnrollCardResult.class));
     }
 
     @Test
     void forbidden_whenCardUidAlreadyEnrolled() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -310,9 +308,10 @@ final class EnrollCardServiceTest {
 
         assertThrows(ForbiddenOperationException.class, () -> enrollCardService.execute(cmd(agentActor())));
 
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class);
         verify(agentRepositoryPort).findByCode(AGENT_CODE);
         verify(cardRepositoryPort).findByCardUid(CARD_UID);
+        verify(idempotencyPort).fail(IDEM_KEY, REQUEST_HASH);
         verifyNoMoreInteractions(idempotencyPort, agentRepositoryPort, cardRepositoryPort);
 
         verifyNoInteractions(
@@ -331,7 +330,7 @@ final class EnrollCardServiceTest {
 
     @Test
     void forbidden_whenClientAccountProfileIsNotActive() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, EnrollCardResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(timeProviderPort.now()).thenReturn(NOW);
 
         Agent agent = activeAgent();

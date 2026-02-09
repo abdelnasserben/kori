@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.RequestClientRefundCommand;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.ClientRefundResult;
 import com.kori.application.security.ActorContext;
@@ -10,7 +11,6 @@ import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -32,7 +32,8 @@ import static org.mockito.Mockito.*;
 class RequestClientRefundServiceTest {
 
     @Mock TimeProviderPort timeProviderPort;
-    @Mock IdempotencyPort idempotencyPort;
+    @Mock
+    IdempotencyPort idempotencyPort;
     @Mock ClientRepositoryPort clientRepositoryPort;
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock LedgerQueryPort ledgerQueryPort;
@@ -43,16 +44,11 @@ class RequestClientRefundServiceTest {
 
     @InjectMocks RequestClientRefundService service;
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
-    }
-
     @Test
     void forbidden_when_client_wallet_zero() {
         var clientId = UUID.randomUUID();
         var cmd = new RequestClientRefundCommand("idem", "hash", new ActorContext(ActorType.ADMIN, "a", Map.of()), clientId.toString());
-        when(idempotencyPort.find(any(), any(), eq(ClientRefundResult.class))).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(any(), any(), eq(ClientRefundResult.class))).thenReturn(IdempotencyClaim.claimed());
         when(clientRepositoryPort.findById(any())).thenReturn(Optional.of(new Client(new ClientId(clientId), "7712345", Status.ACTIVE, Instant.now())));
         when(clientRefundRepositoryPort.existsRequestedForClient(any())).thenReturn(false);
         when(ledgerQueryPort.netBalance(any())).thenReturn(Money.zero());
@@ -64,7 +60,7 @@ class RequestClientRefundServiceTest {
     void happy_path_requests_refund() {
         var clientId = UUID.randomUUID();
         var cmd = new RequestClientRefundCommand("idem", "hash", new ActorContext(ActorType.ADMIN, "a", Map.of()), clientId.toString());
-        when(idempotencyPort.find(any(), any(), eq(ClientRefundResult.class))).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(any(), any(), eq(ClientRefundResult.class))).thenReturn(IdempotencyClaim.claimed());
         when(clientRepositoryPort.findById(any())).thenReturn(Optional.of(new Client(new ClientId(clientId), "7712345", Status.ACTIVE, Instant.now())));
         when(clientRefundRepositoryPort.existsRequestedForClient(any())).thenReturn(false);
         when(ledgerQueryPort.netBalance(any())).thenReturn(Money.of(new BigDecimal("50.00")));

@@ -5,6 +5,7 @@ import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.IdempotencyConflictException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.guard.OperationStatusGuards;
+import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CashInByAgentResult;
 import com.kori.application.security.ActorContext;
@@ -20,7 +21,6 @@ import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -44,7 +44,8 @@ import static org.mockito.Mockito.*;
 final class CashInByAgentServiceTest {
 
     @Mock TimeProviderPort timeProviderPort;
-    @Mock IdempotencyPort idempotencyPort;
+    @Mock
+    IdempotencyPort idempotencyPort;
     @Mock IdGeneratorPort idGeneratorPort;
     @Mock AgentRepositoryPort agentRepositoryPort;
     @Mock ClientRepositoryPort clientRepositoryPort;
@@ -93,11 +94,6 @@ final class CashInByAgentServiceTest {
         return new Client(new ClientId(CLIENT_UUID), PHONE, Status.ACTIVE, NOW.minusSeconds(120));
     }
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
-    }
-
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         CashInByAgentResult cached = new CashInByAgentResult(
@@ -108,13 +104,13 @@ final class CashInByAgentServiceTest {
                 AMOUNT_BD
         );
 
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class))
-                .thenReturn(Optional.of(cached));
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class))
+                .thenReturn(IdempotencyClaim.completed(cached));
 
         CashInByAgentResult out = service.execute(cmd());
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class);
 
         verifyNoMoreInteractions(
                 timeProviderPort,
@@ -133,8 +129,8 @@ final class CashInByAgentServiceTest {
 
     @Test
     void success_cash_in_by_agent() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class))
-                .thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class))
+                .thenReturn(IdempotencyClaim.claimed());
 
         Agent agent = activeAgent();
         Client client = activeClient();
@@ -179,13 +175,13 @@ final class CashInByAgentServiceTest {
         verify(auditPort).publish(auditCaptor.capture());
         assertEquals("AGENT_CASH_IN", auditCaptor.getValue().action());
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(CashInByAgentResult.class));
+        verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(CashInByAgentResult.class));
     }
 
     @Test
     void forbidden_when_agent_inactive() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class))
-                .thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class))
+                .thenReturn(IdempotencyClaim.claimed());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findById(new AgentId(AGENT_UUID))).thenReturn(Optional.of(agent));
@@ -199,8 +195,8 @@ final class CashInByAgentServiceTest {
 
     @Test
     void notFound_when_client_missing() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class))
-                .thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class))
+                .thenReturn(IdempotencyClaim.claimed());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findById(new AgentId(AGENT_UUID))).thenReturn(Optional.of(agent));
@@ -215,10 +211,10 @@ final class CashInByAgentServiceTest {
 
     @Test
     void conflict_when_idempotency_key_reused_with_different_payload() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class))
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class))
                 .thenThrow(new IdempotencyConflictException("Conflict"));
 
         assertThrows(IdempotencyConflictException.class, () -> service.execute(cmd()));
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, CashInByAgentResult.class);
     }
 }

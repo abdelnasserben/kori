@@ -1,5 +1,6 @@
 package com.kori.adapters.out.jpa.entity;
 
+import com.kori.application.idempotency.IdempotencyStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 
@@ -30,6 +31,11 @@ public class IdempotencyRecordEntity {
     @Getter
     @Column(name = "expires_at")
     private OffsetDateTime expiresAt;
+
+    @Getter
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false, length = 16)
+    private IdempotencyStatus status;
 
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;

@@ -4,6 +4,7 @@ import com.kori.application.command.MerchantWithdrawAtAgentCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.guard.OperationStatusGuards;
+import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.MerchantWithdrawAtAgentResult;
 import com.kori.application.security.ActorContext;
@@ -22,7 +23,6 @@ import com.kori.domain.model.merchant.MerchantCode;
 import com.kori.domain.model.merchant.MerchantId;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -47,7 +47,8 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     // ======= mocks =======
     @Mock TimeProviderPort timeProviderPort;
-    @Mock IdempotencyPort idempotencyPort;
+    @Mock
+    IdempotencyPort idempotencyPort;
     @Mock IdGeneratorPort idGeneratorPort;
 
     @Mock MerchantRepositoryPort merchantRepositoryPort;
@@ -120,11 +121,6 @@ final class MerchantWithdrawAtAgentServiceTest {
         return new Merchant(new MerchantId(MERCHANT_UUID), MERCHANT_CODE, Status.ACTIVE, NOW.minusSeconds(120));
     }
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
-    }
-
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         MerchantWithdrawAtAgentResult cached = new MerchantWithdrawAtAgentResult(
@@ -137,12 +133,12 @@ final class MerchantWithdrawAtAgentServiceTest {
                 new BigDecimal("110.00")
         );
 
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(IdempotencyClaim.completed(cached));
 
         MerchantWithdrawAtAgentResult out = service.execute(cmd(agentActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class);
 
         verifyNoMoreInteractions(
                 timeProviderPort,
@@ -162,11 +158,12 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void forbidden_whenActorIsNotAgent() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(adminActor())));
 
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class);
+        verify(idempotencyPort).fail(IDEM_KEY, REQUEST_HASH);
         verifyNoMoreInteractions(idempotencyPort);
 
         verifyNoInteractions(
@@ -186,6 +183,9 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void forbidden_whenAgentNotFound() {
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class))
+                .thenReturn(IdempotencyClaim.claimed());
+
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.empty());
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(agentActor())));
@@ -196,7 +196,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void forbidden_whenMerchantNotFound() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -212,7 +212,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void forbidden_whenAgentNotActive_orAgentAccountNotActive_isHandledByGuard() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -227,7 +227,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void forbidden_whenMerchantNotActive_orMerchantAccountNotActive_isHandledByGuard() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -246,7 +246,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void forbidden_whenCommissionExceedsFee() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -268,7 +268,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void insufficientFunds_whenMerchantBalanceTooLow() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -293,7 +293,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
     @Test
     void happyPath_createsTx_postsLedger_audits_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, MerchantWithdrawAtAgentResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
@@ -392,6 +392,6 @@ final class MerchantWithdrawAtAgentServiceTest {
         assertEquals(MERCHANT_CODE_RAW, md.get("merchantCode"));
         assertEquals(AGENT_CODE_RAW, md.get("agentCode"));
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(MerchantWithdrawAtAgentResult.class));
+        verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(MerchantWithdrawAtAgentResult.class));
     }
 }

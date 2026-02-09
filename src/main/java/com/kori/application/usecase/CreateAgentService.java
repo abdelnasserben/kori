@@ -6,6 +6,7 @@ import com.kori.application.exception.ApplicationErrorCode;
 import com.kori.application.exception.ApplicationException;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.guard.ActorGuards;
+import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.CreateAgentUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CreateAgentResult;
@@ -27,77 +28,67 @@ public final class CreateAgentService implements CreateAgentUseCase {
 
     private final AgentRepositoryPort agentRepositoryPort;
     private final AccountProfilePort accountProfilePort;
-    private final IdempotencyPort idempotencyPort;
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
     private final CodeGeneratorPort codeGeneratorPort;
     private final IdGeneratorPort idGeneratorPort;
+    private final IdempotencyExecutor idempotencyExecutor;
 
     public CreateAgentService(AgentRepositoryPort agentRepositoryPort, AccountProfilePort accountProfilePort, IdempotencyPort idempotencyPort, AuditPort auditPort, TimeProviderPort timeProviderPort, CodeGeneratorPort codeGeneratorPort, IdGeneratorPort idGeneratorPort) {
         this.agentRepositoryPort = agentRepositoryPort;
         this.accountProfilePort = accountProfilePort;
-        this.idempotencyPort = idempotencyPort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
         this.codeGeneratorPort = codeGeneratorPort;
         this.idGeneratorPort = idGeneratorPort;
+        this.idempotencyExecutor = new IdempotencyExecutor(idempotencyPort);
     }
 
     @Override
     public CreateAgentResult execute(CreateAgentCommand command) {
-        Objects.requireNonNull(command, "command");
-        var actorContext = command.actorContext();
-
-        ActorGuards.requireAdmin(actorContext, "create agent");
-
-        // Idempotency first: same key => same result, no side effects
-        var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), CreateAgentResult.class);
-        if (cached.isPresent()) {
-            return cached.get();
-        }
-
-        AgentCode code = generateUniqueAgentCode();
-        AgentId id = new AgentId(idGeneratorPort.newUuid());
-        Instant now = timeProviderPort.now();
-
-        var inProgress = IdempotencyReservations.reserveOrLoad(
-                idempotencyPort,
+        return idempotencyExecutor.execute(
                 command.idempotencyKey(),
                 command.idempotencyRequestHash(),
-                CreateAgentResult.class
+                CreateAgentResult.class,
+                () -> {
+                    // business logic
+
+                    Objects.requireNonNull(command, "command");
+                    var actorContext = command.actorContext();
+
+                    ActorGuards.requireAdmin(actorContext, "create agent");
+
+                    AgentCode code = generateUniqueAgentCode();
+                    AgentId id = new AgentId(idGeneratorPort.newUuid());
+                    Instant now = timeProviderPort.now();
+
+                    Agent agent = Agent.activeNew(id, code, now);
+                    agentRepositoryPort.save(agent);
+
+                    // Active model: create both AGENT_WALLET and AGENT_CASH_CLEARING profiles.
+                    LedgerAccountRef walletAccount = LedgerAccountRef.agentWallet(id.value().toString());
+                    LedgerAccountRef clearingAccount = LedgerAccountRef.agentCashClearing(id.value().toString());
+
+                    ensureMissing(walletAccount);
+                    ensureMissing(clearingAccount);
+
+                    accountProfilePort.save(AccountProfile.activeNew(walletAccount, now));
+                    accountProfilePort.save(AccountProfile.activeNew(clearingAccount, now));
+
+                    Map<String, String> metadata = new HashMap<>();
+                    metadata.put("adminId", actorContext.actorId());
+                    metadata.put("agentCode", code.value());
+
+                    auditPort.publish(AuditBuilder.buildBasicAudit(
+                            "AGENT_CREATED",
+                            actorContext,
+                            now,
+                            metadata
+                    ));
+
+                    return new CreateAgentResult(id.value().toString(), code.value());
+                }
         );
-        if (inProgress.isPresent()) {
-            return inProgress.get();
-        }
-
-        Agent agent = Agent.activeNew(id, code, now);
-        agentRepositoryPort.save(agent);
-
-        // Active model: create both AGENT_WALLET and AGENT_CASH_CLEARING profiles.
-        LedgerAccountRef walletAccount = LedgerAccountRef.agentWallet(id.value().toString());
-        LedgerAccountRef clearingAccount = LedgerAccountRef.agentCashClearing(id.value().toString());
-
-        ensureMissing(walletAccount);
-        ensureMissing(clearingAccount);
-
-        accountProfilePort.save(AccountProfile.activeNew(walletAccount, now));
-        accountProfilePort.save(AccountProfile.activeNew(clearingAccount, now));
-
-        CreateAgentResult result = new CreateAgentResult(id.value().toString(), code.value());
-        idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
-
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("adminId", actorContext.actorId());
-        metadata.put("agentCode", code.value());
-
-        auditPort.publish(AuditBuilder.buildBasicAudit(
-                "AGENT_CREATED",
-                actorContext,
-                now,
-                metadata
-        ));
-
-        return result;
     }
 
     private void ensureMissing(LedgerAccountRef account) {

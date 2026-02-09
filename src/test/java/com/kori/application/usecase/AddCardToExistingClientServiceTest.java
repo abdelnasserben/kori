@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.AddCardToExistingClientCommand;
 import com.kori.application.guard.OperationStatusGuards;
+import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.AddCardToExistingClientResult;
 import com.kori.application.security.ActorContext;
@@ -16,7 +17,6 @@ import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.config.PlatformConfig;
 import com.kori.domain.model.transaction.Transaction;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -40,7 +40,8 @@ import static org.mockito.Mockito.*;
 final class AddCardToExistingClientServiceTest {
 
     @Mock TimeProviderPort timeProviderPort;
-    @Mock IdempotencyPort idempotencyPort;
+    @Mock
+    IdempotencyPort idempotencyPort;
     @Mock IdGeneratorPort idGeneratorPort;
     @Mock ClientRepositoryPort clientRepositoryPort;
     @Mock CardRepositoryPort cardRepositoryPort;
@@ -88,21 +89,16 @@ final class AddCardToExistingClientServiceTest {
         );
     }
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
-    }
-
     @Test
     void returns_cached_result_when_idempotency_key_exists() {
         var cached = new AddCardToExistingClientResult("tx-1", CLIENT_UUID.toString(), CARD_UID, BigDecimal.ONE, BigDecimal.ZERO);
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AddCardToExistingClientResult.class))
-                .thenReturn(Optional.of(cached));
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AddCardToExistingClientResult.class))
+                .thenReturn(IdempotencyClaim.completed(cached));
 
         var result = service.execute(cmd());
 
         assertSame(cached, result);
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, AddCardToExistingClientResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, AddCardToExistingClientResult.class);
         verifyNoMoreInteractions(idempotencyPort);
         verifyNoInteractions(
                 timeProviderPort,
@@ -124,7 +120,7 @@ final class AddCardToExistingClientServiceTest {
 
     @Test
     void happy_path_adds_card_for_existing_client() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, AddCardToExistingClientResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AddCardToExistingClientResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(timeProviderPort.now()).thenReturn(NOW);
 
         Agent agent = new Agent(new AgentId(AGENT_UUID), AGENT_CODE, NOW.minusSeconds(60), Status.ACTIVE);
@@ -158,6 +154,6 @@ final class AddCardToExistingClientServiceTest {
 
         verify(ledgerAppendPort).append(any(List.class));
         verify(auditPort).publish(any());
-        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(AddCardToExistingClientResult.class));
+        verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(AddCardToExistingClientResult.class));
     }
 }

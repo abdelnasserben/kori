@@ -3,6 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.CreateAgentCommand;
 import com.kori.application.exception.ApplicationException;
 import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CreateAgentResult;
 import com.kori.application.security.ActorContext;
@@ -13,7 +14,6 @@ import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Status;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -36,7 +36,8 @@ final class CreateAgentServiceTest {
     // ======= mocks =======
     @Mock AgentRepositoryPort agentRepositoryPort;
     @Mock AccountProfilePort accountProfilePort;
-    @Mock IdempotencyPort idempotencyPort;
+    @Mock
+    IdempotencyPort idempotencyPort;
     @Mock AuditPort auditPort;
     @Mock TimeProviderPort timeProviderPort;
     @Mock CodeGeneratorPort codeGeneratorPort;
@@ -69,27 +70,26 @@ final class CreateAgentServiceTest {
         return new CreateAgentCommand(IDEM_KEY, REQUEST_HASH, actor);
     }
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
-    }
-
     @Test
     void forbidden_whenActorIsNotAdmin() {
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class))
+                .thenReturn(IdempotencyClaim.claimed());
+
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(nonAdminActor())));
 
         // actor check happens before idempotency
-        verifyNoInteractions(idempotencyPort, agentRepositoryPort, accountProfilePort, auditPort, timeProviderPort, codeGeneratorPort, idGeneratorPort);
+        verify(idempotencyPort).fail(IDEM_KEY, REQUEST_HASH);
+        verifyNoInteractions(agentRepositoryPort, accountProfilePort, auditPort, timeProviderPort, codeGeneratorPort, idGeneratorPort);
     }
 
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         CreateAgentResult cached = new CreateAgentResult("agent-1", "A-000001");
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(IdempotencyClaim.completed(cached));
         CreateAgentResult out = service.execute(cmd(adminActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class);
 
         verifyNoMoreInteractions(
                 idGeneratorPort,
@@ -104,7 +104,7 @@ final class CreateAgentServiceTest {
 
     @Test
     void happyPath_createsAgentAndAccountProfile_audits_andSavesIdempotency() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         when(codeGeneratorPort.next6Digits()).thenReturn(DIGITS_1);
         when(agentRepositoryPort.existsByCode(AgentCode.of(AGENT_CODE_1))).thenReturn(false);
@@ -153,12 +153,12 @@ final class CreateAgentServiceTest {
         assertEquals(ADMIN_ID, event.metadata().get("adminId"));
         assertEquals(AGENT_CODE_1, event.metadata().get("agentCode"));
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateAgentResult.class));
+        verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateAgentResult.class));
     }
 
     @Test
     void codeGeneration_retriesOnCollision_thenSucceeds() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         when(codeGeneratorPort.next6Digits()).thenReturn(DIGITS_1, DIGITS_2);
         when(agentRepositoryPort.existsByCode(AgentCode.of(AGENT_CODE_1))).thenReturn(true);
@@ -180,7 +180,7 @@ final class CreateAgentServiceTest {
 
     @Test
     void throwsApplicationException_whenCannotGenerateUniqueCode_afterMaxAttempts() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         when(codeGeneratorPort.next6Digits()).thenReturn("000001");
         when(agentRepositoryPort.existsByCode(any(AgentCode.class))).thenReturn(true);
@@ -191,12 +191,12 @@ final class CreateAgentServiceTest {
         verify(agentRepositoryPort, times(20)).existsByCode(any(AgentCode.class));
 
         verifyNoInteractions(idGeneratorPort, timeProviderPort, accountProfilePort, auditPort);
-        verify(idempotencyPort, never()).save(anyString(), anyString(), any());
+        verify(idempotencyPort, never()).complete(anyString(), anyString(), any());
     }
 
     @Test
     void forbidden_whenAccountProfileAlreadyExists() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         when(codeGeneratorPort.next6Digits()).thenReturn(DIGITS_1);
         when(agentRepositoryPort.existsByCode(AgentCode.of(AGENT_CODE_1))).thenReturn(false);

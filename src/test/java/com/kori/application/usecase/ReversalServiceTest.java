@@ -3,6 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.ReversalCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.ReversalResult;
 import com.kori.application.security.ActorContext;
@@ -16,7 +17,6 @@ import com.kori.domain.model.config.FeeConfig;
 import com.kori.domain.model.config.PlatformConfig;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -87,20 +87,15 @@ final class ReversalServiceTest {
         return Transaction.payByCard(ORIGINAL_TX_ID, ORIGINAL_AMOUNT, NOW.minusSeconds(120));
     }
 
-    @BeforeEach
-    void setUp() {
-        lenient().when(idempotencyPort.reserve(anyString(), anyString(), any())).thenReturn(true);
-    }
-
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         ReversalResult cached = new ReversalResult("tx-1", ORIGINAL_TX_UUID.toString());
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.of(cached));
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(IdempotencyClaim.completed(cached));
 
         ReversalResult out = reversalService.execute(cmd(adminActor()));
 
         assertSame(cached, out);
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, ReversalResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, ReversalResult.class);
 
         verifyNoMoreInteractions(
                 timeProviderPort,
@@ -116,11 +111,12 @@ final class ReversalServiceTest {
 
     @Test
     void forbidden_whenActorIsNotAdmin() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         assertThrows(ForbiddenOperationException.class, () -> reversalService.execute(cmd(nonAdminActor())));
 
-        verify(idempotencyPort).find(IDEM_KEY, REQUEST_HASH, ReversalResult.class);
+        verify(idempotencyPort).claimOrLoad(IDEM_KEY, REQUEST_HASH, ReversalResult.class);
+        verify(idempotencyPort).fail(IDEM_KEY, REQUEST_HASH);
         verifyNoMoreInteractions(idempotencyPort);
 
         verifyNoInteractions(
@@ -136,7 +132,7 @@ final class ReversalServiceTest {
 
     @Test
     void throwsNotFound_whenOriginalTransactionDoesNotExist() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> reversalService.execute(cmd(adminActor())));
@@ -147,7 +143,7 @@ final class ReversalServiceTest {
 
     @Test
     void forbidden_whenTransactionAlreadyReversed() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalCardTx()));
         when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(true);
 
@@ -159,7 +155,7 @@ final class ReversalServiceTest {
 
     @Test
     void forbidden_whenOriginalTransactionHasNoLedgerEntries() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalCardTx()));
         when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
         when(ledgerQueryPort.findByTransactionId(ORIGINAL_TX_ID)).thenReturn(List.of());
@@ -172,7 +168,7 @@ final class ReversalServiceTest {
 
     @Test
     void payByCard_refundableFalse_reversesPrincipalOnly() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalCardTx()));
         when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
         when(feeConfigPort.get()).thenReturn(Optional.of(new FeeConfig(
@@ -208,7 +204,7 @@ final class ReversalServiceTest {
 
     @Test
     void payByCard_refundableTrue_reversesPrincipalAndFee() {
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(originalCardTx()));
         when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
         when(feeConfigPort.get()).thenReturn(Optional.of(new FeeConfig(
@@ -246,13 +242,13 @@ final class ReversalServiceTest {
         ArgumentCaptor<AuditEvent> auditCaptor = ArgumentCaptor.forClass(AuditEvent.class);
         verify(auditPort).publish(auditCaptor.capture());
 
-        verify(idempotencyPort).save(eq(IDEM_KEY), eq(REQUEST_HASH), any(ReversalResult.class));
+        verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(ReversalResult.class));
     }
 
     @Test
     void merchantWithdraw_refundableTrue_reversesPrincipalAndFeeRevenue() {
         Transaction withdrawTx = Transaction.merchantWithdrawAtAgent(ORIGINAL_TX_ID, Money.of(new BigDecimal("100.00")), NOW.minusSeconds(60));
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(withdrawTx));
         when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
         when(feeConfigPort.get()).thenReturn(Optional.of(new FeeConfig(
@@ -289,7 +285,7 @@ final class ReversalServiceTest {
     @Test
     void enrollCard_refundableTrue_reversesWalletAndPlatformFeeToCashClearing() {
         Transaction enrollTx = Transaction.enrollCard(ORIGINAL_TX_ID, Money.of(new BigDecimal("10.00")), NOW.minusSeconds(60));
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(enrollTx));
         when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
         when(feeConfigPort.get()).thenReturn(Optional.of(new FeeConfig(
@@ -326,7 +322,7 @@ final class ReversalServiceTest {
     @Test
     void cashReversalBlocked_whenProjectedBalanceBelowGlobalLimit() {
         Transaction withdrawTx = Transaction.merchantWithdrawAtAgent(ORIGINAL_TX_ID, Money.of(new BigDecimal("100.00")), NOW.minusSeconds(60));
-        when(idempotencyPort.find(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(Optional.empty());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, ReversalResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(transactionRepositoryPort.findById(ORIGINAL_TX_ID)).thenReturn(Optional.of(withdrawTx));
         when(transactionRepositoryPort.existsReversalFor(ORIGINAL_TX_ID)).thenReturn(false);
         when(platformConfigPort.get()).thenReturn(Optional.of(new com.kori.domain.model.config.PlatformConfig(new BigDecimal("100.00"))));
@@ -344,6 +340,6 @@ final class ReversalServiceTest {
         assertTrue(ex.getMessage().contains("Agent cash limit exceeded"));
         verify(transactionRepositoryPort, never()).save(any());
         verifyNoInteractions(ledgerAppendPort);
-        verify(idempotencyPort, never()).save(any(), any(), any());
+        verify(idempotencyPort, never()).complete(any(), any(), any());
     }
 }

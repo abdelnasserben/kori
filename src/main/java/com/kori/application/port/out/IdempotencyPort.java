@@ -1,11 +1,11 @@
 package com.kori.application.port.out;
 
-import java.util.Optional;
+import com.kori.application.idempotency.IdempotencyClaim;
 
 public interface IdempotencyPort {
-    <T> Optional<T> find(String idempotencyKey, String requestHash, Class<T> type);
+    <T> IdempotencyClaim<T> claimOrLoad(String idempotencyKey, String requestHash, Class<T> type);
 
-    void save(String idempotencyKey, String requestHash, Object result);
+    void complete(String idempotencyKey, String requestHash, Object result);
 
-    boolean reserve(String idempotencyKey, String requestHash, Class<?> type);
+    void fail(String idempotencyKey, String requestHash);
 }

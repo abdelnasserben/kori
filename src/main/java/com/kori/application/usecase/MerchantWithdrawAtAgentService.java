@@ -7,6 +7,7 @@ import com.kori.application.guard.ActorGuards;
 import com.kori.application.guard.AgentCashLimitGuard;
 import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.guard.PricingGuards;
+import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.MerchantWithdrawAtAgentResult;
@@ -29,7 +30,6 @@ import java.util.Map;
 public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtAgentUseCase {
 
     private final TimeProviderPort timeProviderPort;
-    private final IdempotencyPort idempotencyPort;
     private final IdGeneratorPort idGeneratorPort;
 
     private final MerchantRepositoryPort merchantRepositoryPort;
@@ -46,6 +46,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
 
     private final OperationStatusGuards operationStatusGuards;
     private final AgentCashLimitGuard agentCashLimitGuard;
+    private final IdempotencyExecutor idempotencyExecutor;
 
     public MerchantWithdrawAtAgentService(TimeProviderPort timeProviderPort,
                                           IdempotencyPort idempotencyPort,
@@ -61,7 +62,6 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
                                           AuditPort auditPort,
                                           OperationStatusGuards operationStatusGuards) {
         this.timeProviderPort = timeProviderPort;
-        this.idempotencyPort = idempotencyPort;
         this.idGeneratorPort = idGeneratorPort;
         this.merchantRepositoryPort = merchantRepositoryPort;
         this.agentRepositoryPort = agentRepositoryPort;
@@ -73,101 +73,93 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         this.auditPort = auditPort;
         this.operationStatusGuards = operationStatusGuards;
         this.agentCashLimitGuard = new AgentCashLimitGuard(ledgerQueryPort, platformConfigPort);
+        this.idempotencyExecutor = new IdempotencyExecutor(idempotencyPort);
     }
 
     @Override
     public MerchantWithdrawAtAgentResult execute(MerchantWithdrawAtAgentCommand command) {
-        var cached = idempotencyPort.find(command.idempotencyKey(), command.idempotencyRequestHash(), MerchantWithdrawAtAgentResult.class);
-        if (cached.isPresent()) {
-            return cached.get();
-        }
-
-        // Initié par AGENT uniquement
-        ActorGuards.requireAgent(command.actorContext(), "initiate MerchantWithdrawAtAgent");
-
-        // Resolve AGENT by code
-        Agent agent = agentRepositoryPort.findByCode(AgentCode.of(command.agentCode()))
-                .orElseThrow(() -> new ForbiddenOperationException("Agent not found"));
-
-        operationStatusGuards.requireActiveAgent(agent);
-
-        // Resolve MERCHANT by code
-        Merchant merchant = merchantRepositoryPort.findByCode(MerchantCode.of(command.merchantCode()))
-                .orElseThrow(() -> new ForbiddenOperationException("Merchant not found"));
-
-        operationStatusGuards.requireActiveMerchant(merchant);
-
-        var agentWalletAcc = LedgerAccountRef.agentWallet(agent.id().value().toString());
-        var merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
-
-        Instant now = timeProviderPort.now();
-
-        Money amount = Money.positive(command.amount());
-        Money fee = feePolicyPort.merchantWithdrawFee(amount);
-        Money commission = commissionPolicyPort.merchantWithdrawAgentCommission(fee);
-
-        var breakdown = PricingGuards.feeMinusCommission(fee, commission, "MERCHANT_WITHDRAW");
-        Money platformRevenue = breakdown.platformRevenue();
-        Money totalDebitedMerchant = amount.plus(fee);
-
-        // --- Sufficient funds check (merchant)
-        Money available = ledgerQueryPort.netBalance(merchantAcc);
-        if (totalDebitedMerchant.isGreaterThan(available)) {
-            throw new InsufficientFundsException(
-                    "Insufficient merchant funds: need " + totalDebitedMerchant + " but available " + available
-            );
-        }
-
-        var inProgress = IdempotencyReservations.reserveOrLoad(
-                idempotencyPort,
+        return idempotencyExecutor.execute(
                 command.idempotencyKey(),
                 command.idempotencyRequestHash(),
-                MerchantWithdrawAtAgentResult.class
+                MerchantWithdrawAtAgentResult.class,
+                () -> {
+                    // business logic
+
+                    // Initié par AGENT uniquement
+                    ActorGuards.requireAgent(command.actorContext(), "initiate MerchantWithdrawAtAgent");
+
+                    // Resolve AGENT by code
+                    Agent agent = agentRepositoryPort.findByCode(AgentCode.of(command.agentCode()))
+                            .orElseThrow(() -> new ForbiddenOperationException("Agent not found"));
+
+                    operationStatusGuards.requireActiveAgent(agent);
+
+                    // Resolve MERCHANT by code
+                    Merchant merchant = merchantRepositoryPort.findByCode(MerchantCode.of(command.merchantCode()))
+                            .orElseThrow(() -> new ForbiddenOperationException("Merchant not found"));
+
+                    operationStatusGuards.requireActiveMerchant(merchant);
+
+                    var agentWalletAcc = LedgerAccountRef.agentWallet(agent.id().value().toString());
+                    var merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
+
+                    Instant now = timeProviderPort.now();
+
+                    Money amount = Money.positive(command.amount());
+                    Money fee = feePolicyPort.merchantWithdrawFee(amount);
+                    Money commission = commissionPolicyPort.merchantWithdrawAgentCommission(fee);
+
+                    var breakdown = PricingGuards.feeMinusCommission(fee, commission, "MERCHANT_WITHDRAW");
+                    Money platformRevenue = breakdown.platformRevenue();
+                    Money totalDebitedMerchant = amount.plus(fee);
+
+                    // --- Sufficient funds check (merchant)
+                    Money available = ledgerQueryPort.netBalance(merchantAcc);
+                    if (totalDebitedMerchant.isGreaterThan(available)) {
+                        throw new InsufficientFundsException(
+                                "Insufficient merchant funds: need " + totalDebitedMerchant + " but available " + available
+                        );
+                    }
+
+                    agentRepositoryPort.findByIdForUpdate(agent.id());
+                    agentCashLimitGuard.ensureProjectedBalanceWithinLimit(agent.id().value().toString(), Money.zero(), amount);
+
+                    TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
+                    Transaction tx = Transaction.merchantWithdrawAtAgent(txId, amount, now);
+                    tx = transactionRepositoryPort.save(tx);
+
+                    var clearingAcc = LedgerAccountRef.agentCashClearing(agent.id().value().toString());
+                    var feeAcc = LedgerAccountRef.platformFeeRevenue();
+
+                    ledgerAppendPort.append(List.of(
+                            LedgerEntry.debit(tx.id(), merchantAcc, totalDebitedMerchant),
+                            LedgerEntry.credit(tx.id(), clearingAcc, amount),
+                            LedgerEntry.credit(tx.id(), agentWalletAcc, commission),
+                            LedgerEntry.credit(tx.id(), feeAcc, platformRevenue)
+                    ));
+
+                    Map<String, String> metadata = new HashMap<>();
+                    metadata.put("transactionId", tx.id().value().toString());
+                    metadata.put("merchantCode", command.merchantCode());
+                    metadata.put("agentCode", command.agentCode());
+
+                    auditPort.publish(AuditBuilder.buildBasicAudit(
+                            "MERCHANT_WITHDRAW_AT_AGENT",
+                            command.actorContext(),
+                            now,
+                            metadata
+                    ));
+
+                    return new MerchantWithdrawAtAgentResult(
+                            tx.id().value().toString(),
+                            merchant.code().value(),
+                            agent.code().value(),
+                            amount.asBigDecimal(),
+                            fee.asBigDecimal(),
+                            commission.asBigDecimal(),
+                            totalDebitedMerchant.asBigDecimal()
+                    );
+                }
         );
-        if (inProgress.isPresent()) {
-            return inProgress.get();
-        }
-
-        agentRepositoryPort.findByIdForUpdate(agent.id());
-        agentCashLimitGuard.ensureProjectedBalanceWithinLimit(agent.id().value().toString(), Money.zero(), amount);
-
-        TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
-        Transaction tx = Transaction.merchantWithdrawAtAgent(txId, amount, now);
-        tx = transactionRepositoryPort.save(tx);
-
-        var clearingAcc = LedgerAccountRef.agentCashClearing(agent.id().value().toString());
-        var feeAcc = LedgerAccountRef.platformFeeRevenue();
-
-        ledgerAppendPort.append(List.of(
-                LedgerEntry.debit(tx.id(), merchantAcc, totalDebitedMerchant),
-                LedgerEntry.credit(tx.id(), clearingAcc, amount),
-                LedgerEntry.credit(tx.id(), agentWalletAcc, commission),
-                LedgerEntry.credit(tx.id(), feeAcc, platformRevenue)
-        ));
-
-        Map<String, String> metadata = new HashMap<>();
-        metadata.put("transactionId", tx.id().value().toString());
-        metadata.put("merchantCode", command.merchantCode());
-        metadata.put("agentCode", command.agentCode());
-
-        auditPort.publish(AuditBuilder.buildBasicAudit(
-                "MERCHANT_WITHDRAW_AT_AGENT",
-                command.actorContext(),
-                now,
-                metadata
-        ));
-
-        MerchantWithdrawAtAgentResult result = new MerchantWithdrawAtAgentResult(
-                tx.id().value().toString(),
-                merchant.code().value(),
-                agent.code().value(),
-                amount.asBigDecimal(),
-                fee.asBigDecimal(),
-                commission.asBigDecimal(),
-                totalDebitedMerchant.asBigDecimal()
-        );
-
-        idempotencyPort.save(command.idempotencyKey(), command.idempotencyRequestHash(), result);
-        return result;
     }
 }
