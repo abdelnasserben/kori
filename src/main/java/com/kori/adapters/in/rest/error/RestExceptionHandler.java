@@ -1,10 +1,12 @@
 package com.kori.adapters.in.rest.error;
 
+import com.kori.adapters.in.rest.filter.CorrelationIdFilter;
 import com.kori.application.exception.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -13,10 +15,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Global REST exception mapper.
@@ -191,6 +190,8 @@ public class RestExceptionHandler {
     ) {
         ApiErrorResponse error = new ApiErrorResponse(
                 Instant.now(),
+                resolveCorrelationId(),
+                UUID.randomUUID().toString(),
                 code,
                 message,
                 details == null ? Map.of() : details,
@@ -250,5 +251,10 @@ public class RestExceptionHandler {
             case CONFLICT -> HttpStatus.CONFLICT;
             case TECHNICAL -> HttpStatus.INTERNAL_SERVER_ERROR;
         };
+    }
+
+    private String resolveCorrelationId() {
+        String correlationId = MDC.get(CorrelationIdFilter.MDC_KEY);
+        return correlationId == null ? "" : correlationId;
     }
 }

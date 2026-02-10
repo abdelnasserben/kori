@@ -16,5 +16,11 @@ public final class ApiPaths {
     public static final String PAYOUTS = API + "/payouts";
     public static final String CLIENT_REFUNDS = API + "/client-refunds";
     public static final String TERMINALS = API + "/terminals";
+    public static final String BACKOFFICE = API + "/backoffice";
+    public static final String BACKOFFICE_TRANSACTIONS = BACKOFFICE + "/transactions";
+    public static final String BACKOFFICE_AUDIT_EVENTS = BACKOFFICE + "/audit-events";
+    public static final String BACKOFFICE_AGENTS = BACKOFFICE + "/agents";
+    public static final String BACKOFFICE_CLIENTS = BACKOFFICE + "/clients";
+    public static final String BACKOFFICE_MERCHANTS = BACKOFFICE + "/merchants";
 }
 

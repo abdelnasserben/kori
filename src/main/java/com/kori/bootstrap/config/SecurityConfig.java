@@ -89,6 +89,13 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/ledger/balance").hasAnyRole("ADMIN", "AGENT", "MERCHANT", "CLIENT")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/ledger/transactions/search").hasAnyRole("ADMIN", "AGENT", "MERCHANT", "CLIENT")
 
+                        // Backoffice query endpoints
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/transactions/**").hasAnyRole("ADMIN", "AGENT")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/audit-events").hasAnyRole("ADMIN", "AGENT")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/agents").hasAnyRole("ADMIN", "AGENT")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/clients").hasAnyRole("ADMIN", "AGENT")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/merchants").hasAnyRole("ADMIN", "AGENT")
+
                         // Card admin operations
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/cards/*/status/admin").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/cards/*/unblock").hasRole("ADMIN")

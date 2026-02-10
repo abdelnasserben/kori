@@ -12,6 +12,7 @@ import org.springframework.security.web.access.AccessDeniedHandler;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 
 public class SecurityAccessDeniedHandler implements AccessDeniedHandler {
 
@@ -40,6 +41,8 @@ public class SecurityAccessDeniedHandler implements AccessDeniedHandler {
 
         ApiErrorResponse payload = new ApiErrorResponse(
                 Instant.now(),
+                response.getHeader("X-Correlation-Id") == null ? "" : response.getHeader("X-Correlation-Id"),
+                UUID.randomUUID().toString(),
                 code,
                 message,
                 Map.of(),
