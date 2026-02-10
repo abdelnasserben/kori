@@ -5,9 +5,18 @@ import com.kori.application.handler.OnAgentStatusChangedHandler;
 import com.kori.application.handler.OnClientStatusChangedHandler;
 import com.kori.application.handler.OnMerchantStatusChangedHandler;
 import com.kori.application.port.in.*;
+import com.kori.application.port.in.query.BackofficeActorQueryUseCase;
+import com.kori.application.port.in.query.BackofficeAuditEventQueryUseCase;
+import com.kori.application.port.in.query.BackofficeTransactionQueryUseCase;
 import com.kori.application.port.out.*;
+import com.kori.application.port.out.query.BackofficeActorReadPort;
+import com.kori.application.port.out.query.BackofficeAuditEventReadPort;
+import com.kori.application.port.out.query.BackofficeTransactionReadPort;
 import com.kori.application.security.LedgerAccessPolicy;
 import com.kori.application.usecase.*;
+import com.kori.application.usecase.query.BackofficeActorQueryService;
+import com.kori.application.usecase.query.BackofficeAuditEventQueryService;
+import com.kori.application.usecase.query.BackofficeTransactionQueryService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -684,6 +693,27 @@ public class ApplicationWiringConfig {
                 transactionRepositoryPort,
                 ledgerAccessPolicy
         );
+    }
+
+    @Bean
+    public BackofficeTransactionQueryUseCase backofficeTransactionQueryUseCase(
+            BackofficeTransactionReadPort readPort
+    ) {
+        return new BackofficeTransactionQueryService(readPort);
+    }
+
+    @Bean
+    public BackofficeAuditEventQueryUseCase backofficeAuditEventQueryUseCase(
+            BackofficeAuditEventReadPort readPort
+    ) {
+        return new BackofficeAuditEventQueryService(readPort);
+    }
+
+    @Bean
+    public BackofficeActorQueryUseCase backofficeActorQueryUseCase(
+            BackofficeActorReadPort readPort
+    ) {
+        return new BackofficeActorQueryService(readPort);
     }
 
     // -----------------------------

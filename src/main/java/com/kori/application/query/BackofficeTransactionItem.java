@@ -1,9 +1,9 @@
-package com.kori.adapters.out.jpa.query;
+package com.kori.application.query;
 
 import java.math.BigDecimal;
 import java.time.Instant;
 
-public record BackofficeTransactionDetails(
+public record BackofficeTransactionItem(
         String transactionId,
         String type,
         String status,
@@ -12,7 +12,6 @@ public record BackofficeTransactionDetails(
         String merchantCode,
         String agentCode,
         String clientId,
-        String originalTransactionId,
         Instant createdAt
 ) {
 }

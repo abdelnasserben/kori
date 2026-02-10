@@ -1,11 +1,15 @@
-package com.kori.adapters.out.jpa.query;
+package com.kori.application.usecase.query;
 
 import com.kori.application.exception.NotFoundException;
-import org.springframework.stereotype.Service;
+import com.kori.application.port.in.query.BackofficeTransactionQueryUseCase;
+import com.kori.application.port.out.query.BackofficeTransactionReadPort;
+import com.kori.application.query.BackofficeTransactionDetails;
+import com.kori.application.query.BackofficeTransactionItem;
+import com.kori.application.query.BackofficeTransactionQuery;
+import com.kori.application.query.QueryPage;
 
 import java.util.Objects;
 
-@Service
 public class BackofficeTransactionQueryService implements BackofficeTransactionQueryUseCase {
 
     private final BackofficeTransactionReadPort readPort;

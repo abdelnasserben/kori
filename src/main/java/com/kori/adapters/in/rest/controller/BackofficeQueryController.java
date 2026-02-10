@@ -2,7 +2,10 @@ package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.dto.BackofficeResponses;
-import com.kori.adapters.out.jpa.query.*;
+import com.kori.application.port.in.query.BackofficeActorQueryUseCase;
+import com.kori.application.port.in.query.BackofficeAuditEventQueryUseCase;
+import com.kori.application.port.in.query.BackofficeTransactionQueryUseCase;
+import com.kori.application.query.*;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 

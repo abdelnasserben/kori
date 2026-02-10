@@ -1,6 +1,9 @@
 package com.kori.adapters.in.rest;
 
-import com.kori.adapters.out.jpa.query.*;
+import com.kori.application.port.in.query.BackofficeActorQueryUseCase;
+import com.kori.application.port.in.query.BackofficeAuditEventQueryUseCase;
+import com.kori.application.port.in.query.BackofficeTransactionQueryUseCase;
+import com.kori.application.query.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

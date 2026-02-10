@@ -1,4 +1,4 @@
-package com.kori.adapters.out.jpa.query;
+package com.kori.application.query;
 
 import java.time.Instant;
 import java.util.Map;

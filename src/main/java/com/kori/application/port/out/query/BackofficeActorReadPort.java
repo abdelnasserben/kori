@@ -1,4 +1,8 @@
-package com.kori.adapters.out.jpa.query;
+package com.kori.application.port.out.query;
+
+import com.kori.application.query.BackofficeActorItem;
+import com.kori.application.query.BackofficeActorQuery;
+import com.kori.application.query.QueryPage;
 
 public interface BackofficeActorReadPort {
     QueryPage<BackofficeActorItem> listAgents(BackofficeActorQuery query);

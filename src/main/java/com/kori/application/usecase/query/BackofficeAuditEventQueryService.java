@@ -1,10 +1,13 @@
-package com.kori.adapters.out.jpa.query;
+package com.kori.application.usecase.query;
 
-import org.springframework.stereotype.Service;
+import com.kori.application.port.in.query.BackofficeAuditEventQueryUseCase;
+import com.kori.application.port.out.query.BackofficeAuditEventReadPort;
+import com.kori.application.query.BackofficeAuditEventItem;
+import com.kori.application.query.BackofficeAuditEventQuery;
+import com.kori.application.query.QueryPage;
 
 import java.util.Objects;
 
-@Service
 public class BackofficeAuditEventQueryService implements BackofficeAuditEventQueryUseCase {
 
     private final BackofficeAuditEventReadPort readPort;

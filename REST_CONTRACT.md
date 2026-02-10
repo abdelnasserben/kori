@@ -358,6 +358,31 @@ X-Correlation-Id: 1398dc2e-f2de-45aa-ae43-5c80cfb8ed33
 
 ---
 
+### 6.è Mobile “/me” APIs (read-only)
+
+#### Client
+
+* `GET /api/v1/client/me/profile`
+* `GET /api/v1/client/me/balance`
+* `GET /api/v1/client/me/cards`
+* `GET /api/v1/client/me/transactions?type=&status=&from=&to=&min=&max=&limit=&cursor=&sort=`
+
+#### Merchant
+
+* `GET /api/v1/merchant/me/profile`
+* `GET /api/v1/merchant/me/balance`
+* `GET /api/v1/merchant/me/transactions?type=&status=&from=&to=&min=&max=&limit=&cursor=&sort=`
+* `GET /api/v1/merchant/me/terminals?status=&query=&limit=&cursor=&sort=`
+* `GET /api/v1/merchant/me/terminals/{terminalUid}`
+
+Conventions:
+
+* endpoints `client/me` accessibles uniquement aux tokens portant `ROLE_CLIENT`.
+* endpoints `merchant/me` accessibles uniquement aux tokens portant `ROLE_MERCHANT`.
+* l’identité `me` provient exclusivement du `ActorContext` JWT (`actor_type`, `actor_id`).
+* pagination/curseur et format d’erreur identiques aux conventions globales (section 5.2).
+
+
 ### 6.10 Ledger
 
 #### GET `/api/v1/ledger/balance`

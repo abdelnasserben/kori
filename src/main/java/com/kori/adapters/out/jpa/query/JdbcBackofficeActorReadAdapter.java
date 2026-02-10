@@ -1,6 +1,10 @@
 package com.kori.adapters.out.jpa.query;
 
 import com.kori.application.exception.ValidationException;
+import com.kori.application.port.out.query.BackofficeActorReadPort;
+import com.kori.application.query.BackofficeActorItem;
+import com.kori.application.query.BackofficeActorQuery;
+import com.kori.application.query.QueryPage;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;

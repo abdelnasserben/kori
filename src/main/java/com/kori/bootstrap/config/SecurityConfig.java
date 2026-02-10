@@ -96,6 +96,10 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/clients").hasAnyRole("ADMIN", "AGENT")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/merchants").hasAnyRole("ADMIN", "AGENT")
 
+                        // "ME" query endpoints
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/client/me/**").hasRole("CLIENT")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/merchant/me/**").hasRole("MERCHANT")
+
                         // Card admin operations
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/cards/*/status/admin").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/cards/*/unblock").hasRole("ADMIN")
