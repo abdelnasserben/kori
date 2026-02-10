@@ -58,6 +58,7 @@ final class MerchantWithdrawAtAgentServiceTest {
     @Mock CommissionPolicyPort commissionPolicyPort;
 
     @Mock LedgerQueryPort ledgerQueryPort;
+    @Mock LedgerAccountLockPort ledgerAccountLockPort;
     @Mock PlatformConfigPort platformConfigPort;
     @Mock TransactionRepositoryPort transactionRepositoryPort;
     @Mock LedgerAppendPort ledgerAppendPort;

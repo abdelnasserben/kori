@@ -32,6 +32,7 @@ public class RequestClientRefundService implements RequestClientRefundUseCase {
     private final ClientRepositoryPort clientRepositoryPort;
     private final LedgerAppendPort ledgerAppendPort;
     private final LedgerQueryPort ledgerQueryPort;
+    private final LedgerAccountLockPort ledgerAccountLockPort;
     private final TransactionRepositoryPort transactionRepositoryPort;
     private final ClientRefundRepositoryPort clientRefundRepositoryPort;
     private final AuditPort auditPort;
@@ -42,7 +43,7 @@ public class RequestClientRefundService implements RequestClientRefundUseCase {
                                       IdempotencyPort idempotencyPort,
                                       ClientRepositoryPort clientRepositoryPort,
                                       LedgerAppendPort ledgerAppendPort,
-                                      LedgerQueryPort ledgerQueryPort,
+                                      LedgerQueryPort ledgerQueryPort, LedgerAccountLockPort ledgerAccountLockPort,
                                       TransactionRepositoryPort transactionRepositoryPort,
                                       ClientRefundRepositoryPort clientRefundRepositoryPort,
                                       AuditPort auditPort,
@@ -51,6 +52,7 @@ public class RequestClientRefundService implements RequestClientRefundUseCase {
         this.clientRepositoryPort = clientRepositoryPort;
         this.ledgerAppendPort = ledgerAppendPort;
         this.ledgerQueryPort = ledgerQueryPort;
+        this.ledgerAccountLockPort = ledgerAccountLockPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.clientRefundRepositoryPort = clientRefundRepositoryPort;
         this.auditPort = auditPort;
@@ -81,7 +83,9 @@ public class RequestClientRefundService implements RequestClientRefundUseCase {
                         throw new ForbiddenOperationException("A refund is already REQUESTED for this client");
                     }
 
-                    Money due = ledgerQueryPort.netBalance(LedgerAccountRef.client(clientId.value().toString()));
+                    var clientWallet = LedgerAccountRef.client(clientId.value().toString());
+                    ledgerAccountLockPort.lock(clientWallet);
+                    Money due = ledgerQueryPort.netBalance(clientWallet);
                     if (due.isZero()) {
                         throw new ForbiddenOperationException("No refund due for client");
                     }
@@ -92,7 +96,6 @@ public class RequestClientRefundService implements RequestClientRefundUseCase {
                     Transaction tx = Transaction.clientRefund(txId, due, now);
                     transactionRepositoryPort.save(tx);
 
-                    var clientWallet = LedgerAccountRef.client(clientId.value().toString());
                     var refundClearing = LedgerAccountRef.platformClientRefundClearing();
                     ledgerAppendPort.append(List.of(
                             LedgerEntry.debit(tx.id(), clientWallet, due),

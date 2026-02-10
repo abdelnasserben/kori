@@ -37,6 +37,7 @@ class RequestClientRefundServiceTest {
     @Mock ClientRepositoryPort clientRepositoryPort;
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock LedgerQueryPort ledgerQueryPort;
+    @Mock LedgerAccountLockPort ledgerAccountLockPort;
     @Mock TransactionRepositoryPort transactionRepositoryPort;
     @Mock ClientRefundRepositoryPort clientRefundRepositoryPort;
     @Mock AuditPort auditPort;

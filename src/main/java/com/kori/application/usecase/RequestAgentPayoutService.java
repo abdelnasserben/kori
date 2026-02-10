@@ -34,6 +34,7 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
     private final AgentRepositoryPort agentRepositoryPort;
     private final LedgerAppendPort ledgerAppendPort;
     private final LedgerQueryPort ledgerQueryPort;
+    private final LedgerAccountLockPort ledgerAccountLockPort;
     private final TransactionRepositoryPort transactionRepositoryPort;
     private final PayoutRepositoryPort payoutRepositoryPort;
     private final AuditPort auditPort;
@@ -44,7 +45,7 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
             AgentRepositoryPort agentRepositoryPort, LedgerAppendPort ledgerAppendPort,
-            LedgerQueryPort ledgerQueryPort,
+            LedgerQueryPort ledgerQueryPort, LedgerAccountLockPort ledgerAccountLockPort,
             TransactionRepositoryPort transactionRepositoryPort,
             PayoutRepositoryPort payoutRepositoryPort,
             AuditPort auditPort, IdGeneratorPort idGeneratorPort) {
@@ -52,6 +53,7 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
         this.agentRepositoryPort = agentRepositoryPort;
         this.ledgerAppendPort = ledgerAppendPort;
         this.ledgerQueryPort = ledgerQueryPort;
+        this.ledgerAccountLockPort = ledgerAccountLockPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.payoutRepositoryPort = payoutRepositoryPort;
         this.auditPort = auditPort;
@@ -86,7 +88,9 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
                     }
 
                     // Spec: payout must compensate exactly what is due to the agent.
-                    Money due = ledgerQueryPort.netBalance(LedgerAccountRef.agentWallet(agentId.value().toString()));
+                    var agentWalletAcc = LedgerAccountRef.agentWallet(agentId.value().toString());
+                    ledgerAccountLockPort.lock(agentWalletAcc);
+                    Money due = ledgerQueryPort.netBalance(agentWalletAcc);
 
                     if (due.isZero()) {
                         throw new ForbiddenOperationException("No payout due for agent");
@@ -98,7 +102,6 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
                     Transaction tx = Transaction.agentPayout(txId, due, now);
                     transactionRepositoryPort.save(tx);
 
-                    var agentWalletAcc = LedgerAccountRef.agentWallet(agentId.value().toString());
                     var platformClearingAcc = LedgerAccountRef.platformClearing();
                     ledgerAppendPort.append(List.of(
                             LedgerEntry.debit(tx.id(), agentWalletAcc, due),

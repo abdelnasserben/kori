@@ -49,6 +49,7 @@ final class RequestAgentPayoutServiceTest {
     @Mock AgentRepositoryPort agentRepositoryPort;
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock LedgerQueryPort ledgerQueryPort;
+    @Mock LedgerAccountLockPort ledgerAccountLockPort;
     @Mock TransactionRepositoryPort transactionRepositoryPort;
     @Mock PayoutRepositoryPort payoutRepositoryPort;
     @Mock AuditPort auditPort;

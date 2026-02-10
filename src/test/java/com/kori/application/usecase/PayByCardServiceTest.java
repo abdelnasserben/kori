@@ -67,7 +67,7 @@ final class PayByCardServiceTest {
 
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock LedgerQueryPort ledgerQueryPort;
-    @Mock AccountProfilePort accountProfilePort;
+    @Mock LedgerAccountLockPort ledgerAccountLockPort;
 
     @Mock AuditPort auditPort;
     @Mock PinHasherPort pinHasherPort;
@@ -182,7 +182,6 @@ final class PayByCardServiceTest {
                 cardSecurityPolicyPort,
                 ledgerAppendPort,
                 ledgerQueryPort,
-                accountProfilePort,
                 auditPort,
                 pinHasherPort,
                 operationStatusGuards,
@@ -222,7 +221,6 @@ final class PayByCardServiceTest {
                 cardSecurityPolicyPort,
                 ledgerAppendPort,
                 ledgerQueryPort,
-                accountProfilePort,
                 auditPort,
                 pinHasherPort,
                 operationStatusGuards

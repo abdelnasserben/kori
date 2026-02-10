@@ -49,6 +49,7 @@ public final class PayByCardService implements PayByCardUseCase {
 
     private final LedgerAppendPort ledgerAppendPort;
     private final LedgerQueryPort ledgerQueryPort;
+    private final LedgerAccountLockPort ledgerAccountLockPort;
 
     private final AuditPort auditPort;
     private final PinHasherPort pinHasherPort;
@@ -66,7 +67,7 @@ public final class PayByCardService implements PayByCardUseCase {
                             FeePolicyPort feePolicyPort,
                             CardSecurityPolicyPort cardSecurityPolicyPort,
                             LedgerAppendPort ledgerAppendPort,
-                            LedgerQueryPort ledgerQueryPort,
+                            LedgerQueryPort ledgerQueryPort, LedgerAccountLockPort ledgerAccountLockPort,
                             AuditPort auditPort,
                             PinHasherPort pinHasherPort,
                             OperationStatusGuards operationStatusGuards) {
@@ -81,6 +82,7 @@ public final class PayByCardService implements PayByCardUseCase {
         this.cardSecurityPolicyPort = cardSecurityPolicyPort;
         this.ledgerAppendPort = ledgerAppendPort;
         this.ledgerQueryPort = ledgerQueryPort;
+        this.ledgerAccountLockPort = ledgerAccountLockPort;
         this.auditPort = auditPort;
         this.pinHasherPort = pinHasherPort;
         this.operationStatusGuards = operationStatusGuards;
@@ -155,6 +157,7 @@ public final class PayByCardService implements PayByCardUseCase {
                     Money fee = feePolicyPort.cardPaymentFee(amount);
                     Money totalDebited = amount.plus(fee);
 
+                    ledgerAccountLockPort.lock(merchantAcc);
                     Money available = ledgerQueryPort.netBalance(clientAcc);
                     if (totalDebited.isGreaterThan(available)) {
                         throw new InsufficientFundsException(

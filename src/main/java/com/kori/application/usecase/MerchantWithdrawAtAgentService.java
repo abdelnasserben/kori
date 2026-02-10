@@ -39,6 +39,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
     private final CommissionPolicyPort commissionPolicyPort;
 
     private final LedgerQueryPort ledgerQueryPort;
+    private final LedgerAccountLockPort ledgerAccountLockPort;
 
     private final TransactionRepositoryPort transactionRepositoryPort;
     private final LedgerAppendPort ledgerAppendPort;
@@ -55,7 +56,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
                                           AgentRepositoryPort agentRepositoryPort,
                                           FeePolicyPort feePolicyPort,
                                           CommissionPolicyPort commissionPolicyPort,
-                                          LedgerQueryPort ledgerQueryPort,
+                                          LedgerQueryPort ledgerQueryPort, LedgerAccountLockPort ledgerAccountLockPort,
                                           PlatformConfigPort platformConfigPort,
                                           TransactionRepositoryPort transactionRepositoryPort,
                                           LedgerAppendPort ledgerAppendPort,
@@ -68,6 +69,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         this.feePolicyPort = feePolicyPort;
         this.commissionPolicyPort = commissionPolicyPort;
         this.ledgerQueryPort = ledgerQueryPort;
+        this.ledgerAccountLockPort = ledgerAccountLockPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.ledgerAppendPort = ledgerAppendPort;
         this.auditPort = auditPort;
@@ -114,6 +116,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
                     Money totalDebitedMerchant = amount.plus(fee);
 
                     // --- Sufficient funds check (merchant)
+                    ledgerAccountLockPort.lock(merchantAcc);
                     Money available = ledgerQueryPort.netBalance(merchantAcc);
                     if (totalDebitedMerchant.isGreaterThan(available)) {
                         throw new InsufficientFundsException(
