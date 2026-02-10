@@ -1,4 +1,4 @@
-package com.kori.adapters.out.jpa.query;
+package com.kori.adapters.out.jpa.query.common;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -10,12 +10,10 @@ import java.util.Base64;
 import java.util.Map;
 import java.util.UUID;
 
-final class OpaqueCursorCodec {
+public final class OpaqueCursorCodec {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    record CursorPayload(Instant createdAt, String id) {}
-
-    String encode(Instant createdAt, UUID id) {
+    public String encode(Instant createdAt, UUID id) {
         try {
             String json = OBJECT_MAPPER.writeValueAsString(Map.of(
                     "createdAt", createdAt.toString(),
@@ -27,7 +25,7 @@ final class OpaqueCursorCodec {
         }
     }
 
-    CursorPayload decode(String cursor) {
+    public CursorPayload decode(String cursor) {
         if (cursor == null || cursor.isBlank()) {
             return null;
         }

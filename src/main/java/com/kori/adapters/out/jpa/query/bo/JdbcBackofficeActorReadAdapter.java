@@ -1,6 +1,7 @@
-package com.kori.adapters.out.jpa.query;
+package com.kori.adapters.out.jpa.query.bo;
 
-import com.kori.application.exception.ValidationException;
+import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
+import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
 import com.kori.application.port.out.query.BackofficeActorReadPort;
 import com.kori.application.query.BackofficeActorItem;
 import com.kori.application.query.BackofficeActorQuery;
@@ -11,7 +12,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Component
@@ -40,9 +40,9 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
     }
 
     private QueryPage<BackofficeActorItem> list(BackofficeActorQuery query, String table, String searchField, String idField) {
-        int limit = normalizeLimit(query.limit());
+        int limit = QueryInputValidator.normalizeLimit(query.limit(), 20, 100);
         var cursor = codec.decode(query.cursor());
-        boolean desc = resolveSort(query.sort());
+        boolean desc = QueryInputValidator.resolveSort(query.sort(), "createdAt");
 
         StringBuilder sql = new StringBuilder("SELECT " + idField + "::text AS actor_id, "+ searchField +" AS code, status, created_at FROM " + table + " WHERE 1=1");
         var params = new MapSqlParameterSource();
@@ -68,19 +68,5 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
         if (hasMore) rows = new ArrayList<>(rows.subList(0, limit));
         String next = hasMore && !rows.isEmpty() ? codec.encode(rows.get(rows.size() - 1).createdAt(), UUID.fromString(rows.get(rows.size() - 1).actorId())) : null;
         return new QueryPage<>(rows, next, hasMore);
-    }
-
-    private int normalizeLimit(Integer limit) {
-        if (limit == null) return 20;
-        if (limit < 1 || limit > 100) throw new ValidationException("limit must be between 1 and 100", Map.of("field", "limit", "rejectedValue", limit));
-        return limit;
-    }
-
-    private boolean resolveSort(String sortRaw) {
-        if (sortRaw == null || sortRaw.isBlank()) return true;
-        if (!"createdAt:desc".equals(sortRaw) && !"createdAt:asc".equals(sortRaw)) {
-            throw new ValidationException("Invalid sort format. Use <field>:<asc|desc>", Map.of("field", "sort", "rejectedValue", sortRaw));
-        }
-        return sortRaw.endsWith("desc");
     }
 }

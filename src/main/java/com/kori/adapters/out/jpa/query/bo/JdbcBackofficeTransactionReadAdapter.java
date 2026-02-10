@@ -1,5 +1,8 @@
-package com.kori.adapters.out.jpa.query;
+package com.kori.adapters.out.jpa.query.bo;
 
+import com.kori.adapters.out.jpa.query.common.CursorPayload;
+import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
+import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
 import com.kori.application.exception.ValidationException;
 import com.kori.application.port.out.query.BackofficeTransactionReadPort;
 import com.kori.application.query.BackofficeTransactionDetails;
@@ -31,7 +34,7 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
 
     @Override
     public QueryPage<BackofficeTransactionItem> list(BackofficeTransactionQuery query) {
-        int limit = normalizeLimit(query.limit());
+        int limit = QueryInputValidator.normalizeLimit(query.limit(), DEFAULT_LIMIT, MAX_LIMIT);
         var cursor = codec.decode(query.cursor());
 
         StringBuilder sql = new StringBuilder("""
@@ -127,7 +130,7 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
         }
     }
 
-    private void applyCursor(StringBuilder sql, MapSqlParameterSource p, OpaqueCursorCodec.CursorPayload cursor, Sort sort) {
+    private void applyCursor(StringBuilder sql, MapSqlParameterSource p, CursorPayload cursor, Sort sort) {
         if (cursor == null) return;
         sql.append(sort.desc ? " AND (t.created_at < :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.id < CAST(:cursorId AS uuid)))"
                 : " AND (t.created_at > :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.id > CAST(:cursorId AS uuid)))");
@@ -142,19 +145,7 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
     }
 
     private Sort resolveSort(String sortRaw) {
-        if (sortRaw == null || sortRaw.isBlank()) return new Sort(true);
-        if (!"createdAt:desc".equals(sortRaw) && !"createdAt:asc".equals(sortRaw)) {
-            throw new ValidationException("Invalid sort format. Use <field>:<asc|desc>", java.util.Map.of("field", "sort", "rejectedValue", sortRaw));
-        }
-        return new Sort(sortRaw.endsWith("desc"));
-    }
-
-    private int normalizeLimit(Integer limit) {
-        if (limit == null) return DEFAULT_LIMIT;
-        if (limit < 1 || limit > MAX_LIMIT) {
-            throw new ValidationException("limit must be between 1 and 100", java.util.Map.of("field", "limit", "rejectedValue", limit));
-        }
-        return limit;
+        return new Sort(QueryInputValidator.resolveSort(sortRaw, "createdAt"));
     }
 
     private BackofficeTransactionItem mapItem(ResultSet rs) throws java.sql.SQLException {

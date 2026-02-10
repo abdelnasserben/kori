@@ -1,6 +1,8 @@
 package com.kori.adapters.out.jpa.query.me;
 
-import com.kori.application.exception.ValidationException;
+import com.kori.adapters.out.jpa.query.common.CursorPayload;
+import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
+import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
 import com.kori.application.port.out.query.MerchantMeReadPort;
 import com.kori.application.query.QueryPage;
 import com.kori.application.query.model.MeQueryModels;
@@ -8,18 +10,19 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
-import java.util.regex.Pattern;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 @Component
 public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
 
     private static final int DEFAULT_LIMIT = 20;
     private static final int MAX_LIMIT = 100;
-    private static final Pattern SAFE_ENUM_FILTER = Pattern.compile("^[A-Z_]{2,64}$");
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
-    private final MeOpaqueCursorCodec codec = new MeOpaqueCursorCodec();
+    private final OpaqueCursorCodec codec = new OpaqueCursorCodec();
 
     public JdbcMerchantMeReadAdapter(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
@@ -46,10 +49,10 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
 
     @Override
     public QueryPage<MeQueryModels.MeTransactionItem> listTransactions(String merchantId, MeQueryModels.MeTransactionsFilter filter) {
-        int limit = normalizeLimit(filter.limit());
-        boolean desc = resolveCreatedAtSort(filter.sort());
-        validateFilterToken("type", filter.type());
-        validateFilterToken("status", filter.status());
+        int limit = QueryInputValidator.normalizeLimit(filter.limit(), DEFAULT_LIMIT, MAX_LIMIT);
+        boolean desc = QueryInputValidator.resolveSort(filter.sort(), "createdAt");
+        QueryInputValidator.validateEnumFilter("type", filter.type());
+        QueryInputValidator.validateEnumFilter("status", filter.status());
         var cursor = codec.decode(filter.cursor());
 
         StringBuilder sql = new StringBuilder("""
@@ -78,9 +81,9 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
 
     @Override
     public QueryPage<MeQueryModels.MeTerminalItem> listTerminals(String merchantId, MeQueryModels.MeTerminalsFilter filter) {
-        int limit = normalizeLimit(filter.limit());
-        boolean desc = resolveTerminalsSort(filter.sort());
-        validateFilterToken("status", filter.status());
+        int limit = QueryInputValidator.normalizeLimit(filter.limit(), DEFAULT_LIMIT, MAX_LIMIT);
+        boolean desc = QueryInputValidator.resolveSort(filter.sort(), "createdAt");
+        QueryInputValidator.validateEnumFilter("status", filter.status());
         var cursor = codec.decode(filter.cursor());
 
         StringBuilder sql = new StringBuilder("""
@@ -146,37 +149,12 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
         if (filter.max() != null) { sql.append(" AND t.amount <= :max"); params.addValue("max", filter.max()); }
     }
 
-    private void applyCursor(StringBuilder sql, MapSqlParameterSource params, MeOpaqueCursorCodec.CursorPayload cursor, boolean desc) {
+    private void applyCursor(StringBuilder sql, MapSqlParameterSource params, CursorPayload cursor, boolean desc) {
         if (cursor == null) return;
         sql.append(desc
                 ? " AND (t.created_at < :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.id < CAST(:cursorId AS uuid)))"
                 : " AND (t.created_at > :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.id > CAST(:cursorId AS uuid)))");
         params.addValue("cursorCreatedAt", cursor.createdAt());
         params.addValue("cursorId", cursor.id());
-    }
-
-    private int normalizeLimit(Integer limit) {
-        if (limit == null) return DEFAULT_LIMIT;
-        if (limit < 1 || limit > MAX_LIMIT) throw new ValidationException("limit must be between 1 and 100", Map.of("field", "limit", "rejectedValue", limit));
-        return limit;
-    }
-
-    private boolean resolveCreatedAtSort(String sortRaw) {
-        if (sortRaw == null || sortRaw.isBlank()) return true;
-        if (!"createdAt:desc".equals(sortRaw) && !"createdAt:asc".equals(sortRaw)) {
-            throw new ValidationException("Invalid sort format. Use <field>:<asc|desc>", Map.of("field", "sort", "rejectedValue", sortRaw));
-        }
-        return sortRaw.endsWith("desc");
-    }
-
-    private boolean resolveTerminalsSort(String sortRaw) {
-        return resolveCreatedAtSort(sortRaw);
-    }
-
-    private void validateFilterToken(String field, String value) {
-        if (value == null || value.isBlank()) return;
-        if (!SAFE_ENUM_FILTER.matcher(value).matches()) {
-            throw new ValidationException("Invalid filter format", Map.of("field", field));
-        }
     }
 }

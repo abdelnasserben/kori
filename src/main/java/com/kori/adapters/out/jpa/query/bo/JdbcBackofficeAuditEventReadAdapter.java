@@ -1,9 +1,10 @@
-package com.kori.adapters.out.jpa.query;
+package com.kori.adapters.out.jpa.query.bo;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.kori.application.exception.ValidationException;
+import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
+import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
 import com.kori.application.port.out.query.BackofficeAuditEventReadPort;
 import com.kori.application.query.BackofficeAuditEventItem;
 import com.kori.application.query.BackofficeAuditEventQuery;
@@ -33,7 +34,7 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
 
     @Override
     public QueryPage<BackofficeAuditEventItem> list(BackofficeAuditEventQuery query) {
-        int limit = normalizeLimit(query.limit());
+        int limit = QueryInputValidator.normalizeLimit(query.limit(), DEFAULT_LIMIT, MAX_LIMIT);
         var cursor = codec.decode(query.cursor());
         var sortDesc = resolveSort(query.sort());
         StringBuilder sql = new StringBuilder("SELECT id, occurred_at, actor_type, actor_id, action, metadata_json FROM audit_events WHERE 1=1");
@@ -77,17 +78,7 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
         return new QueryPage<>(rows, next, hasMore);
     }
 
-    private int normalizeLimit(Integer limit) {
-        if (limit == null) return DEFAULT_LIMIT;
-        if (limit < 1 || limit > MAX_LIMIT) throw new ValidationException("limit must be between 1 and 100", Map.of("field", "limit", "rejectedValue", limit));
-        return limit;
-    }
-
     private boolean resolveSort(String sortRaw) {
-        if (sortRaw == null || sortRaw.isBlank()) return true;
-        if (!"occurredAt:desc".equals(sortRaw) && !"occurredAt:asc".equals(sortRaw)) {
-            throw new ValidationException("Invalid sort format. Use <field>:<asc|desc>", Map.of("field", "sort", "rejectedValue", sortRaw));
-        }
-        return sortRaw.endsWith("desc");
+        return QueryInputValidator.resolveSort(sortRaw, "occurredAt");
     }
 }
