@@ -1,8 +1,8 @@
 package com.kori.application.port.in;
 
 import com.kori.application.command.CompleteClientRefundCommand;
-import com.kori.application.result.ClientRefundResult;
+import com.kori.application.result.FinalizationResult;
 
 public interface CompleteClientRefundUseCase {
-    ClientRefundResult execute(CompleteClientRefundCommand cmd);
+    FinalizationResult execute(CompleteClientRefundCommand cmd);
 }

@@ -7,6 +7,7 @@ import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.LedgerAppendPort;
 import com.kori.application.port.out.PayoutRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
+import com.kori.application.result.FinalizationResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.ledger.LedgerAccountRef;
@@ -97,7 +98,21 @@ final class FailAgentPayoutServiceTest {
     }
 
     @Test
-    void forbidden_whenPayoutIsNotRequested() {
+    void noOp_whenPayoutAlreadyFailed() {
+        Payout payout = requestedPayout();
+        payout.fail(NOW.minusSeconds(10), "already failed");
+
+        when(payoutRepositoryPort.findById(PAYOUT_ID)).thenReturn(Optional.of(payout));
+
+        FinalizationResult result = service.execute(cmd(adminActor()));
+
+        assertEquals(FinalizationResult.ALREADY_APPLIED, result);
+        verifyNoInteractions(ledgerAppendPort, auditPort, timeProviderPort);
+        verify(payoutRepositoryPort, never()).save(any(Payout.class));
+    }
+
+    @Test
+    void forbidden_whenPayoutIsInDifferentFinalState() {
         Payout payout = requestedPayout();
         payout.complete(NOW.minusSeconds(10)); // COMPLETED
 
@@ -116,7 +131,9 @@ final class FailAgentPayoutServiceTest {
         when(timeProviderPort.now()).thenReturn(NOW);
         when(payoutRepositoryPort.save(any(Payout.class))).thenAnswer(inv -> inv.getArgument(0));
 
-        service.execute(cmd(adminActor()));
+        FinalizationResult result = service.execute(cmd(adminActor()));
+
+        assertEquals(FinalizationResult.APPLIED, result);
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<java.util.List<LedgerEntry>> ledgerCaptor = ArgumentCaptor.forClass(java.util.List.class);

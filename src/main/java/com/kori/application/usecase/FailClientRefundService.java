@@ -9,7 +9,7 @@ import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.ClientRefundRepositoryPort;
 import com.kori.application.port.out.LedgerAppendPort;
 import com.kori.application.port.out.TimeProviderPort;
-import com.kori.application.result.ClientRefundResult;
+import com.kori.application.result.FinalizationResult;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
@@ -39,11 +39,15 @@ public class FailClientRefundService implements FailClientRefundUseCase {
     }
 
     @Override
-    public ClientRefundResult execute(FailClientRefundCommand cmd) {
+    public FinalizationResult execute(FailClientRefundCommand cmd) {
         ActorGuards.requireAdmin(cmd.actorContext(), "fail client refund");
 
         ClientRefund refund = clientRefundRepositoryPort.findById(ClientRefundId.of(cmd.refundId()))
                 .orElseThrow(() -> new NotFoundException("Client refund not found"));
+
+        if (refund.status() == ClientRefundStatus.FAILED) {
+            return FinalizationResult.ALREADY_APPLIED;
+        }
 
         if (refund.status() != ClientRefundStatus.REQUESTED) {
             throw new ForbiddenOperationException("Client refund is not in REQUESTED state");
@@ -65,12 +69,6 @@ public class FailClientRefundService implements FailClientRefundUseCase {
                 Map.of("refundId", refund.id().value().toString(), "reason", cmd.reason())
         ));
 
-        return new ClientRefundResult(
-                refund.transactionId().value().toString(),
-                refund.id().value().toString(),
-                refund.clientId().value().toString(),
-                refund.amount().asBigDecimal(),
-                refund.status().name()
-        );
+        return FinalizationResult.APPLIED;
     }
 }

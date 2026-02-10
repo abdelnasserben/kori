@@ -8,6 +8,7 @@ import com.kori.application.port.in.CompleteAgentPayoutUseCase;
 import com.kori.application.port.in.FailAgentPayoutUseCase;
 import com.kori.application.port.in.RequestAgentPayoutUseCase;
 import com.kori.application.result.AgentPayoutResult;
+import com.kori.application.result.FinalizationResult;
 import com.kori.bootstrap.config.JacksonConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,6 +47,20 @@ class PayoutControllerWebMvcTest extends BaseWebMvcTest {
 
     @Test
     void should_request_agent_payout() throws Exception {
+        when(completeAgentPayoutUseCase.execute(any())).thenReturn(FinalizationResult.APPLIED);
+
+        mockMvc.perform(post(URL + "/{payoutId}/complete", "payout-1")
+                        .with(jwt().jwt(jwt -> jwt
+                                .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)
+                                .claim(ACTOR_ID_KEY, ACTOR_ID)
+                        )))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void should_return_204_when_complete_payout_is_retried_after_success() throws Exception {
+        when(completeAgentPayoutUseCase.execute(any())).thenReturn(FinalizationResult.ALREADY_APPLIED);
+
         var request = new RequestAgentPayoutRequest("agent-1");
         var result = new AgentPayoutResult(
                 "tx-1",
@@ -85,6 +100,22 @@ class PayoutControllerWebMvcTest extends BaseWebMvcTest {
     @Test
     void should_fail_agent_payout() throws Exception {
         var request = new FailPayoutRequest("insufficient funds");
+        when(failAgentPayoutUseCase.execute(any())).thenReturn(FinalizationResult.APPLIED);
+
+        mockMvc.perform(post(URL + "/{payoutId}/fail", "payout-1")
+                        .with(jwt().jwt(jwt -> jwt
+                                .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)
+                                .claim(ACTOR_ID_KEY, ACTOR_ID)
+                        ))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void should_return_204_when_fail_payout_is_retried_after_success() throws Exception {
+        var request = new FailPayoutRequest("insufficient funds");
+        when(failAgentPayoutUseCase.execute(any())).thenReturn(FinalizationResult.ALREADY_APPLIED);
 
         mockMvc.perform(post(URL + "/{payoutId}/fail", "payout-1")
                         .with(jwt().jwt(jwt -> jwt

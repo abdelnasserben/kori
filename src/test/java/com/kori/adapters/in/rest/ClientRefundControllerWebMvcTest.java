@@ -11,6 +11,7 @@ import com.kori.application.port.in.CompleteClientRefundUseCase;
 import com.kori.application.port.in.FailClientRefundUseCase;
 import com.kori.application.port.in.RequestClientRefundUseCase;
 import com.kori.application.result.ClientRefundResult;
+import com.kori.application.result.FinalizationResult;
 import com.kori.bootstrap.config.JacksonConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -46,6 +47,20 @@ class ClientRefundControllerWebMvcTest extends BaseWebMvcTest {
 
     @Test
     void should_request_client_refund() throws Exception {
+        when(completeClientRefundUseCase.execute(any())).thenReturn(FinalizationResult.APPLIED);
+
+        mockMvc.perform(post(URL + "/{refundId}/complete", "refund-1")
+                        .with(jwt().jwt(jwt -> jwt
+                                .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)
+                                .claim(ACTOR_ID_KEY, ACTOR_ID)
+                        )))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void should_return_204_when_complete_client_refund_is_retried_after_success() throws Exception {
+        when(completeClientRefundUseCase.execute(any())).thenReturn(FinalizationResult.ALREADY_APPLIED);
+
         var request = new RequestClientRefundRequest("client-1");
         var result = new ClientRefundResult("tx-1", "refund-1", "client-1", new BigDecimal("100"), "REQUESTED");
         when(requestClientRefundUseCase.execute(any())).thenReturn(result);
@@ -78,6 +93,21 @@ class ClientRefundControllerWebMvcTest extends BaseWebMvcTest {
 
     @Test
     void should_fail_client_refund() throws Exception {
+        when(failClientRefundUseCase.execute(any())).thenReturn(FinalizationResult.APPLIED);
+
+        mockMvc.perform(post(URL + "/{refundId}/fail", "refund-1")
+                        .with(jwt().jwt(jwt -> jwt
+                                .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)
+                                .claim(ACTOR_ID_KEY, ACTOR_ID)
+                        ))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(new FailClientRefundRequest("bank error"))))
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void should_return_204_when_fail_client_refund_is_retried_after_success() throws Exception {
+        when(failClientRefundUseCase.execute(any())).thenReturn(FinalizationResult.ALREADY_APPLIED);
         mockMvc.perform(post(URL + "/{refundId}/fail", "refund-1")
                         .with(jwt().jwt(jwt -> jwt
                                 .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)

@@ -30,4 +30,26 @@ class CompleteClientRefundServiceIT extends IntegrationTestBase {
         assertEquals(Money.zero(), ledgerQueryPort.netBalance(LedgerAccountRef.platformClientRefundClearing()));
         assertEquals(Money.of(new BigDecimal("30.00")), ledgerQueryPort.netBalance(LedgerAccountRef.platformBank()));
     }
+
+    @Test
+    void completeClientRefund_isIdempotent_whenAlreadyCompleted() {
+        Client client = createActiveClient("7712348");
+        var clientAcc = LedgerAccountRef.client(client.id().value().toString());
+        seedLedgerCredit(clientAcc, new BigDecimal("30.00"));
+
+        var requested = requestClientRefundUseCase.execute(new RequestClientRefundCommand("idem-refund-2-bis", "hash", adminActor(), client.id().value().toString()));
+        completeClientRefundUseCase.execute(new CompleteClientRefundCommand(adminActor(), requested.refundId()));
+
+        int ledgerCountAfterFirstCall = ledgerQueryPort.findByTransactionId(com.kori.domain.model.transaction.TransactionId.of(requested.transactionId())).size();
+        long completedAuditAfterFirstCall = auditEventJpaRepository.findAll().stream()
+                .filter(event -> event.getAction().equals("CLIENT_REFUND_COMPLETED"))
+                .count();
+
+        completeClientRefundUseCase.execute(new CompleteClientRefundCommand(adminActor(), requested.refundId()));
+
+        assertEquals(ledgerCountAfterFirstCall, ledgerQueryPort.findByTransactionId(com.kori.domain.model.transaction.TransactionId.of(requested.transactionId())).size());
+        assertEquals(completedAuditAfterFirstCall, auditEventJpaRepository.findAll().stream()
+                .filter(event -> event.getAction().equals("CLIENT_REFUND_COMPLETED"))
+                .count());
+    }
 }

@@ -1,8 +1,8 @@
 package com.kori.application.port.in;
 
 import com.kori.application.command.CompleteAgentPayoutCommand;
-import com.kori.application.result.AgentPayoutResult;
+import com.kori.application.result.FinalizationResult;
 
 public interface CompleteAgentPayoutUseCase {
-    AgentPayoutResult execute(CompleteAgentPayoutCommand command);
+    FinalizationResult execute(CompleteAgentPayoutCommand command);
 }

@@ -9,7 +9,7 @@ import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.LedgerAppendPort;
 import com.kori.application.port.out.PayoutRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
-import com.kori.application.result.AgentPayoutResult;
+import com.kori.application.result.FinalizationResult;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
@@ -38,11 +38,15 @@ public final class FailAgentPayoutService implements FailAgentPayoutUseCase {
     }
 
     @Override
-    public AgentPayoutResult execute(FailAgentPayoutCommand command) {
+    public FinalizationResult execute(FailAgentPayoutCommand command) {
         ActorGuards.requireAdmin(command.actorContext(), "fail payouts");
 
         Payout payout = payoutRepositoryPort.findById(PayoutId.of(command.payoutId()))
                 .orElseThrow(() -> new NotFoundException("Payout not found"));
+
+        if (payout.status() == PayoutStatus.FAILED) {
+            return FinalizationResult.ALREADY_APPLIED;
+        }
 
         if (payout.status() != PayoutStatus.REQUESTED) {
             throw new ForbiddenOperationException("Payout is not in REQUESTED code");
@@ -67,6 +71,7 @@ public final class FailAgentPayoutService implements FailAgentPayoutUseCase {
                 now,
                 Map.of("payoutId", payout.id().value().toString(), "reason", command.reason())
         ));
-        return null;
+
+        return FinalizationResult.APPLIED;
     }
 }

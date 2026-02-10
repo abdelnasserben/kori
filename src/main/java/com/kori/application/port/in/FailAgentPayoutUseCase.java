@@ -1,8 +1,8 @@
 package com.kori.application.port.in;
 
 import com.kori.application.command.FailAgentPayoutCommand;
-import com.kori.application.result.AgentPayoutResult;
+import com.kori.application.result.FinalizationResult;
 
 public interface FailAgentPayoutUseCase {
-    AgentPayoutResult execute(FailAgentPayoutCommand command);
+    FinalizationResult execute(FailAgentPayoutCommand command);
 }
