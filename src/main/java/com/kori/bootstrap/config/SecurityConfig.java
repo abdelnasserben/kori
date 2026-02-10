@@ -92,9 +92,10 @@ public class SecurityConfig {
                         // Backoffice query endpoints
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/transactions/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/audit-events").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/agents").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/clients").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/merchants").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/agents/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/clients/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/merchants/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/lookups").hasRole("ADMIN")
 
                         // Agent query endpoints
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/agent/me/**").hasRole("AGENT")

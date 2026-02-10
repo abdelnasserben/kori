@@ -31,6 +31,27 @@ public final class MeQueryModels {
             String currency,
             Instant createdAt) {}
 
+    public record ClientTransactionDetails(
+            String transactionId,
+            String type,
+            String status,
+            BigDecimal amount,
+            String currency,
+            String merchantCode,
+            String originalTransactionId,
+            Instant createdAt) {}
+
+    public record MerchantTransactionDetails(
+            String transactionId,
+            String type,
+            String status,
+            BigDecimal amount,
+            String currency,
+            String agentCode,
+            String clientId,
+            String originalTransactionId,
+            Instant createdAt) {}
+
     public record MeTerminalItem(
             String terminalUid,
             String status,

@@ -3,13 +3,11 @@ package com.kori.adapters.in.rest.controller;
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.dto.MeResponses;
 import com.kori.application.port.in.query.ClientMeQueryUseCase;
+import com.kori.application.port.in.query.ClientMeTxDetailQueryUseCase;
 import com.kori.application.query.model.MeQueryModels;
 import com.kori.application.security.ActorContext;
 import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
@@ -19,9 +17,11 @@ import java.time.Instant;
 public class ClientMeQueryController {
 
     private final ClientMeQueryUseCase clientMeQueryUseCase;
+    private final ClientMeTxDetailQueryUseCase clientMeTxDetailQueryUseCase;
 
-    public ClientMeQueryController(ClientMeQueryUseCase clientMeQueryUseCase) {
+    public ClientMeQueryController(ClientMeQueryUseCase clientMeQueryUseCase, ClientMeTxDetailQueryUseCase clientMeTxDetailQueryUseCase) {
         this.clientMeQueryUseCase = clientMeQueryUseCase;
+        this.clientMeTxDetailQueryUseCase = clientMeTxDetailQueryUseCase;
     }
 
     @GetMapping("/profile")
@@ -60,6 +60,23 @@ public class ClientMeQueryController {
         return new MeResponses.ListResponse<>(
                 page.items().stream().map(i -> new MeResponses.TransactionItem(i.transactionId(), i.type(), i.status(), i.amount(), i.currency(), i.createdAt())).toList(),
                 new MeResponses.CursorPage(page.nextCursor(), page.hasMore())
+        );
+    }
+
+    @GetMapping("/transactions/{transactionId}")
+    public MeResponses.ClientTransactionDetailsResponse transactionDetails(
+            ActorContext actorContext,
+            @PathVariable String transactionId) {
+        var d = clientMeTxDetailQueryUseCase.getById(actorContext, transactionId);
+        return new MeResponses.ClientTransactionDetailsResponse(
+                d.transactionId(),
+                d.type(),
+                d.status(),
+                d.amount(),
+                d.currency(),
+                d.merchantCode(),
+                d.originalTransactionId(),
+                d.createdAt()
         );
     }
 }

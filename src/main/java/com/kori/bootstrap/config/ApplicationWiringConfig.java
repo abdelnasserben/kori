@@ -5,13 +5,11 @@ import com.kori.application.handler.OnAgentStatusChangedHandler;
 import com.kori.application.handler.OnClientStatusChangedHandler;
 import com.kori.application.handler.OnMerchantStatusChangedHandler;
 import com.kori.application.port.in.*;
-import com.kori.application.port.in.query.BackofficeActorQueryUseCase;
-import com.kori.application.port.in.query.BackofficeAuditEventQueryUseCase;
-import com.kori.application.port.in.query.BackofficeTransactionQueryUseCase;
+import com.kori.application.port.in.query.*;
 import com.kori.application.port.out.*;
-import com.kori.application.port.out.query.BackofficeActorReadPort;
-import com.kori.application.port.out.query.BackofficeAuditEventReadPort;
-import com.kori.application.port.out.query.BackofficeTransactionReadPort;
+import com.kori.application.port.out.query.*;
+import com.kori.application.query.service.BackofficeActorDetailQueryService;
+import com.kori.application.query.service.BackofficeLookupQueryService;
 import com.kori.application.security.LedgerAccessPolicy;
 import com.kori.application.usecase.*;
 import com.kori.application.usecase.query.BackofficeActorQueryService;
@@ -714,6 +712,20 @@ public class ApplicationWiringConfig {
             BackofficeActorReadPort readPort
     ) {
         return new BackofficeActorQueryService(readPort);
+    }
+
+    @Bean
+    public BackofficeActorDetailQueryUseCase backofficeActorDetailQueryUseCase(
+            BackofficeActorDetailReadPort readPort
+    ) {
+        return new BackofficeActorDetailQueryService(readPort);
+    }
+
+    @Bean
+    public BackofficeLookupQueryUseCase backofficeLookupQueryUseCase(
+            BackofficeLookupReadPort readPort
+    ) {
+        return new BackofficeLookupQueryService(readPort);
     }
 
     // -----------------------------

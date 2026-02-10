@@ -358,7 +358,7 @@ X-Correlation-Id: 1398dc2e-f2de-45aa-ae43-5c80cfb8ed33
 
 ---
 
-### 6.è Mobile “/me” APIs (read-only)
+### 6.7 Mobile “/me” APIs (read-only)
 
 #### Client
 
@@ -366,12 +366,14 @@ X-Correlation-Id: 1398dc2e-f2de-45aa-ae43-5c80cfb8ed33
 * `GET /api/v1/client/me/balance`
 * `GET /api/v1/client/me/cards`
 * `GET /api/v1/client/me/transactions?type=&status=&from=&to=&min=&max=&limit=&cursor=&sort=`
+* `GET /api/v1/client/me/transactions/{transactionId}
 
 #### Merchant
 
 * `GET /api/v1/merchant/me/profile`
 * `GET /api/v1/merchant/me/balance`
 * `GET /api/v1/merchant/me/transactions?type=&status=&from=&to=&min=&max=&limit=&cursor=&sort=`
+* `GET /api/v1/merchant/me/transactions/{transactionId}`
 * `GET /api/v1/merchant/me/terminals?status=&query=&limit=&cursor=&sort=`
 * `GET /api/v1/merchant/me/terminals/{terminalUid}`
 
@@ -381,6 +383,20 @@ Conventions:
 * endpoints `merchant/me` accessibles uniquement aux tokens portant `ROLE_MERCHANT`.
 * l’identité `me` provient exclusivement du `ActorContext` JWT (`actor_type`, `actor_id`).
 * pagination/curseur et format d’erreur identiques aux conventions globales (section 5.2).
+
+Shapes transaction detail (P0 read-only) :
+
+* `ClientTransactionDetailsResponse`
+  * `transactionId`, `type`, `status`, `amount`, `currency`, `createdAt`
+  * `merchantCode` (si transaction liée à un ledger `MERCHANT`)
+  * `originalTransactionId` (si présent dans `transactions.original_transaction_id`)
+  * **non disponible actuellement** : `terminalUid` (colonne absente du modèle courant).
+* `MerchantTransactionDetailsResponse`
+  * `transactionId`, `type`, `status`, `amount`, `currency`, `createdAt`
+  * `agentCode` (si transaction impliquant un ledger `AGENT_WALLET`)
+  * `clientId` (si transaction impliquant un ledger `CLIENT`)
+  * `originalTransactionId` (si présent dans `transactions.original_transaction_id`)
+  * **non disponible actuellement** : `terminalUid` (colonne absente du modèle courant).
 
 
 ### 6.10 Ledger
@@ -410,6 +426,51 @@ Tous les endpoints de cette section sont en lecture (`GET`) et suivent :
 * pagination universelle (`limit`, `cursor`, `sort`),
 * filtres nommés et explicites,
 * codes HTTP standards (`200`, `400`, `401`, `403`, `500`).
+
+#### 6.11.0 Actor details + global lookup (ADMIN)
+
+* `GET /api/v1/backoffice/agents/{agentId}`
+* `GET /api/v1/backoffice/clients/{clientId}`
+* `GET /api/v1/backoffice/merchants/{merchantId}`
+
+Response (actor details):
+
+```json
+{
+  "actorId": "...",
+  "display": "AG001 | M001 | +269...",
+  "status": "ACTIVE",
+  "createdAt": "2025-01-01T00:00:00Z",
+  "lastActivityAt": "2025-01-03T12:00:00Z"
+}
+```
+
+`lastActivityAt` est fourni uniquement via `MAX(audit_events.occurred_at)` corrélé sur (`actor_type`,`actor_id`).
+
+* `GET /api/v1/backoffice/lookups?q=&type=&limit=`
+  * `q` obligatoire (trim, min 2 chars)
+  * `type` optionnel : `CLIENT_PHONE`, `CARD_UID`, `TERMINAL_ID`, `TRANSACTION_ID`, `MERCHANT_CODE`, `AGENT_CODE`
+  * `limit` optionnel (1..50)
+
+Response :
+
+```json
+{
+  "items": [
+    {
+      "entityType": "AGENT",
+      "entityId": "...",
+      "display": "AG001",
+      "status": "ACTIVE",
+      "detailUrl": "/api/v1/backoffice/agents/..."
+    }
+  ],
+  "page": {
+    "nextCursor": null,
+    "hasMore": false
+  }
+}
+```
 
 #### 6.11.1 Transactions listing
 

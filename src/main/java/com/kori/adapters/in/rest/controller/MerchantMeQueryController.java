@@ -3,6 +3,7 @@ package com.kori.adapters.in.rest.controller;
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.dto.MeResponses;
 import com.kori.application.port.in.query.MerchantMeQueryUseCase;
+import com.kori.application.port.in.query.MerchantMeTxDetailQueryUseCase;
 import com.kori.application.query.model.MeQueryModels;
 import com.kori.application.security.ActorContext;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -16,9 +17,11 @@ import java.time.Instant;
 public class MerchantMeQueryController {
 
     private final MerchantMeQueryUseCase merchantMeQueryUseCase;
+    private final MerchantMeTxDetailQueryUseCase merchantMeTxDetailQueryUseCase;
 
-    public MerchantMeQueryController(MerchantMeQueryUseCase merchantMeQueryUseCase) {
+    public MerchantMeQueryController(MerchantMeQueryUseCase merchantMeQueryUseCase, MerchantMeTxDetailQueryUseCase merchantMeTxDetailQueryUseCase) {
         this.merchantMeQueryUseCase = merchantMeQueryUseCase;
+        this.merchantMeTxDetailQueryUseCase = merchantMeTxDetailQueryUseCase;
     }
 
     @GetMapping("/profile")
@@ -50,6 +53,23 @@ public class MerchantMeQueryController {
         return new MeResponses.ListResponse<>(
                 page.items().stream().map(i -> new MeResponses.TransactionItem(i.transactionId(), i.type(), i.status(), i.amount(), i.currency(), i.createdAt())).toList(),
                 new MeResponses.CursorPage(page.nextCursor(), page.hasMore())
+        );
+    }
+
+    @GetMapping("/transactions/{transactionId}")
+    public MeResponses.MerchantTransactionDetailsResponse transactionDetails(ActorContext actorContext,
+                                                                             @PathVariable String transactionId) {
+        var d = merchantMeTxDetailQueryUseCase.getById(actorContext, transactionId);
+        return new MeResponses.MerchantTransactionDetailsResponse(
+                d.transactionId(),
+                d.type(),
+                d.status(),
+                d.amount(),
+                d.currency(),
+                d.agentCode(),
+                d.clientId(),
+                d.originalTransactionId(),
+                d.createdAt()
         );
     }
 

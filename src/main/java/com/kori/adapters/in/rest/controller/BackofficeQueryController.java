@@ -2,9 +2,7 @@ package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.dto.BackofficeResponses;
-import com.kori.application.port.in.query.BackofficeActorQueryUseCase;
-import com.kori.application.port.in.query.BackofficeAuditEventQueryUseCase;
-import com.kori.application.port.in.query.BackofficeTransactionQueryUseCase;
+import com.kori.application.port.in.query.*;
 import com.kori.application.query.*;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
@@ -19,13 +17,17 @@ public class BackofficeQueryController {
     private final BackofficeTransactionQueryUseCase transactionQueryUseCase;
     private final BackofficeAuditEventQueryUseCase auditEventQueryUseCase;
     private final BackofficeActorQueryUseCase actorQueryUseCase;
+    private final BackofficeActorDetailQueryUseCase actorDetailQueryUseCase;
+    private final BackofficeLookupQueryUseCase lookupQueryUseCase;
 
     public BackofficeQueryController(BackofficeTransactionQueryUseCase transactionQueryUseCase,
                                      BackofficeAuditEventQueryUseCase auditEventQueryUseCase,
-                                     BackofficeActorQueryUseCase actorQueryUseCase) {
+                                     BackofficeActorQueryUseCase actorQueryUseCase, BackofficeActorDetailQueryUseCase actorDetailQueryUseCase, BackofficeLookupQueryUseCase lookupQueryUseCase) {
         this.transactionQueryUseCase = transactionQueryUseCase;
         this.auditEventQueryUseCase = auditEventQueryUseCase;
         this.actorQueryUseCase = actorQueryUseCase;
+        this.actorDetailQueryUseCase = actorDetailQueryUseCase;
+        this.lookupQueryUseCase = lookupQueryUseCase;
     }
 
     @GetMapping("/transactions")
@@ -111,6 +113,37 @@ public class BackofficeQueryController {
             @RequestParam(required = false) String sort
     ) {
         return toActorResponse(actorQueryUseCase.listMerchants(new BackofficeActorQuery(query, status, createdFrom, createdTo, limit, cursor, sort)));
+    }
+
+    @GetMapping("/agents/{agentId}")
+    public BackofficeResponses.ActorDetails getAgent(@PathVariable String agentId) {
+        var d = actorDetailQueryUseCase.getAgentById(agentId);
+        return new BackofficeResponses.ActorDetails(d.actorId(), d.display(), d.status(), d.createdAt(), d.lastActivityAt());
+    }
+
+    @GetMapping("/clients/{clientId}")
+    public BackofficeResponses.ActorDetails getClient(@PathVariable String clientId) {
+        var d = actorDetailQueryUseCase.getClientById(clientId);
+        return new BackofficeResponses.ActorDetails(d.actorId(), d.display(), d.status(), d.createdAt(), d.lastActivityAt());
+    }
+
+    @GetMapping("/merchants/{merchantId}")
+    public BackofficeResponses.ActorDetails getMerchant(@PathVariable String merchantId) {
+        var d = actorDetailQueryUseCase.getMerchantById(merchantId);
+        return new BackofficeResponses.ActorDetails(d.actorId(), d.display(), d.status(), d.createdAt(), d.lastActivityAt());
+    }
+
+    @GetMapping("/lookups")
+    public BackofficeResponses.ListResponse<BackofficeResponses.LookupItem> lookups(
+            @RequestParam String q,
+            @RequestParam(required = false) String type,
+            @RequestParam(required = false) Integer limit
+    ) {
+        var results = lookupQueryUseCase.search(new BackofficeLookupQuery(q, type, limit));
+        return new BackofficeResponses.ListResponse<>(
+                results.stream().map(i -> new BackofficeResponses.LookupItem(i.entityType(), i.entityId(), i.display(), i.status(), i.detailUrl())).toList(),
+                new BackofficeResponses.CursorPage(null, false)
+        );
     }
 
     private BackofficeResponses.ListResponse<BackofficeResponses.ActorItem> toActorResponse(QueryPage<BackofficeActorItem> result) {

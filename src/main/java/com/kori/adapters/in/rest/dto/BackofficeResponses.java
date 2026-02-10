@@ -54,4 +54,20 @@ public final class BackofficeResponses {
             String status,
             Instant createdAt
     ) {}
+
+    public record ActorDetails(
+            String actorId,
+            String display,
+            String status,
+            Instant createdAt,
+            Instant lastActivityAt
+    ) {}
+
+    public record LookupItem(
+            String entityType,
+            String entityId,
+            String display,
+            String status,
+            String detailUrl
+    ) {}
 }

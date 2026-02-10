@@ -30,6 +30,27 @@ public final class MeResponses {
             String status,
             Instant createdAt) {}
 
+    public record ClientTransactionDetailsResponse(
+            String transactionId,
+            String type,
+            String status,
+            BigDecimal amount,
+            String currency,
+            String merchantCode,
+            String originalTransactionId,
+            Instant createdAt) {}
+
+    public record MerchantTransactionDetailsResponse(
+            String transactionId,
+            String type,
+            String status,
+            BigDecimal amount,
+            String currency,
+            String agentCode,
+            String clientId,
+            String originalTransactionId,
+            Instant createdAt) {}
+
     public record TransactionItem(
             String transactionId,
             String type,
