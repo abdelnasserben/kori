@@ -90,11 +90,15 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/ledger/transactions/search").hasAnyRole("ADMIN", "AGENT", "MERCHANT", "CLIENT")
 
                         // Backoffice query endpoints
-                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/transactions/**").hasAnyRole("ADMIN", "AGENT")
-                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/audit-events").hasAnyRole("ADMIN", "AGENT")
-                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/agents").hasAnyRole("ADMIN", "AGENT")
-                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/clients").hasAnyRole("ADMIN", "AGENT")
-                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/merchants").hasAnyRole("ADMIN", "AGENT")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/transactions/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/audit-events").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/agents").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/clients").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/merchants").hasRole("ADMIN")
+
+                        // Agent query endpoints
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/agent/me/**").hasRole("AGENT")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/agent/search").hasRole("AGENT")
 
                         // "ME" query endpoints
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/client/me/**").hasRole("CLIENT")

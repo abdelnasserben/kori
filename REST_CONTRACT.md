@@ -644,3 +644,69 @@ Contraintes :
 * Ce contrat constitue la **référence unique** pour toute intégration.
 * Toute évolution incompatible fera l’objet d’une nouvelle version majeure.
 * Les ajouts non-cassants peuvent être introduits à tout moment.
+---
+
+### 6.x Agent read APIs (Plan A)
+
+#### Sécurité
+
+* `/api/v1/backoffice/**` : **ADMIN only**.
+* `/api/v1/agent/me/**` : **AGENT only**.
+* `/api/v1/agent/search` : **AGENT only**.
+
+#### GET `/api/v1/agent/me/summary`
+
+Retourne le profil synthétique de l’agent authentifié (dérivé du token via `actor_id`) :
+
+```json
+{
+  "agentId": "uuid",
+  "code": "AG001",
+  "status": "ACTIVE",
+  "cashBalance": 10000.00,
+  "commissionBalance": 1500.00,
+  "txCount7d": 42
+}
+```
+
+#### GET `/api/v1/agent/me/transactions`
+
+Paramètres optionnels :
+`type,status,from,to,min,max,limit,cursor,sort`
+
+* `sort` autorisé : `createdAt:asc|desc`.
+* pagination cursor opaque standard (`items` + `page.nextCursor` + `page.hasMore`).
+* filtrage par agent **imposé côté serveur** via `actor_id` (aucun `agentId` en query param).
+
+#### GET `/api/v1/agent/me/activities`
+
+Paramètres optionnels :
+`action,from,to,limit,cursor,sort`
+
+* `sort` autorisé : `occurredAt:asc|desc`.
+* événements limités à `actorType=AGENT` et `actorId=me`.
+* pagination cursor opaque standard.
+
+#### GET `/api/v1/agent/search`
+
+Paramètres : `phone` **ou** `cardUid` **ou** `terminalUid` (exactement un paramètre requis), `limit` optionnel.
+
+Réponse :
+
+```json
+{
+  "items": [
+    {
+      "entityType": "CLIENT|CARD|TERMINAL|MERCHANT",
+      "entityId": "...",
+      "display": "...",
+      "status": "ACTIVE",
+      "links": {
+        "self": "..."
+      }
+    }
+  ]
+}
+```
+
+Erreurs de validation (`INVALID_INPUT`) si aucun ou plusieurs paramètres de lookup sont fournis.
