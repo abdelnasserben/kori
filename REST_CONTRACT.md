@@ -1,773 +1,351 @@
 # KORI – REST API Contract
 
-**Version : v1**
-**Statut : Stable (MVP front-ready backoffice web + mobile)**
+Version: v1
+Status: Stable
 
 ---
 
-## 1. Introduction
+## 1. Overview
 
-KORI est une plateforme de paiement par carte permettant aux clients de payer chez des marchands,
-avec des agents comme intermédiaires terrain pour l’enrôlement des cartes, les retraits marchands
-et certaines opérations de gestion.
+KORI is a card-based payment platform enabling:
 
-Cette API REST expose l’ensemble des opérations nécessaires à l’intégration de partenaires
-(backoffice, terminaux, systèmes tiers).
+* Customers to pay merchants using physical cards.
+* Merchants to withdraw funds through field agents.
+* Agents to enroll cards and process merchant withdrawals.
+* Administrators to configure financial policies and supervise operations.
 
-Ce document décrit **le contrat fonctionnel et technique de l’API** :
+This document defines the official REST contract for all integrations (backoffice, mobile, terminals, third-party systems).
 
-* endpoints exposés
-* règles de sécurité
-* formats de requêtes et réponses
-* invariants métier
-* modèle d’erreurs
+All routes are prefixed with:
 
----
-
-## 2. Concepts & acteurs
-
-### Acteurs principaux
-
-* **Admin**
-
-  * Gère les statuts (clients, comptes, cartes)
-  * Configure frais et commissions
-  * Déclenche payouts, reversals et remboursements clients
-
-* **Agent**
-
-  * Enrôle et vend des cartes
-  * Effectue les retraits marchands
-  * Exécute les cash-in clients
-  * Perçoit des commissions
-
-* **Merchant**
-
-  * Accepte les paiements par carte
-  * Retire ses fonds auprès d’un agent
-
-* **Client**
-
-  * Identifié par un numéro de téléphone unique
-  * Possède un compte et une ou plusieurs cartes
-  * Effectue des paiements par carte
-
-* **Terminal**
-
-  * Identité machine
-  * Initie exclusivement des paiements carte
+```
+/api/v1
+```
 
 ---
 
-## 3. Versioning & compatibilité
+## 2. Authentication & Security
 
-* Toutes les routes sont préfixées par `/api/v1`.
-* Toute modification incompatible entraîne une nouvelle version majeure (`/api/v2`).
-* Les ajouts rétro-compatibles sont possibles au sein d’une même version.
+### 2.1 Authentication
 
----
+All endpoints require a valid JWT bearer token unless explicitly stated.
 
-## 4. Authentification & autorisation
-
-### 4.1 Authentification
-
-Toutes les routes (sauf exceptions documentées) nécessitent un **Bearer token JWT valide**.
-
-Header HTTP :
-
-```http
+```
 Authorization: Bearer <jwt>
 ```
 
-### 4.2 Actor Context (obligatoire)
+### 2.2 Actor Context
 
-Le token DOIT contenir un contexte acteur permettant d’identifier l’appelant.
+The JWT must contain:
 
-Claims standards requis :
+* `actor_type` (ADMIN, AGENT, MERCHANT, CLIENT, TERMINAL)
+* `actor_id`
+* Relevant permissions
 
-* `actor_type` (string, requis) : `ADMIN`, `AGENT`, `MERCHANT`, `CLIENT`, `TERMINAL`
-* `actor_id` (string, requis) : identifiant unique de l’acteur
-* `permissions` (array<string>, requis) : permissions métier normalisées (exemples : `transactions:read`, `audit:read`, `agents:write`)
+Access control rules:
 
-Compatibilité :
-
-* `actor_id` ou `actorId`
-  Identifiant unique de l’acteur
-  À défaut, le claim standard `sub` est utilisé
-* Les variantes camelCase `actorType` et `actorId` sont tolérées temporairement.
-* Si `actor_id`/`actorId` absent, `sub` peut être utilisé en fallback.
-
-### 4.3 Règles d’accès
-
-* Token absent, invalide ou expiré → **401 Unauthorized**
-* Token valide mais droits insuffisants → **403 Forbidden**
-
-### 4.4 Correlation ID
-
-Chaque requête DOIT transmettre un identifiant de corrélation :
-
-```http
-X-Correlation-Id: <uuid-or-opaque-id>
-```
-
-Le serveur :
-
-* propage cet identifiant dans les logs techniques,
-* le retourne dans les réponses d’erreur via `correlationId`.
-
-### 4.5 CORS & clients front
-
-Conventions CORS pour endpoints backoffice :
-
-* `Access-Control-Allow-Origin` : whitelist explicite des origines backoffice web (pas de `*` en production).
-* `Access-Control-Allow-Headers` inclut au minimum :
-  `Authorization`, `Content-Type`, `X-Correlation-Id`, `Idempotency-Key`.
-* `Access-Control-Allow-Methods` inclut les méthodes utilisées par le contrat (`GET`, `POST`, `PATCH`, `OPTIONS`).
-
-Conventions mobile :
-
-* Authentification recommandée via OAuth2/OIDC **Authorization Code + PKCE**.
-* Le mobile obtient un bearer token puis appelle l’API comme tout client OAuth protégé.
+* Invalid or missing token → 401
+* Insufficient permissions → 403
 
 ---
 
-## 5. Règles transverses
+## 3. Cross-Cutting Rules
 
-### 5.1 Idempotence
+### 3.1 Correlation ID
 
-Certains endpoints d’écriture sont idempotents.
+Optional but recommended:
 
-Header requis :
+```
+X-Correlation-Id: <uuid>
+```
 
-```http
+Returned in error responses.
+
+---
+
+### 3.2 Idempotency
+
+Write operations marked idempotent require:
+
+```
 Idempotency-Key: <string>
 ```
 
-Comportement garanti :
+Behavior:
 
-* Le serveur calcule un hash SHA-256 du payload JSON.
-* Une même clé + même payload (hash identique) → même résultat (réponse mise en cache).
-* Clé déjà réservée mais résultat pas encore disponible → **409 Conflict** (`IDEMPOTENCY_CONFLICT`).
-* Collision de clé avec payload différent → **409 Conflict** (`IDEMPOTENCY_CONFLICT`).
-* Les enregistrements d’idempotence expirent après 24h (TTL configurable côté serveur).
+* Same key + identical payload → same response
+* Same key + different payload → 409
+* Reserved key not completed → 409
 
-Les endpoints idempotents sont explicitement indiqués.
+---
 
-### 5.2 Pagination universelle (cursor-based)
+### 3.3 Pagination
 
-Tous les endpoints de listing (actors, transactions, audit, etc.) utilisent le même standard.
+All list endpoints use cursor-based pagination:
 
-#### Paramètres de requête
+Query:
 
-* `limit` (optionnel, integer) : nombre d’éléments demandés.
-  * défaut recommandé : `20`
-  * max recommandé : `100`
-* `cursor` (optionnel, string opaque) : curseur de page fourni par l’API.
-* `sort` (optionnel, string) : tri normalisé `<field>:<direction>` avec `direction ∈ {asc,desc}`.
-  * Exemples : `createdAt:desc`, `updatedAt:asc`
+```
+limit
+cursor
+sort=<field>:asc|desc
+```
 
-#### Format de réponse
+Response:
 
 ```json
 {
   "items": [],
   "page": {
-    "nextCursor": "opaque-cursor-or-null",
+    "nextCursor": "opaque",
     "hasMore": true
   }
 }
 ```
 
-Règles :
+---
 
-* `items` est toujours présent (liste vide autorisée).
-* `page.nextCursor` vaut `null` si aucune page suivante.
-* `page.hasMore=false` implique `nextCursor=null`.
+# 4. Core Financial Operations
 
-#### Exemple
+## 4.1 Card Payment
 
-**Request**
+POST `/api/v1/payments/card` (idempotent)
 
-```http
-GET /api/v1/backoffice/transactions?limit=20&cursor=eyJvZmZzZXQiOjIwfQ==&sort=createdAt:desc
-Authorization: Bearer <jwt>
-X-Correlation-Id: 1398dc2e-f2de-45aa-ae43-5c80cfb8ed33
-```
-
-**Response 200**
+Request:
 
 ```json
 {
-  "items": [
+  "terminalUid": "string",
+  "cardUid": "string",
+  "pin": "1234",
+  "amount": 1500.00
+}
+```
+
+Response 201:
+
+```json
+{
+  "transactionId": "string",
+  "merchantCode": "string",
+  "cardUid": "string",
+  "amount": 1500.00,
+  "fee": 30.00,
+  "totalDebited": 1530.00
+}
+```
+
+---
+
+## 4.2 Merchant Withdrawal
+
+POST `/api/v1/payments/merchant-withdraw` (idempotent)
+
+---
+
+## 4.3 Agent Cash-In
+
+POST `/api/v1/payments/cash-in` (idempotent)
+
+---
+
+## 4.4 Transaction Reversal
+
+POST `/api/v1/payments/reversals` (idempotent)
+
+---
+
+## 4.5 Agent Payout
+
+POST `/api/v1/payouts/requests` (idempotent)
+
+Lifecycle:
+
+* REQUESTED
+* COMPLETED
+* FAILED
+
+---
+
+## 4.6 Client Refund
+
+POST `/api/v1/client-refunds/requests` (idempotent)
+
+---
+
+# 5. Configuration APIs (Admin Only)
+
+PATCH `/api/v1/config/fees`
+PATCH `/api/v1/config/commissions`
+
+All financial parameters are dynamic and configurable.
+
+---
+
+# 6. Actor Management
+
+Create / update status for:
+
+* `/admins`
+* `/agents`
+* `/merchants`
+* `/clients`
+* `/terminals`
+* `/cards`
+
+Status transitions validated server-side.
+
+---
+
+# 7. Self-Service APIs (/me)
+
+Accessible based on actor_type:
+
+## Client
+
+* GET `/client/me/profile`
+* GET `/client/me/balance`
+* GET `/client/me/cards`
+* GET `/client/me/transactions`
+* GET `/client/me/transactions/{transactionId}`
+
+## Merchant
+
+* GET `/merchant/me/profile`
+* GET `/merchant/me/balance`
+* GET `/merchant/me/transactions`
+* GET `/merchant/me/transactions/{transactionId}`
+* GET `/merchant/me/terminals`
+
+## Agent
+
+* GET `/agent/me/summary`
+* GET `/agent/me/transactions`
+* GET `/agent/me/activities`
+* GET `/agent/search`
+
+---
+
+# 8. Backoffice Read Namespace
+
+Prefix:
+
+```
+/api/v1/backoffice
+```
+
+Admin-only access.
+
+---
+
+## 8.1 Transactions Listing
+
+GET `/backoffice/transactions`
+
+Supported filters:
+
+* query
+* type
+* status
+* actorType
+* actorId
+* merchantId
+* agentId
+* terminalUid
+* cardUid
+* clientPhone
+* from
+* to
+* min
+* max
+
+---
+
+## 8.2 Transaction Details
+
+GET `/backoffice/transactions/{transactionId}`
+
+Response includes:
+
+```json
+{
+  "transactionId": "...",
+  "type": "...",
+  "status": "...",
+  "amount": 1500.00,
+  "currency": "KMF",
+  "merchantId": "...",
+  "agentId": "...",
+  "clientPhone": "...",
+  "terminalUid": "...",
+  "cardUid": "...",
+  "originalTransactionId": "...",
+  "payout": { ...},
+  "clientRefund": { ... },
+  "ledgerLines": [
     {
-      "transactionId": "txn_20250101_0001",
-      "type": "CARD_PAYMENT",
-      "amount": 2500.00,
-      "currency": "KMF",
-      "status": "COMPLETED",
-      "createdAt": "2025-01-01T09:10:11Z"
+      "accountType": "...",
+      "ownerRef": "...",
+      "entryType": "DEBIT|CREDIT",
+      "amount": 1500.00
     }
   ],
-  "page": {
-    "nextCursor": "eyJvZmZzZXQiOjQwfQ==",
-    "hasMore": true
-  }
+  "createdAt": "ISO-8601"
 }
 ```
 
-### 5.3 Formats & conventions
-
-* Dates/heures : ISO-8601 UTC.
-* Montants : nombres décimaux (precision financière).
-* JSON UTF-8.
-* Champs inconnus ignorés par le serveur.
+This endpoint reflects the authoritative ledger (append-only).
 
 ---
 
-## 6. Ressources & endpoints
+## 8.3 Audit Events
 
-> **Note** : les endpoints d’écriture existants conservent leur sémantique. Les ajouts “front-ready” portent sur la formalisation read/backoffice.
+GET `/backoffice/audit-events`
 
-### 6.1 Admins
+Filters:
 
-#### POST `/api/v1/admins` (idempotent)
-
-**Response 201**
-
-```json
-{ "adminId": "..." }
-```
-
-#### PATCH `/api/v1/admins/{adminId}/status`
-
-**Request**
-
-```json
-{ "targetStatus": "ACTIVE|SUSPENDED|CLOSED", "reason": "..." }
-```
-
-**Response 204**
+* action
+* actorType
+* actorId
+* resourceType
+* resourceId
+* from
+* to
 
 ---
 
-### 6.2 Agents
+## 8.4 Actors Listing
 
-#### POST `/api/v1/agents` (idempotent)
-
-**Response 201**
-
-```json
-{ "agentId": "...", "agentCode": "..." }
-```
-
-#### PATCH `/api/v1/agents/{agentCode}/status`
-
-**Request**
-
-```json
-{ "targetStatus": "...", "reason": "..." }
-```
-
-**Response 204**
+* `/backoffice/agents`
+* `/backoffice/clients`
+* `/backoffice/merchants`
 
 ---
 
-### 6.3 Merchants
+# 9. Error Model
 
-#### POST `/api/v1/merchants` (idempotent)
-
-**Response 201**
-
-```json
-{ "merchantId": "...", "code": "..." }
-```
-
-#### PATCH `/api/v1/merchants/{merchantCode}/status`
-
-**Request**
-
-```json
-{ "targetStatus": "...", "reason": "..." }
-```
-
-**Response 204**
-
----
-
-### 6.4 Terminals
-
-#### POST `/api/v1/terminals` (idempotent)
-
-**Response 201**
-
-```json
-{ "merchantCode": "..." }
-```
-
-#### PATCH `/api/v1/terminals/{terminalId}/status`
-
-**Request**
-
-```json
-{ "targetStatus": "...", "reason": "..." }
-```
-
-**Response 204**
-
----
-
-### 6.5 Clients
-
-#### PATCH `/api/v1/clients/{clientId}/status`
-
-**Request**
-
-```json
-{ "targetStatus": "...", "reason": "..." }
-```
-
-**Response 204**
-
----
-
-### 6.6 Cards
-
-#### POST `/api/v1/cards/enroll` (idempotent)
-
-```json
-{ "phoneNumber": "+269xxxxxxx", "cardUid": "...", "pin": "1234", "agentCode": "..." }
-```
-
-#### POST `/api/v1/cards/add` (idempotent)
-
-```json
-{ "phoneNumber": "+269xxxxxxx", "cardUid": "...", "pin": "1234", "agentCode": "..." }
-```
-
-#### PATCH `/api/v1/cards/{cardUid}/status/admin`
-
-```json
-{ "targetStatus": "...", "reason": "..." }
-```
-
-#### PATCH `/api/v1/cards/{cardUid}/status/agent`
-
-```json
-{ "reason": "..." }
-```
-
----
-
-### 6.7 Mobile “/me” APIs (read-only)
-
-#### Client
-
-* `GET /api/v1/client/me/profile`
-* `GET /api/v1/client/me/balance`
-* `GET /api/v1/client/me/cards`
-* `GET /api/v1/client/me/transactions?type=&status=&from=&to=&min=&max=&limit=&cursor=&sort=`
-* `GET /api/v1/client/me/transactions/{transactionId}
-
-#### Merchant
-
-* `GET /api/v1/merchant/me/profile`
-* `GET /api/v1/merchant/me/balance`
-* `GET /api/v1/merchant/me/transactions?type=&status=&from=&to=&min=&max=&limit=&cursor=&sort=`
-* `GET /api/v1/merchant/me/transactions/{transactionId}`
-* `GET /api/v1/merchant/me/terminals?status=&query=&limit=&cursor=&sort=`
-* `GET /api/v1/merchant/me/terminals/{terminalUid}`
-
-Conventions:
-
-* endpoints `client/me` accessibles uniquement aux tokens portant `ROLE_CLIENT`.
-* endpoints `merchant/me` accessibles uniquement aux tokens portant `ROLE_MERCHANT`.
-* l’identité `me` provient exclusivement du `ActorContext` JWT (`actor_type`, `actor_id`).
-* pagination/curseur et format d’erreur identiques aux conventions globales (section 5.2).
-
-Shapes transaction detail (P0 read-only) :
-
-* `ClientTransactionDetailsResponse`
-  * `transactionId`, `type`, `status`, `amount`, `currency`, `createdAt`
-  * `merchantCode` (si transaction liée à un ledger `MERCHANT`)
-  * `originalTransactionId` (si présent dans `transactions.original_transaction_id`)
-  * **non disponible actuellement** : `terminalUid` (colonne absente du modèle courant).
-* `MerchantTransactionDetailsResponse`
-  * `transactionId`, `type`, `status`, `amount`, `currency`, `createdAt`
-  * `agentCode` (si transaction impliquant un ledger `AGENT_WALLET`)
-  * `clientId` (si transaction impliquant un ledger `CLIENT`)
-  * `originalTransactionId` (si présent dans `transactions.original_transaction_id`)
-  * **non disponible actuellement** : `terminalUid` (colonne absente du modèle courant).
-
-
-### 6.10 Ledger
-
-#### GET `/api/v1/ledger/balance`
-
-Query params : `accountType`, `ownerRef`
-
-#### POST `/api/v1/ledger/transactions/search`
+Standard structure:
 
 ```json
 {
-  "accountType": "...",
-  "ownerRef": "...",
-  "beforeCreatedAt": "...",
-  "beforeTransactionId": "...",
-  "limit": 0
-}
-```
-
----
-
-### 6.11 Backoffice read namespace (MVP front-ready)
-
-Tous les endpoints de cette section sont en lecture (`GET`) et suivent :
-
-* pagination universelle (`limit`, `cursor`, `sort`),
-* filtres nommés et explicites,
-* codes HTTP standards (`200`, `400`, `401`, `403`, `500`).
-
-#### 6.11.0 Actor details + global lookup (ADMIN)
-
-* `GET /api/v1/backoffice/agents/{agentId}`
-* `GET /api/v1/backoffice/clients/{clientId}`
-* `GET /api/v1/backoffice/merchants/{merchantId}`
-
-Response (actor details):
-
-```json
-{
-  "actorId": "...",
-  "display": "AG001 | M001 | +269...",
-  "status": "ACTIVE",
-  "createdAt": "2025-01-01T00:00:00Z",
-  "lastActivityAt": "2025-01-03T12:00:00Z"
-}
-```
-
-`lastActivityAt` est fourni uniquement via `MAX(audit_events.occurred_at)` corrélé sur (`actor_type`,`actor_id`).
-
-* `GET /api/v1/backoffice/lookups?q=&type=&limit=`
-  * `q` obligatoire (trim, min 2 chars)
-  * `type` optionnel : `CLIENT_PHONE`, `CARD_UID`, `TERMINAL_ID`, `TRANSACTION_ID`, `MERCHANT_CODE`, `AGENT_CODE`
-  * `limit` optionnel (1..50)
-
-Response :
-
-```json
-{
-  "items": [
-    {
-      "entityType": "AGENT",
-      "entityId": "...",
-      "display": "AG001",
-      "status": "ACTIVE",
-      "detailUrl": "/api/v1/backoffice/agents/..."
-    }
-  ],
-  "page": {
-    "nextCursor": null,
-    "hasMore": false
-  }
-}
-```
-
-#### 6.11.1 Transactions listing
-
-**GET** `/api/v1/backoffice/transactions`
-
-Query params :
-
-* pagination : `limit`, `cursor`, `sort=createdAt:desc|asc`
-* filtres : `from`, `to`, `status`, `type`, `merchantCode`, `agentCode`, `clientId`, `minAmount`, `maxAmount`
-
-**Response 200**
-
-```json
-{
-  "items": [
-    {
-      "transactionId": "txn_001",
-      "type": "CARD_PAYMENT",
-      "status": "COMPLETED",
-      "amount": 1500.00,
-      "currency": "KMF",
-      "merchantCode": "MRC123",
-      "agentCode": null,
-      "clientId": "cli_001",
-      "createdAt": "2025-01-01T08:00:00Z"
-    }
-  ],
-  "page": {
-    "nextCursor": "eyJvZmZzZXQiOjIwfQ==",
-    "hasMore": true
-  }
-}
-```
-
-#### 6.11.2 Audit listing
-
-**GET** `/api/v1/backoffice/audit/events`
-
-Query params :
-
-* pagination : `limit`, `cursor`, `sort=occurredAt:desc|asc`
-* filtres : `actorType`, `actorId`, `action`, `resourceType`, `resourceId`, `from`, `to`
-
-**Response 200**
-
-```json
-{
-  "items": [
-    {
-      "eventId": "aud_001",
-      "occurredAt": "2025-01-01T10:00:00Z",
-      "actorType": "ADMIN",
-      "actorId": "adm_001",
-      "action": "MERCHANT_STATUS_CHANGED",
-      "resourceType": "MERCHANT",
-      "resourceId": "MRC123",
-      "metadata": { "from": "ACTIVE", "to": "SUSPENDED" }
-    }
-  ],
-  "page": {
-    "nextCursor": null,
-    "hasMore": false
-  }
-}
-```
-
-#### 6.11.3 Agents listing
-
-**GET** `/api/v1/backoffice/actors/agents`
-
-Query params :
-
-* pagination : `limit`, `cursor`, `sort=createdAt:desc|asc`
-* filtres : `status`, `q` (search code/nom/téléphone), `region`
-
-**Response 200** : format `items[] + page`.
-
-#### 6.11.4 Merchants listing
-
-**GET** `/api/v1/backoffice/actors/merchants`
-
-Query params :
-
-* pagination : `limit`, `cursor`, `sort=createdAt:desc|asc`
-* filtres : `status`, `q` (search code/nom), `category`
-
-**Response 200** : format `items[] + page`.
-
-#### 6.11.5 Clients listing
-
-**GET** `/api/v1/backoffice/actors/clients`
-
-Query params :
-
-* pagination : `limit`, `cursor`, `sort=createdAt:desc|asc`
-* filtres : `status`, `q` (search téléphone/clientId), `kycStatus`
-
-**Response 200** : format `items[] + page`.
-
----
-
-## 7. Invariants métier majeurs
-
-* Une carte est liée à un seul compte.
-* Une carte ne peut jamais être utilisée si elle a été précédemment utilisée ailleurs.
-* Un client possède exactement un compte.
-* Un client ne peut être clôturé que si son solde est égal à zéro.
-* Un remboursement client est toujours intégral.
-* Un seul remboursement en état `REQUESTED` est autorisé par client.
-* Toute opération financière est reversible via une transaction append-only.
-
----
-
-## 8. Modèle d’erreurs
-
-### 8.1 Format standard enrichi
-
-```json
-{
-  "timestamp": "2025-01-01T10:00:00Z",
-  "correlationId": "1398dc2e-f2de-45aa-ae43-5c80cfb8ed33",
-  "errorId": "5f8e80dc-4ff1-4da3-bf7f-0e4b5c3d67a1",
-  "code": "INVALID_INPUT",
-  "message": "Le paramètre limit doit être compris entre 1 et 100.",
-  "details": {
-    "field": "limit",
-    "rejectedValue": 1000
-  },
-  "path": "/api/v1/backoffice/transactions"
-}
-```
-
-Contraintes :
-
-* `correlationId` : miroir du header `X-Correlation-Id`.
-* `errorId` : UUID interne optionnel (trace support/ops).
-* `message` : lisible côté front, non technique.
-* `details` : objet libre pour erreurs de validation et contexte métier.
-
-### 8.2 Exemples d’erreurs
-
-#### 400 INVALID_INPUT
-
-```json
-{
-  "timestamp": "2025-01-01T10:00:00Z",
-  "correlationId": "1398dc2e-f2de-45aa-ae43-5c80cfb8ed33",
-  "errorId": "c1f4f66d-6cb2-4a17-a33d-f7e0baf23d66",
-  "code": "INVALID_INPUT",
-  "message": "Le format de sort est invalide. Utiliser <field>:<asc|desc>.",
-  "details": {
-    "field": "sort",
-    "rejectedValue": "createdAt:descending"
-  },
-  "path": "/api/v1/backoffice/transactions"
-}
-```
-
-#### 401 AUTHENTICATION_REQUIRED
-
-```json
-{
-  "timestamp": "2025-01-01T10:01:00Z",
-  "correlationId": "1398dc2e-f2de-45aa-ae43-5c80cfb8ed33",
-  "errorId": "8f36f48a-6eeb-4db6-bdf8-9f4fef2fd9f2",
-  "code": "AUTHENTICATION_REQUIRED",
-  "message": "Authentification requise.",
+  "timestamp": "ISO-8601",
+  "correlationId": "uuid",
+  "errorId": "uuid",
+  "code": "ERROR_CODE",
+  "message": "Human readable",
   "details": {},
-  "path": "/api/v1/backoffice/audit/events"
+  "path": "/api/v1/..."
 }
 ```
 
-#### 403 FORBIDDEN_OPERATION
+Common codes:
 
-```json
-{
-  "timestamp": "2025-01-01T10:02:00Z",
-  "correlationId": "1398dc2e-f2de-45aa-ae43-5c80cfb8ed33",
-  "errorId": "e944a4ca-4e6f-4b67-a88a-08eb22cbf1ba",
-  "code": "FORBIDDEN_OPERATION",
-  "message": "Permissions insuffisantes pour consulter les événements d'audit.",
-  "details": {
-    "requiredPermission": "audit:read"
-  },
-  "path": "/api/v1/backoffice/audit/events"
-}
-```
-
-### 8.3 Codes principaux
-
-#### Sécurité
-
-* `401 AUTHENTICATION_REQUIRED`
-* `403 FORBIDDEN_OPERATION`
-
-#### Métier
-
-* `400 INVALID_INPUT`
-* `404 RESOURCE_NOT_FOUND`
-* `409 IDEMPOTENCY_CONFLICT`
-* `409 INSUFFICIENT_FUNDS`
-* `409 BALANCE_MUST_BE_ZERO`
-
-#### Technique
-
-* `500 TECHNICAL_FAILURE`
+* INVALID_INPUT
+* AUTHENTICATION_REQUIRED
+* FORBIDDEN_OPERATION
+* RESOURCE_NOT_FOUND
+* IDEMPOTENCY_CONFLICT
+* INSUFFICIENT_FUNDS
+* TECHNICAL_FAILURE
 
 ---
-
-## 9. Endpoints backoffice read standardisés (récapitulatif)
-
-* `GET /api/v1/backoffice/transactions`
-  * params : `limit`, `cursor`, `sort`, `from`, `to`, `status`, `type`, `merchantCode`, `agentCode`, `clientId`, `minAmount`, `maxAmount`
-  * codes : `200`, `400`, `401`, `403`, `500`
-* `GET /api/v1/backoffice/audit/events`
-  * params : `limit`, `cursor`, `sort`, `actorType`, `actorId`, `action`, `resourceType`, `resourceId`, `from`, `to`
-  * codes : `200`, `400`, `401`, `403`, `500`
-* `GET /api/v1/backoffice/actors/agents`
-  * params : `limit`, `cursor`, `sort`, `status`, `q`, `region`
-  * codes : `200`, `400`, `401`, `403`, `500`
-* `GET /api/v1/backoffice/actors/merchants`
-  * params : `limit`, `cursor`, `sort`, `status`, `q`, `category`
-  * codes : `200`, `400`, `401`, `403`, `500`
-* `GET /api/v1/backoffice/actors/clients`
-  * params : `limit`, `cursor`, `sort`, `status`, `q`, `kycStatus`
-  * codes : `200`, `400`, `401`, `403`, `500`
-
----
-
-## 10. Support & évolution
-
-* Ce contrat constitue la **référence unique** pour toute intégration.
-* Toute évolution incompatible fera l’objet d’une nouvelle version majeure.
-* Les ajouts non-cassants peuvent être introduits à tout moment.
----
-
-### 6.x Agent read APIs (Plan A)
-
-#### Sécurité
-
-* `/api/v1/backoffice/**` : **ADMIN only**.
-* `/api/v1/agent/me/**` : **AGENT only**.
-* `/api/v1/agent/search` : **AGENT only**.
-
-#### GET `/api/v1/agent/me/summary`
-
-Retourne le profil synthétique de l’agent authentifié (dérivé du token via `actor_id`) :
-
-```json
-{
-  "agentId": "uuid",
-  "code": "AG001",
-  "status": "ACTIVE",
-  "cashBalance": 10000.00,
-  "commissionBalance": 1500.00,
-  "txCount7d": 42
-}
-```
-
-#### GET `/api/v1/agent/me/transactions`
-
-Paramètres optionnels :
-`type,status,from,to,min,max,limit,cursor,sort`
-
-* `sort` autorisé : `createdAt:asc|desc`.
-* pagination cursor opaque standard (`items` + `page.nextCursor` + `page.hasMore`).
-* filtrage par agent **imposé côté serveur** via `actor_id` (aucun `agentId` en query param).
-
-#### GET `/api/v1/agent/me/activities`
-
-Paramètres optionnels :
-`action,from,to,limit,cursor,sort`
-
-* `sort` autorisé : `occurredAt:asc|desc`.
-* événements limités à `actorType=AGENT` et `actorId=me`.
-* pagination cursor opaque standard.
-
-#### GET `/api/v1/agent/search`
-
-Paramètres : `phone` **ou** `cardUid` **ou** `terminalUid` (exactement un paramètre requis), `limit` optionnel.
-
-Réponse :
-
-```json
-{
-  "items": [
-    {
-      "entityType": "CLIENT|CARD|TERMINAL|MERCHANT",
-      "entityId": "...",
-      "display": "...",
-      "status": "ACTIVE",
-      "links": {
-        "self": "..."
-      }
-    }
-  ]
-}
-```
-
-Erreurs de validation (`INVALID_INPUT`) si aucun ou plusieurs paramètres de lookup sont fournis.

@@ -2,10 +2,12 @@ package com.kori.adapters.in.rest.doc;
 
 import com.kori.adapters.in.rest.ApiHeaders;
 import com.kori.adapters.in.rest.filter.CorrelationIdFilter;
+import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.info.License;
 import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.Operation;
 import io.swagger.v3.oas.models.media.Content;
 import io.swagger.v3.oas.models.media.MediaType;
 import io.swagger.v3.oas.models.media.Schema;
@@ -19,6 +21,7 @@ import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.customizers.OperationCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.web.method.HandlerMethod;
 
 import java.util.List;
 
@@ -122,6 +125,30 @@ public class ApiDocumentationConfig {
         };
     }
 
+    @Bean
+    public OperationCustomizer hideActorContextParam() {
+        return (Operation operation, HandlerMethod handlerMethod) -> {
+            if (operation.getParameters() == null || operation.getParameters().isEmpty()) {
+                return operation;
+            }
+
+            boolean methodHasActorContext = false;
+            for (var p : handlerMethod.getMethodParameters()) {
+                if (ActorContext.class.isAssignableFrom(p.getParameterType())) {
+                    methodHasActorContext = true;
+                    break;
+                }
+            }
+            if (!methodHasActorContext) return operation;
+
+            // Supprime le param OpenAPI généré pour ActorContext (souvent nommé "actorContext")
+            operation.getParameters().removeIf(p -> "actorContext".equals(p.getName()));
+
+            return operation;
+        };
+    }
+
+
     private Parameter headerParameter(String name, boolean required, String description) {
         return new Parameter()
                 .in("header")
@@ -131,7 +158,7 @@ public class ApiDocumentationConfig {
                 .schema(new StringSchema());
     }
 
-    private boolean hasParameter(java.util.List<Parameter> parameters, String name) {
+    private boolean hasParameter(List<Parameter> parameters, String name) {
         if (parameters == null || name == null) {
             return false;
         }
