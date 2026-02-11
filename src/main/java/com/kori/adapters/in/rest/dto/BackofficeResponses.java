@@ -24,6 +24,34 @@ public final class BackofficeResponses {
             Instant createdAt
     ) {}
 
+    public record TransactionLedgerLine(
+            String accountType,
+            String ownerRef,
+            String entryType,
+            BigDecimal amount,
+            String currency
+    ) {}
+
+    public record TransactionPayout(
+            String payoutId,
+            String status,
+            BigDecimal amount,
+            Instant createdAt,
+            Instant completedAt,
+            Instant failedAt,
+            String failureReason
+    ) {}
+
+    public record TransactionClientRefund(
+            String refundId,
+            String status,
+            BigDecimal amount,
+            Instant createdAt,
+            Instant completedAt,
+            Instant failedAt,
+            String failureReason
+    ) {}
+
     public record TransactionDetails(
             String transactionId,
             String type,
@@ -33,7 +61,15 @@ public final class BackofficeResponses {
             String merchantCode,
             String agentCode,
             String clientId,
+            String clientPhone,
+            String merchantId,
+            String agentId,
+            String terminalUid,
+            String cardUid,
             String originalTransactionId,
+            TransactionPayout payout,
+            TransactionClientRefund clientRefund,
+            List<TransactionLedgerLine> ledgerLines,
             Instant createdAt
     ) {}
 

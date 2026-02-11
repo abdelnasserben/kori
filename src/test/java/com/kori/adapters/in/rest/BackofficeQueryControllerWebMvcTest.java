@@ -67,7 +67,7 @@ class BackofficeQueryControllerWebMvcTest {
 
     @Test
     void transaction_details_endpoint_is_admin_only() throws Exception {
-        when(transactionQueryUseCase.getById("tx-1")).thenReturn(new BackofficeTransactionDetails("tx-1", "PAY_BY_CARD", "COMPLETED", new BigDecimal("100.00"), "KMF", "M-001", "A-001", "c1", null, Instant.parse("2025-01-01T00:00:00Z")));
+        when(transactionQueryUseCase.getById("tx-1")).thenReturn(new BackofficeTransactionDetails("tx-1", "PAY_BY_CARD", "COMPLETED", new BigDecimal("100.00"), "KMF", "M-001", "A-001", "c1", "+26911111", "m1", "a1", "t1", "card-1", null, null, null, List.of(new BackofficeLedgerLine("CLIENT", "c1", "DEBIT", new BigDecimal("100.00"), "KMF")), Instant.parse("2025-01-01T00:00:00Z")));
         var agent = jwt().authorities(new SimpleGrantedAuthority("ROLE_AGENT")).jwt(j -> j.claim("roles", List.of("AGENT")).claim("actor_type", "AGENT").claim("actor_id", "agt-1"));
         var admin = jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")).jwt(j -> j.claim("roles", List.of("ADMIN")).claim("actor_type", "ADMIN").claim("actor_id", "adm-1"));
 
@@ -76,7 +76,9 @@ class BackofficeQueryControllerWebMvcTest {
 
         mockMvc.perform(get(ApiPaths.BACKOFFICE_TRANSACTIONS + "/tx-1").with(admin))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.transactionId").value("tx-1"));
+                .andExpect(jsonPath("$.transactionId").value("tx-1"))
+                .andExpect(jsonPath("$.terminalUid").value("t1"))
+                .andExpect(jsonPath("$.ledgerLines[0].accountType").value("CLIENT"));
     }
 
     @Test

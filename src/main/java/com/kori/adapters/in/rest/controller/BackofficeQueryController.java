@@ -37,6 +37,11 @@ public class BackofficeQueryController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String actorType,
             @RequestParam(required = false) String actorId,
+            @RequestParam(required = false) String terminalUid,
+            @RequestParam(required = false) String cardUid,
+            @RequestParam(required = false) String merchantId,
+            @RequestParam(required = false) String agentId,
+            @RequestParam(required = false) String clientPhone,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(required = false) BigDecimal min,
@@ -45,7 +50,7 @@ public class BackofficeQueryController {
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) String sort
     ) {
-        var result = transactionQueryUseCase.list(new BackofficeTransactionQuery(query, type, status, actorType, actorId, from, to, min, max, limit, cursor, sort));
+        var result = transactionQueryUseCase.list(new BackofficeTransactionQuery(query, type, status, actorType, actorId, terminalUid, cardUid, merchantId, agentId, clientPhone, from, to, min, max, limit, cursor, sort));
         return new BackofficeResponses.ListResponse<>(
                 result.items().stream().map(i -> new BackofficeResponses.TransactionItem(i.transactionId(), i.type(), i.status(), i.amount(), i.currency(), i.merchantCode(), i.agentCode(), i.clientId(), i.createdAt())).toList(),
                 new BackofficeResponses.CursorPage(result.nextCursor(), result.hasMore())
@@ -55,7 +60,26 @@ public class BackofficeQueryController {
     @GetMapping("/transactions/{transactionId}")
     public BackofficeResponses.TransactionDetails getTransaction(@PathVariable String transactionId) {
         var d = transactionQueryUseCase.getById(transactionId);
-        return new BackofficeResponses.TransactionDetails(d.transactionId(), d.type(), d.status(), d.amount(), d.currency(), d.merchantCode(), d.agentCode(), d.clientId(), d.originalTransactionId(), d.createdAt());
+        return new BackofficeResponses.TransactionDetails(
+                d.transactionId(),
+                d.type(),
+                d.status(),
+                d.amount(),
+                d.currency(),
+                d.merchantCode(),
+                d.agentCode(),
+                d.clientId(),
+                d.clientPhone(),
+                d.merchantId(),
+                d.agentId(),
+                d.terminalUid(),
+                d.cardUid(),
+                d.originalTransactionId(),
+                d.payout() == null ? null : new BackofficeResponses.TransactionPayout(d.payout().payoutId(), d.payout().status(), d.payout().amount(), d.payout().createdAt(), d.payout().completedAt(), d.payout().failedAt(), d.payout().failureReason()),
+                d.clientRefund() == null ? null : new BackofficeResponses.TransactionClientRefund(d.clientRefund().refundId(), d.clientRefund().status(), d.clientRefund().amount(), d.clientRefund().createdAt(), d.clientRefund().completedAt(), d.clientRefund().failedAt(), d.clientRefund().failureReason()),
+                d.ledgerLines().stream().map(l -> new BackofficeResponses.TransactionLedgerLine(l.accountType(), l.ownerRef(), l.entryType(), l.amount(), l.currency())).toList(),
+                d.createdAt()
+        );
     }
 
     @GetMapping("/audit-events")
@@ -63,13 +87,15 @@ public class BackofficeQueryController {
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String actorType,
             @RequestParam(required = false) String actorId,
+            @RequestParam(required = false) String resourceType,
+            @RequestParam(required = false) String resourceId,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) String sort
     ) {
-        var result = auditEventQueryUseCase.list(new BackofficeAuditEventQuery(action, actorType, actorId, from, to, limit, cursor, sort));
+        var result = auditEventQueryUseCase.list(new BackofficeAuditEventQuery(action, actorType, actorId, resourceType, resourceId, from, to, limit, cursor, sort));
         return new BackofficeResponses.ListResponse<>(
                 result.items().stream().map(i -> new BackofficeResponses.AuditEventItem(i.eventId(), i.occurredAt(), i.actorType(), i.actorId(), i.action(), i.resourceType(), i.resourceId(), i.metadata())).toList(),
                 new BackofficeResponses.CursorPage(result.nextCursor(), result.hasMore())

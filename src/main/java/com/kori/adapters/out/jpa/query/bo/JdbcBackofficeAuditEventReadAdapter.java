@@ -39,11 +39,34 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
         var sortDesc = resolveSort(query.sort());
         StringBuilder sql = new StringBuilder("SELECT id, occurred_at, actor_type, actor_id, action, metadata_json FROM audit_events WHERE 1=1");
         var params = new MapSqlParameterSource();
-        if (query.action() != null && !query.action().isBlank()) { sql.append(" AND action = :action"); params.addValue("action", query.action()); }
-        if (query.actorType() != null && !query.actorType().isBlank()) { sql.append(" AND actor_type = :actorType"); params.addValue("actorType", query.actorType()); }
-        if (query.actorId() != null && !query.actorId().isBlank()) { sql.append(" AND actor_id = :actorId"); params.addValue("actorId", query.actorId()); }
-        if (query.from() != null) { sql.append(" AND occurred_at >= :from"); params.addValue("from", query.from()); }
-        if (query.to() != null) { sql.append(" AND occurred_at <= :to"); params.addValue("to", query.to()); }
+        if (query.action() != null && !query.action().isBlank()) {
+            sql.append(" AND action = :action");
+            params.addValue("action", query.action());
+        }
+        if (query.actorType() != null && !query.actorType().isBlank()) {
+            sql.append(" AND actor_type = :actorType");
+            params.addValue("actorType", query.actorType());
+        }
+        if (query.actorId() != null && !query.actorId().isBlank()) {
+            sql.append(" AND actor_id = :actorId");
+            params.addValue("actorId", query.actorId());
+        }
+        if (query.resourceType() != null && !query.resourceType().isBlank()) {
+            sql.append(" AND actor_type = :resourceType");
+            params.addValue("resourceType", query.resourceType());
+        }
+        if (query.resourceId() != null && !query.resourceId().isBlank()) {
+            sql.append(" AND actor_id = :resourceId");
+            params.addValue("resourceId", query.resourceId());
+        }
+        if (query.from() != null) {
+            sql.append(" AND occurred_at >= :from");
+            params.addValue("from", query.from());
+        }
+        if (query.to() != null) {
+            sql.append(" AND occurred_at <= :to");
+            params.addValue("to", query.to());
+        }
         if (cursor != null) {
             sql.append(sortDesc
                     ? " AND (occurred_at < :cursorCreatedAt OR (occurred_at = :cursorCreatedAt AND id < CAST(:cursorId AS uuid)))"
@@ -63,8 +86,8 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
                         rs.getString("actor_type"),
                         rs.getString("actor_id"),
                         rs.getString("action"),
-                        null,
-                        null,
+                        rs.getString("actor_type"),
+                        rs.getString("actor_id"),
                         objectMapper.readValue(rs.getString("metadata_json"), new TypeReference<Map<String, Object>>() {})
                 );
             } catch (JsonProcessingException e) {
