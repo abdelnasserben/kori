@@ -141,9 +141,25 @@ public class BackofficeQueryController {
     ) {
         var results = lookupQueryUseCase.search(new BackofficeLookupQuery(q, type, limit));
         return new BackofficeResponses.ListResponse<>(
-                results.stream().map(i -> new BackofficeResponses.LookupItem(i.entityType(), i.entityId(), i.display(), i.status(), i.detailUrl())).toList(),
+                results.stream().map(i -> new BackofficeResponses.LookupItem(
+                        i.entityType(),
+                        i.entityId(),
+                        i.display(),
+                        i.status(),
+                        toLookupDetailUrl(i.entityType(), i.entityId())
+                )).toList(),
                 new BackofficeResponses.CursorPage(null, false)
         );
+    }
+
+    private String toLookupDetailUrl(String entityType, String entityId) {
+        return switch (entityType) {
+            case "AGENT" -> ApiPaths.BACKOFFICE_AGENTS + "/" + entityId;
+            case "CLIENT" -> ApiPaths.BACKOFFICE_CLIENTS + "/" + entityId;
+            case "MERCHANT" -> ApiPaths.BACKOFFICE_MERCHANTS + "/" + entityId;
+            case "TRANSACTION" -> ApiPaths.BACKOFFICE_TRANSACTIONS + "/" + entityId;
+            default -> null;
+        };
     }
 
     private BackofficeResponses.ListResponse<BackofficeResponses.ActorItem> toActorResponse(QueryPage<BackofficeActorItem> result) {

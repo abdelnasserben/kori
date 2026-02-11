@@ -27,7 +27,6 @@ public class JdbcBackofficeLookupReadAdapter implements BackofficeLookupReadPort
                            c.id::text AS entity_id,
                            c.phone_number AS display,
                            c.status,
-                           '/api/v1/backoffice/clients/' || c.id::text AS detail_url,
                            CASE WHEN c.phone_number = :exactQ THEN 0 ELSE 1 END AS rank
                     FROM clients c
                     WHERE (:type IS NULL OR :type = 'CLIENT_PHONE')
@@ -39,7 +38,6 @@ public class JdbcBackofficeLookupReadAdapter implements BackofficeLookupReadPort
                            cd.id::text AS entity_id,
                            cd.card_uid AS display,
                            cd.status,
-                           NULL AS detail_url,
                            CASE WHEN cd.card_uid = :exactQ THEN 0 ELSE 1 END AS rank
                     FROM cards cd
                     WHERE (:type IS NULL OR :type = 'CARD_UID')
@@ -51,7 +49,6 @@ public class JdbcBackofficeLookupReadAdapter implements BackofficeLookupReadPort
                            t.id::text AS entity_id,
                            t.id::text AS display,
                            t.status,
-                           NULL AS detail_url,
                            CASE WHEN t.id::text = :exactQ THEN 0 ELSE 1 END AS rank
                     FROM terminals t
                     WHERE (:type IS NULL OR :type = 'TERMINAL_ID')
@@ -63,7 +60,6 @@ public class JdbcBackofficeLookupReadAdapter implements BackofficeLookupReadPort
                            tx.id::text AS entity_id,
                            tx.id::text AS display,
                            COALESCE(p.status, cr.status, 'COMPLETED') AS status,
-                           '/api/v1/backoffice/transactions/' || tx.id::text AS detail_url,
                            CASE WHEN tx.id::text = :exactQ THEN 0 ELSE 1 END AS rank
                     FROM transactions tx
                     LEFT JOIN payouts p ON p.transaction_id = tx.id
@@ -77,7 +73,6 @@ public class JdbcBackofficeLookupReadAdapter implements BackofficeLookupReadPort
                            m.id::text AS entity_id,
                            m.code AS display,
                            m.status,
-                           '/api/v1/backoffice/merchants/' || m.id::text AS detail_url,
                            CASE WHEN m.code = :exactQ THEN 0 ELSE 1 END AS rank
                     FROM merchants m
                     WHERE (:type IS NULL OR :type = 'MERCHANT_CODE')
@@ -89,7 +84,6 @@ public class JdbcBackofficeLookupReadAdapter implements BackofficeLookupReadPort
                            a.id::text AS entity_id,
                            a.code AS display,
                            a.status,
-                           '/api/v1/backoffice/agents/' || a.id::text AS detail_url,
                            CASE WHEN a.code = :exactQ THEN 0 ELSE 1 END AS rank
                     FROM agents a
                     WHERE (:type IS NULL OR :type = 'AGENT_CODE')
@@ -109,8 +103,7 @@ public class JdbcBackofficeLookupReadAdapter implements BackofficeLookupReadPort
                 rs.getString("entity_type"),
                 rs.getString("entity_id"),
                 rs.getString("display"),
-                rs.getString("status"),
-                rs.getString("detail_url")
+                rs.getString("status")
         ));
     }
 }
