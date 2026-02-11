@@ -2,9 +2,9 @@ package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.dto.AgentResponses;
-import com.kori.application.port.in.query.AgentMeQueryUseCase;
-import com.kori.application.query.model.AgentQueryModels;
 import com.kori.application.security.ActorContext;
+import com.kori.query.model.me.AgentQueryModels;
+import com.kori.query.port.in.AgentMeQueryUseCase;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;

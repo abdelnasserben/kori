@@ -85,7 +85,7 @@ public final class AgentBankDepositReceiptService implements AgentBankDepositRec
 
                     Map<String, String> metadata = new HashMap<>();
                     metadata.put("transactionId", tx.id().value().toString());
-                    metadata.put("agentId", agent.id().value().toString());
+                    metadata.put("agentCode", agent.id().value().toString());
                     metadata.put("agentCode", agent.code().value());
                     metadata.put("amount", amount.asBigDecimal().toPlainString());
 

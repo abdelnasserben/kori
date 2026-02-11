@@ -5,10 +5,10 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
 import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
-import com.kori.application.port.out.query.BackofficeAuditEventReadPort;
-import com.kori.application.query.BackofficeAuditEventItem;
-import com.kori.application.query.BackofficeAuditEventQuery;
-import com.kori.application.query.QueryPage;
+import com.kori.query.model.BackofficeAuditEventItem;
+import com.kori.query.model.BackofficeAuditEventQuery;
+import com.kori.query.model.QueryPage;
+import com.kori.query.port.out.BackofficeAuditEventReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -48,8 +48,8 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
             params.addValue("actorType", query.actorType());
         }
         if (query.actorId() != null && !query.actorId().isBlank()) {
-            sql.append(" AND actor_id = :actorId");
-            params.addValue("actorId", query.actorId());
+            sql.append(" AND actor_id = :actorRef");
+            params.addValue("actorRef", query.actorId());
         }
         if (query.resourceType() != null && !query.resourceType().isBlank()) {
             sql.append(" AND actor_type = :resourceType");

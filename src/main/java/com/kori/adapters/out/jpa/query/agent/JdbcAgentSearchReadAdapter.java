@@ -1,7 +1,7 @@
 package com.kori.adapters.out.jpa.query.agent;
 
-import com.kori.application.port.out.query.AgentSearchReadPort;
-import com.kori.application.query.model.AgentQueryModels;
+import com.kori.query.model.me.AgentQueryModels;
+import com.kori.query.port.out.AgentSearchReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;

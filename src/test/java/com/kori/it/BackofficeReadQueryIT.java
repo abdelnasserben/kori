@@ -4,14 +4,14 @@ import com.kori.application.command.MerchantWithdrawAtAgentCommand;
 import com.kori.application.command.PayByCardCommand;
 import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
 import com.kori.application.port.in.PayByCardUseCase;
-import com.kori.application.port.out.query.BackofficeAuditEventReadPort;
-import com.kori.application.port.out.query.BackofficeTransactionReadPort;
-import com.kori.application.query.BackofficeAuditEventQuery;
-import com.kori.application.query.BackofficeTransactionQuery;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.client.Client;
 import com.kori.domain.model.merchant.Merchant;
+import com.kori.query.model.BackofficeAuditEventQuery;
+import com.kori.query.model.BackofficeTransactionQuery;
+import com.kori.query.port.out.BackofficeAuditEventReadPort;
+import com.kori.query.port.out.BackofficeTransactionReadPort;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -76,7 +76,7 @@ class BackofficeReadQueryIT extends IntegrationTestBase {
 
         var byMerchant = backofficeTransactionReadPort.list(new BackofficeTransactionQuery(
                 null, null, null, null, null,
-                null, null, merchant.id().value().toString(), null, null,
+                null, null, merchant.code().value(), null, null,
                 null, null, null, null,
                 20, null, null
         ));
@@ -84,7 +84,7 @@ class BackofficeReadQueryIT extends IntegrationTestBase {
 
         var byAgent = backofficeTransactionReadPort.list(new BackofficeTransactionQuery(
                 null, null, null, null, null,
-                null, null, null, agent.id().value().toString(), null,
+                null, null, null, agent.code().value(), null,
                 null, null, null, null,
                 20, null, null
         ));

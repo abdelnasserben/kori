@@ -1,7 +1,7 @@
 package com.kori.adapters.out.jpa.query.me;
 
-import com.kori.application.port.out.query.ClientMeTxDetailReadPort;
-import com.kori.application.query.model.MeQueryModels;
+import com.kori.query.model.me.MeQueryModels;
+import com.kori.query.port.out.ClientMeTxDetailReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;

@@ -72,7 +72,7 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
 
                     ActorGuards.requireAgent(command.actorContext(), "initiate cash-in");
 
-                    AgentId agentId = new AgentId(UuidParser.parse(command.actorContext().actorId(), "agentId"));
+                    AgentId agentId = new AgentId(UuidParser.parse(command.actorContext().actorId(), "agentCode"));
                     Agent agent = agentRepositoryPort.findById(agentId)
                             .orElseThrow(() -> new NotFoundException("Agent not found"));
 
@@ -104,7 +104,7 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
 
                     Map<String, String> metadata = new HashMap<>();
                     metadata.put("transactionId", tx.id().value().toString());
-                    metadata.put("agentId", agent.id().value().toString());
+                    metadata.put("agentCode", agent.id().value().toString());
                     metadata.put("clientId", client.id().value().toString());
                     metadata.put("clientPhoneNumber", client.phoneNumber());
                     metadata.put("amount", amount.asBigDecimal().toPlainString());

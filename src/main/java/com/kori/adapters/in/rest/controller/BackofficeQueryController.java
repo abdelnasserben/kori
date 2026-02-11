@@ -2,8 +2,8 @@ package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.dto.BackofficeResponses;
-import com.kori.application.port.in.query.*;
-import com.kori.application.query.*;
+import com.kori.query.model.*;
+import com.kori.query.port.in.*;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,11 +36,11 @@ public class BackofficeQueryController {
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String actorType,
-            @RequestParam(required = false) String actorId,
+            @RequestParam(required = false) String actorRef,
             @RequestParam(required = false) String terminalUid,
             @RequestParam(required = false) String cardUid,
-            @RequestParam(required = false) String merchantId,
-            @RequestParam(required = false) String agentId,
+            @RequestParam(required = false) String merchantCode,
+            @RequestParam(required = false) String agentCode,
             @RequestParam(required = false) String clientPhone,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
@@ -48,9 +48,33 @@ public class BackofficeQueryController {
             @RequestParam(required = false) BigDecimal max,
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) String cursor,
-            @RequestParam(required = false) String sort
+            @RequestParam(required = false) String sort,
+            @RequestParam(required = false) String actorId,
+            @RequestParam(required = false) String merchantId,
+            @RequestParam(required = false) String agentId
     ) {
-        var result = transactionQueryUseCase.list(new BackofficeTransactionQuery(query, type, status, actorType, actorId, terminalUid, cardUid, merchantId, agentId, clientPhone, from, to, min, max, limit, cursor, sort));
+        var resolvedActorRef = firstNonBlank(actorRef, actorId);
+        var resolvedMerchantCode = firstNonBlank(merchantCode, merchantId);
+        var resolvedAgentCode = firstNonBlank(agentCode, agentId);
+        var result = transactionQueryUseCase.list(new BackofficeTransactionQuery(
+                query,
+                type,
+                status,
+                actorType,
+                resolvedActorRef,
+                terminalUid,
+                cardUid,
+                resolvedMerchantCode,
+                resolvedAgentCode,
+                clientPhone,
+                from,
+                to,
+                min,
+                max,
+                limit,
+                cursor,
+                sort
+        ));
         return new BackofficeResponses.ListResponse<>(
                 result.items().stream().map(i -> new BackofficeResponses.TransactionItem(i.transactionId(), i.type(), i.status(), i.amount(), i.currency(), i.merchantCode(), i.agentCode(), i.clientId(), i.createdAt())).toList(),
                 new BackofficeResponses.CursorPage(result.nextCursor(), result.hasMore())
@@ -193,5 +217,12 @@ public class BackofficeQueryController {
                 result.items().stream().map(i -> new BackofficeResponses.ActorItem(i.actorId(), i.code(), i.status(), i.createdAt())).toList(),
                 new BackofficeResponses.CursorPage(result.nextCursor(), result.hasMore())
         );
+    }
+
+    private String firstNonBlank(String preferred, String fallback) {
+        if (preferred != null && !preferred.isBlank()) {
+            return preferred;
+        }
+        return (fallback != null && !fallback.isBlank()) ? fallback : null;
     }
 }

@@ -1,7 +1,7 @@
 package com.kori.adapters.out.jpa.query.me;
 
-import com.kori.application.port.out.query.MerchantMeTxDetailReadPort;
-import com.kori.application.query.model.MeQueryModels;
+import com.kori.query.model.me.MeQueryModels;
+import com.kori.query.port.out.MerchantMeTxDetailReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -41,7 +41,7 @@ public class JdbcMerchantMeTxDetailReadAdapter implements MerchantMeTxDetailRead
                      FROM ledger_entries le
                      WHERE le.transaction_id = CAST(:transactionId AS uuid)
                         AND le.account_type = 'MERCHANT'
-                        AND le.owner_ref = :merchantId
+                        AND le.owner_ref = :merchantCode
                      GROUP BY le.transaction_id
                 ) owned ON owned.transaction_id = t.id
                 LEFT JOIN payouts p ON p.transaction_id = t.id
@@ -56,7 +56,7 @@ public class JdbcMerchantMeTxDetailReadAdapter implements MerchantMeTxDetailRead
                 LIMIT 1
                 """;
         var params = new MapSqlParameterSource()
-                .addValue("merchantId", merchantId)
+                .addValue("merchantCode", merchantId)
                 .addValue("transactionId", transactionId);
         var rows = jdbcTemplate.query(sql, params, (rs, i) -> new MeQueryModels.MerchantTransactionDetails(
                 rs.getString("transaction_id"),

@@ -18,7 +18,7 @@ import static org.mockito.Mockito.when;
 abstract class BaseWebMvcTest {
 
     protected static final String ACTOR_TYPE_KEY = "actorType";
-    protected static final String ACTOR_ID_KEY = "actorId";
+    protected static final String ACTOR_ID_KEY = "actorRef";
     protected static final String ACTOR_TYPE = "ADMIN";
     protected static final String ACTOR_ID = "admin-1";
 

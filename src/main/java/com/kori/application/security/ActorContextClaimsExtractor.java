@@ -11,7 +11,7 @@ import java.util.stream.Collectors;
 public class ActorContextClaimsExtractor {
 
     private static final List<String> ACTOR_TYPE_CLAIMS = List.of("actor_type", "actorType");
-    private static final List<String> ACTOR_ID_CLAIMS = List.of("actor_id", "actorId", "sub");
+    private static final List<String> ACTOR_ID_CLAIMS = List.of("actor_id", "actorRef", "sub");
 
     public ActorContext extract(Map<String, Object> claims) {
         Objects.requireNonNull(claims, "claims");

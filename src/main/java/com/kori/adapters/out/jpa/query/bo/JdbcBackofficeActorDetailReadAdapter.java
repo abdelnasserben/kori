@@ -1,7 +1,7 @@
 package com.kori.adapters.out.jpa.query.bo;
 
-import com.kori.application.port.out.query.BackofficeActorDetailReadPort;
-import com.kori.application.query.BackofficeActorDetails;
+import com.kori.query.model.BackofficeActorDetails;
+import com.kori.query.port.out.BackofficeActorDetailReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -43,11 +43,11 @@ public class JdbcBackofficeActorDetailReadAdapter implements BackofficeActorDeta
                          WHERE ae.actor_type = :actorType
                            AND ae.actor_id = t.id::text) AS last_activity_at
                 FROM %s t
-                WHERE t.id = CAST(:actorId AS uuid)
+                WHERE t.id = CAST(:actorRef AS uuid)
                 LIMIT 1
                 """.formatted(displayField, table);
         var params = new MapSqlParameterSource()
-                .addValue("actorId", actorId)
+                .addValue("actorRef", actorId)
                 .addValue("actorType", actorType);
         var rows = jdbcTemplate.query(sql, params, (rs, i) -> new BackofficeActorDetails(
                 rs.getString("actor_id"),

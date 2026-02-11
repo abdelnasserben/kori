@@ -5,9 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.out.jpa.query.common.CursorPayload;
 import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
 import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
-import com.kori.application.port.out.query.AgentMeReadPort;
-import com.kori.application.query.QueryPage;
-import com.kori.application.query.model.AgentQueryModels;
+import com.kori.query.model.QueryPage;
+import com.kori.query.model.me.AgentQueryModels;
+import com.kori.query.port.out.AgentMeReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -53,10 +53,10 @@ public class JdbcAgentMeReadAdapter implements AgentMeReadPort {
                              AND t.created_at >= NOW() - INTERVAL '7 days'
                        ) AS tx_count_7d
                 FROM agents a
-                WHERE a.id = CAST(:agentId AS uuid)
+                WHERE a.id = CAST(:agentCode AS uuid)
                 LIMIT 1
                 """;
-        var rows = jdbcTemplate.query(sql, new MapSqlParameterSource("agentId", agentId), (rs, n) ->
+        var rows = jdbcTemplate.query(sql, new MapSqlParameterSource("agentCode", agentId), (rs, n) ->
                 new AgentQueryModels.AgentSummary(
                         rs.getString("agent_id"),
                         rs.getString("code"),
@@ -157,9 +157,9 @@ public class JdbcAgentMeReadAdapter implements AgentMeReadPort {
                        metadata_json
                 FROM audit_events
                 WHERE actor_type = 'AGENT'
-                  AND actor_id = :actorId
+                  AND actor_id = :actorRef
                 """);
-        var params = new MapSqlParameterSource("actorId", agentId);
+        var params = new MapSqlParameterSource("actorRef", agentId);
 
         if (filter.action() != null && !filter.action().isBlank()) {
             sql.append(" AND action = :action");

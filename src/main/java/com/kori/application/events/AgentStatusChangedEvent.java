@@ -21,7 +21,7 @@ public record AgentStatusChangedEvent(
     public AgentStatusChangedEvent {
         Objects.requireNonNull(eventId, "eventId");
         Objects.requireNonNull(occurredAt, "occurredAt");
-        Objects.requireNonNull(agentId, "agentId");
+        Objects.requireNonNull(agentId, "agentCode");
         Objects.requireNonNull(before, "before");
         Objects.requireNonNull(after, "after");
     }

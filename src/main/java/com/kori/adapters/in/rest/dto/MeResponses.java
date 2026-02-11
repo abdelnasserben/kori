@@ -68,5 +68,5 @@ public final class MeResponses {
             String status,
             Instant createdAt,
             Instant lastSeen,
-            String merchantId) {}
+            String merchantCode) {}
 }

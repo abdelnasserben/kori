@@ -1,10 +1,10 @@
 package com.kori.adapters.in.rest;
 
 import com.kori.application.exception.ValidationException;
-import com.kori.application.port.in.query.AgentMeQueryUseCase;
-import com.kori.application.port.in.query.AgentSearchUseCase;
-import com.kori.application.query.QueryPage;
-import com.kori.application.query.model.AgentQueryModels;
+import com.kori.query.model.QueryPage;
+import com.kori.query.model.me.AgentQueryModels;
+import com.kori.query.port.in.AgentMeQueryUseCase;
+import com.kori.query.port.in.AgentSearchUseCase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

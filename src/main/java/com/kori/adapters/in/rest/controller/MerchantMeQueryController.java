@@ -2,10 +2,10 @@ package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.dto.MeResponses;
-import com.kori.application.port.in.query.MerchantMeQueryUseCase;
-import com.kori.application.port.in.query.MerchantMeTxDetailQueryUseCase;
-import com.kori.application.query.model.MeQueryModels;
 import com.kori.application.security.ActorContext;
+import com.kori.query.model.me.MeQueryModels;
+import com.kori.query.port.in.MerchantMeQueryUseCase;
+import com.kori.query.port.in.MerchantMeTxDetailQueryUseCase;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -79,14 +79,14 @@ public class MerchantMeQueryController {
     public MeResponses.ListResponse<MeResponses.TerminalItem> terminals(
             ActorContext actorContext,
             @RequestParam(required = false) String status,
-            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String terminalUid,
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) String sort
     ) {
-        var page = merchantMeQueryUseCase.listTerminals(actorContext, new MeQueryModels.MeTerminalsFilter(status, query, limit, cursor, sort));
+        var page = merchantMeQueryUseCase.listTerminals(actorContext, new MeQueryModels.MeTerminalsFilter(status, terminalUid, limit, cursor, sort));
         return new MeResponses.ListResponse<>(
-                page.items().stream().map(i -> new MeResponses.TerminalItem(i.terminalUid(), i.status(), i.createdAt(), i.lastSeen(), i.merchantId())).toList(),
+                page.items().stream().map(i -> new MeResponses.TerminalItem(i.terminalUid(), i.status(), i.createdAt(), i.lastSeen(), i.merchantCode())).toList(),
                 new MeResponses.CursorPage(page.nextCursor(), page.hasMore())
         );
     }
@@ -94,6 +94,6 @@ public class MerchantMeQueryController {
     @GetMapping("/terminals/{terminalUid}")
     public MeResponses.TerminalItem terminalDetails(ActorContext actorContext, @PathVariable String terminalUid) {
         var item = merchantMeQueryUseCase.getTerminalDetails(actorContext, terminalUid);
-        return new MeResponses.TerminalItem(item.terminalUid(), item.status(), item.createdAt(), item.lastSeen(), item.merchantId());
+        return new MeResponses.TerminalItem(item.terminalUid(), item.status(), item.createdAt(), item.lastSeen(), item.merchantCode());
     }
 }

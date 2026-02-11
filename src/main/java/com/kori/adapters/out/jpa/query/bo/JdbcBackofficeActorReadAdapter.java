@@ -2,10 +2,10 @@ package com.kori.adapters.out.jpa.query.bo;
 
 import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
 import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
-import com.kori.application.port.out.query.BackofficeActorReadPort;
-import com.kori.application.query.BackofficeActorItem;
-import com.kori.application.query.BackofficeActorQuery;
-import com.kori.application.query.QueryPage;
+import com.kori.query.model.BackofficeActorItem;
+import com.kori.query.model.BackofficeActorQuery;
+import com.kori.query.model.QueryPage;
+import com.kori.query.port.out.BackofficeActorReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;

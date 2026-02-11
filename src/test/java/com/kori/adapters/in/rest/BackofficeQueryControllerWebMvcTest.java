@@ -1,8 +1,8 @@
 package com.kori.adapters.in.rest;
 
 import com.kori.application.exception.ValidationException;
-import com.kori.application.port.in.query.*;
-import com.kori.application.query.*;
+import com.kori.query.model.*;
+import com.kori.query.port.in.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;

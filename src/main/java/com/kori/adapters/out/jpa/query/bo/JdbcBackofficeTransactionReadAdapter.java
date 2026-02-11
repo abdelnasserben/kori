@@ -4,8 +4,8 @@ import com.kori.adapters.out.jpa.query.common.CursorPayload;
 import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
 import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
 import com.kori.application.exception.ValidationException;
-import com.kori.application.port.out.query.BackofficeTransactionReadPort;
-import com.kori.application.query.*;
+import com.kori.query.model.*;
+import com.kori.query.port.out.BackofficeTransactionReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -189,24 +189,24 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
                     """);
             p.addValue("cardUid", q.cardUid().trim());
         }
-        if (q.merchantId() != null && !q.merchantId().isBlank()) {
-            sql.append(" AND m.id::text = :merchantId");
-            p.addValue("merchantId", q.merchantId().trim());
+        if (q.merchantCode() != null && !q.merchantCode().isBlank()) {
+            sql.append(" AND m.code = :merchantCode");
+            p.addValue("merchantCode", q.merchantCode().trim());
         }
-        if (q.agentId() != null && !q.agentId().isBlank()) {
-            sql.append(" AND a.id::text = :agentId");
-            p.addValue("agentId", q.agentId().trim());
+        if (q.agentCode() != null && !q.agentCode().isBlank()) {
+            sql.append(" AND a.code = :agentCode");
+            p.addValue("agentCode", q.agentCode().trim());
         }
         if (q.clientPhone() != null && !q.clientPhone().isBlank()) {
             sql.append(" AND c.phone_number = :clientPhone");
             p.addValue("clientPhone", q.clientPhone().trim());
         }
-        if (q.actorType() != null && q.actorId() != null && !q.actorType().isBlank() && !q.actorId().isBlank()) {
+        if (q.actorType() != null && q.actorRef() != null && !q.actorType().isBlank() && !q.actorRef().isBlank()) {
             String normalized = q.actorType().trim().toUpperCase();
             switch (normalized) {
-                case "MERCHANT" -> { sql.append(" AND m.id::text = :actorId"); p.addValue("actorId", q.actorId()); }
-                case "AGENT" -> { sql.append(" AND a.id::text = :actorId"); p.addValue("actorId", q.actorId()); }
-                case "CLIENT" -> { sql.append(" AND c.id::text = :actorId"); p.addValue("actorId", q.actorId()); }
+                case "MERCHANT" -> { sql.append(" AND m.id::text = :actorRef"); p.addValue("actorRef", q.actorRef()); }
+                case "AGENT" -> { sql.append(" AND a.id::text = :actorRef"); p.addValue("actorRef", q.actorRef()); }
+                case "CLIENT" -> { sql.append(" AND c.id::text = :actorRef"); p.addValue("actorRef", q.actorRef()); }
                 default -> throw new ValidationException("Unsupported actorType", java.util.Map.of("field", "actorType"));
             }
         }

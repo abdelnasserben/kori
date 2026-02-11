@@ -21,7 +21,7 @@ public record MerchantStatusChangedEvent(
     public MerchantStatusChangedEvent {
         Objects.requireNonNull(eventId, "eventId");
         Objects.requireNonNull(occurredAt, "occurredAt");
-        Objects.requireNonNull(merchantId, "merchantId");
+        Objects.requireNonNull(merchantId, "merchantCode");
         Objects.requireNonNull(before, "before");
         Objects.requireNonNull(after, "after");
     }

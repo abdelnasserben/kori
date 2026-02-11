@@ -1,8 +1,8 @@
 package com.kori.adapters.out.jpa.query.bo;
 
-import com.kori.application.port.out.query.BackofficeLookupReadPort;
-import com.kori.application.query.BackofficeLookupItem;
-import com.kori.application.query.BackofficeLookupQuery;
+import com.kori.query.model.BackofficeLookupItem;
+import com.kori.query.model.BackofficeLookupQuery;
+import com.kori.query.port.out.BackofficeLookupReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;

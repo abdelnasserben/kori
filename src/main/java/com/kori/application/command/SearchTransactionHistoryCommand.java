@@ -11,7 +11,7 @@ import java.util.Objects;
 public record SearchTransactionHistoryCommand(
         ActorContext actorContext,
 
-        // Optional: ADMIN can query an arbitrary scope; others must query self.
+        // Optional: ADMIN can terminalUid an arbitrary scope; others must terminalUid self.
         LedgerAccountRef ledgerAccountRef,
 
         // Filters

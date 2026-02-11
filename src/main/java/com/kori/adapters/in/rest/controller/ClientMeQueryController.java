@@ -2,10 +2,10 @@ package com.kori.adapters.in.rest.controller;
 
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.dto.MeResponses;
-import com.kori.application.port.in.query.ClientMeQueryUseCase;
-import com.kori.application.port.in.query.ClientMeTxDetailQueryUseCase;
-import com.kori.application.query.model.MeQueryModels;
 import com.kori.application.security.ActorContext;
+import com.kori.query.model.me.MeQueryModels;
+import com.kori.query.port.in.ClientMeQueryUseCase;
+import com.kori.query.port.in.ClientMeTxDetailQueryUseCase;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 

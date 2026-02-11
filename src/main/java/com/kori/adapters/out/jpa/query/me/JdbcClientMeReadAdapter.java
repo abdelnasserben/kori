@@ -3,9 +3,9 @@ package com.kori.adapters.out.jpa.query.me;
 import com.kori.adapters.out.jpa.query.common.CursorPayload;
 import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
 import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
-import com.kori.application.port.out.query.ClientMeReadPort;
-import com.kori.application.query.QueryPage;
-import com.kori.application.query.model.MeQueryModels;
+import com.kori.query.model.QueryPage;
+import com.kori.query.model.me.MeQueryModels;
+import com.kori.query.port.out.ClientMeReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -65,10 +65,15 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
         StringBuilder sql = new StringBuilder("""
                 SELECT t.id, t.type, COALESCE(p.status, cr.status, 'COMPLETED') AS status, t.amount, t.created_at
                 FROM transactions t
-                JOIN ledger_entries le ON le.transaction_id = t.id
                 LEFT JOIN payouts p ON p.transaction_id = t.id
                 LEFT JOIN client_refunds cr ON cr.transaction_id = t.id
-                WHERE le.account_type = 'CLIENT' AND le.owner_ref = :ownerRef
+                WHERE EXISTS (
+                     SELECT 1
+                     FROM ledger_entries le
+                     WHERE le.transaction_id = t.id
+                     AND le.account_type = 'CLIENT'
+                     AND le.owner_ref = :ownerRef
+                )
                 """);
         var params = new MapSqlParameterSource("ownerRef", clientId);
         applyTransactionFilters(sql, params, filter);

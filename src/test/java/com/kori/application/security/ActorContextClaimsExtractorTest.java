@@ -31,7 +31,7 @@ class ActorContextClaimsExtractorTest {
         Map<String, Object> claims = Map.of(
                 "sub", "subject-1",
                 "actorType", "terminal",
-                "actorId", "term-1"
+                "actorRef", "term-1"
         );
 
         ActorContext context = extractor.extract(claims);

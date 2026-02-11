@@ -3,9 +3,9 @@ package com.kori.adapters.out.jpa.query.me;
 import com.kori.adapters.out.jpa.query.common.CursorPayload;
 import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
 import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
-import com.kori.application.port.out.query.MerchantMeReadPort;
-import com.kori.application.query.QueryPage;
-import com.kori.application.query.model.MeQueryModels;
+import com.kori.query.model.QueryPage;
+import com.kori.query.model.me.MeQueryModels;
+import com.kori.query.port.out.MerchantMeReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
@@ -58,10 +58,15 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
         StringBuilder sql = new StringBuilder("""
                 SELECT t.id, t.type, COALESCE(p.status, cr.status, 'COMPLETED') AS status, t.amount, t.created_at
                 FROM transactions t
-                JOIN ledger_entries le ON le.transaction_id = t.id
                 LEFT JOIN payouts p ON p.transaction_id = t.id
                 LEFT JOIN client_refunds cr ON cr.transaction_id = t.id
-                WHERE le.account_type = 'MERCHANT' AND le.owner_ref = :ownerRef
+                WHERE EXISTS (
+                     SELECT 1
+                     FROM ledger_entries le
+                     WHERE le.transaction_id = t.id
+                     AND le.account_type = 'MERCHANT'
+                     AND le.owner_ref = :ownerRef
+                )
                 """);
         var params = new MapSqlParameterSource("ownerRef", merchantId);
         applyTransactionFilters(sql, params, filter);
@@ -87,14 +92,21 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
         var cursor = codec.decode(filter.cursor());
 
         StringBuilder sql = new StringBuilder("""
-                SELECT t.id::text AS terminal_uid, t.status, t.created_at, t.merchant_id::text AS merchant_id,
+                SELECT t.id::text AS terminal_uid, t.status, t.created_at, m.code AS merchant_code,
                        (SELECT MAX(ae.occurred_at) FROM audit_events ae WHERE ae.actor_type = 'TERMINAL' AND ae.actor_id = t.id::text) AS last_seen
                 FROM terminals t
-                WHERE t.merchant_id = CAST(:merchantId AS uuid)
+                JOIN merchants m ON m.id = t.merchant_id
+                WHERE t.merchant_id = CAST(:merchantCode AS uuid)
                 """);
-        var params = new MapSqlParameterSource("merchantId", merchantId);
-        if (filter.status() != null && !filter.status().isBlank()) { sql.append(" AND t.status = :status"); params.addValue("status", filter.status()); }
-        if (filter.query() != null && !filter.query().isBlank()) { sql.append(" AND t.id::text ILIKE :query"); params.addValue("query", "%" + filter.query().trim() + "%"); }
+        var params = new MapSqlParameterSource("merchantCode", merchantId);
+        if (filter.status() != null && !filter.status().isBlank()) {
+            sql.append(" AND t.status = :status");
+            params.addValue("status", filter.status());
+        }
+        if (filter.terminalUid() != null && !filter.terminalUid().isBlank()) {
+            sql.append(" AND t.id::text ILIKE :terminalUid");
+            params.addValue("terminalUid", "%" + filter.terminalUid().trim() + "%");
+        }
         if (cursor != null) {
             sql.append(desc
                     ? " AND (t.created_at < :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.id < CAST(:cursorId AS uuid)))"
@@ -107,8 +119,10 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
         params.addValue("limit", limit + 1);
 
         List<MeQueryModels.MeTerminalItem> rows = jdbcTemplate.query(sql.toString(), params, (rs, n) -> new MeQueryModels.MeTerminalItem(
-                rs.getString("terminal_uid"), rs.getString("status"), rs.getTimestamp("created_at").toInstant(),
-                rs.getTimestamp("last_seen") == null ? null : rs.getTimestamp("last_seen").toInstant(), rs.getString("merchant_id")
+                rs.getString("terminal_uid"),
+                rs.getString("status"),
+                rs.getTimestamp("created_at").toInstant(),
+                rs.getTimestamp("last_seen") == null ? null : rs.getTimestamp("last_seen").toInstant(), rs.getString("merchant_code")
         ));
         boolean hasMore = rows.size() > limit;
         if (hasMore) rows = new ArrayList<>(rows.subList(0, limit));
@@ -119,16 +133,19 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
     @Override
     public Optional<MeQueryModels.MeTerminalItem> findTerminalForMerchant(String merchantId, String terminalUid) {
         String sql = """
-                SELECT t.id::text AS terminal_uid, t.status, t.created_at, t.merchant_id::text AS merchant_id,
+                SELECT t.id::text AS terminal_uid, t.status, t.created_at, m.code AS merchant_code,
                        (SELECT MAX(ae.occurred_at) FROM audit_events ae WHERE ae.actor_type = 'TERMINAL' AND ae.actor_id = t.id::text) AS last_seen
                 FROM terminals t
-                WHERE t.id = CAST(:terminalId AS uuid) AND t.merchant_id = CAST(:merchantId AS uuid)
+                JOIN merchants m ON m.id = t.merchant_id
+                WHERE t.id = CAST(:terminalId AS uuid) AND t.merchant_id = CAST(:merchantCode AS uuid)
                 LIMIT 1
                 """;
         var params = new MapSqlParameterSource().addValue("terminalId", terminalUid).addValue("merchantId", merchantId);
         var rows = jdbcTemplate.query(sql, params, (rs, n) -> new MeQueryModels.MeTerminalItem(
-                rs.getString("terminal_uid"), rs.getString("status"), rs.getTimestamp("created_at").toInstant(),
-                rs.getTimestamp("last_seen") == null ? null : rs.getTimestamp("last_seen").toInstant(), rs.getString("merchant_id")
+                rs.getString("terminal_uid"),
+                rs.getString("status"),
+                rs.getTimestamp("created_at").toInstant(),
+                rs.getTimestamp("last_seen") == null ? null : rs.getTimestamp("last_seen").toInstant(), rs.getString("merchant_code")
         ));
         return rows.stream().findFirst();
     }
@@ -141,12 +158,30 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
     }
 
     private void applyTransactionFilters(StringBuilder sql, MapSqlParameterSource params, MeQueryModels.MeTransactionsFilter filter) {
-        if (filter.type() != null && !filter.type().isBlank()) { sql.append(" AND t.type = :type"); params.addValue("type", filter.type()); }
-        if (filter.status() != null && !filter.status().isBlank()) { sql.append(" AND COALESCE(p.status, cr.status, 'COMPLETED') = :status"); params.addValue("status", filter.status()); }
-        if (filter.from() != null) { sql.append(" AND t.created_at >= :from"); params.addValue("from", filter.from()); }
-        if (filter.to() != null) { sql.append(" AND t.created_at <= :to"); params.addValue("to", filter.to()); }
-        if (filter.min() != null) { sql.append(" AND t.amount >= :min"); params.addValue("min", filter.min()); }
-        if (filter.max() != null) { sql.append(" AND t.amount <= :max"); params.addValue("max", filter.max()); }
+        if (filter.type() != null && !filter.type().isBlank()) {
+            sql.append(" AND t.type = :type");
+            params.addValue("type", filter.type());
+        }
+        if (filter.status() != null && !filter.status().isBlank()) {
+            sql.append(" AND COALESCE(p.status, cr.status, 'COMPLETED') = :status");
+            params.addValue("status", filter.status());
+        }
+        if (filter.from() != null) {
+            sql.append(" AND t.created_at >= :from");
+            params.addValue("from", filter.from());
+        }
+        if (filter.to() != null) {
+            sql.append(" AND t.created_at <= :to");
+            params.addValue("to", filter.to());
+        }
+        if (filter.min() != null) {
+            sql.append(" AND t.amount >= :min");
+            params.addValue("min", filter.min());
+        }
+        if (filter.max() != null) {
+            sql.append(" AND t.amount <= :max");
+            params.addValue("max", filter.max());
+        }
     }
 
     private void applyCursor(StringBuilder sql, MapSqlParameterSource params, CursorPayload cursor, boolean desc) {

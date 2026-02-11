@@ -55,7 +55,7 @@ public class JpaPayoutRepositoryAdapter implements PayoutRepositoryPort {
     @Override
     @Transactional(readOnly = true)
     public boolean existsRequestedForAgent(AgentId agentId) {
-        Objects.requireNonNull(agentId, "agentId");
+        Objects.requireNonNull(agentId, "agentCode");
         return repo.existsByAgentIdAndStatus(agentId.value(), PayoutStatus.REQUESTED.name());
     }
 
