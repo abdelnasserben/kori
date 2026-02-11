@@ -1,4 +1,4 @@
-package com.kori.application.usecase.query;
+package com.kori.application.query.service;
 
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.port.in.query.BackofficeTransactionQueryUseCase;

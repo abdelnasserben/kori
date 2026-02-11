@@ -73,6 +73,8 @@ public class ClientMeQueryController {
                 d.type(),
                 d.status(),
                 d.amount(),
+                d.fee(),
+                d.totalDebited(),
                 d.currency(),
                 d.merchantCode(),
                 d.originalTransactionId(),

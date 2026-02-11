@@ -65,6 +65,8 @@ public class MerchantMeQueryController {
                 d.type(),
                 d.status(),
                 d.amount(),
+                d.fee(),
+                d.totalDebited(),
                 d.currency(),
                 d.agentCode(),
                 d.clientId(),

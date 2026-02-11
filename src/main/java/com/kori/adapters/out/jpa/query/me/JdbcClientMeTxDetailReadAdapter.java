@@ -24,18 +24,26 @@ public class JdbcClientMeTxDetailReadAdapter implements ClientMeTxDetailReadPort
                        t.type,
                        COALESCE(p.status, cr.status, 'COMPLETED') AS status,
                        t.amount,
+                       owned.total_debited,
+                       (owned.total_debited - t.amount) AS fee,
                        'KMF' AS currency,
                        m.code AS merchant_code,
                        t.original_transaction_id::text AS original_transaction_id,
                        t.created_at
                 FROM transactions t
-                JOIN ledger_entries lec ON lec.transaction_id = t.id
-                        AND lec.account_type = 'CLIENT'
-                        AND lec.owner_ref = :clientId
+                JOIN (
+                      SELECT le.transaction_id,
+                        COALESCE(SUM(CASE WHEN le.entry_type = 'DEBIT' THEN le.amount ELSE 0 END), 0) AS total_debited
+                      FROM ledger_entries le
+                      WHERE le.transaction_id = CAST(:transactionId AS uuid)
+                        AND le.account_type = 'CLIENT'
+                        AND le.owner_ref = :clientId
+                      GROUP BY le.transaction_id
+                ) owned ON owned.transaction_id = t.id
                 LEFT JOIN payouts p ON p.transaction_id = t.id
                 LEFT JOIN client_refunds cr ON cr.transaction_id = t.id
-                LEFT JOIN ledger_entries lem ON lem.transaction_id = t.id AND lem.account_type = 'MERCHANT'
-                LEFT JOIN merchants m ON m.id::text = lem.owner_ref
+                LEFT JOIN ledger_entries merchant_entry ON merchant_entry.transaction_id = t.id AND merchant_entry.account_type = 'MERCHANT'
+                LEFT JOIN merchants m ON m.id::text = merchant_entry.owner_ref
                 WHERE t.id = CAST(:transactionId AS uuid)
                 LIMIT 1
                 """;
@@ -47,6 +55,8 @@ public class JdbcClientMeTxDetailReadAdapter implements ClientMeTxDetailReadPort
                 rs.getString("type"),
                 rs.getString("status"),
                 rs.getBigDecimal("amount"),
+                rs.getBigDecimal("fee"),
+                rs.getBigDecimal("total_debited"),
                 rs.getString("currency"),
                 rs.getString("merchant_code"),
                 rs.getString("original_transaction_id"),

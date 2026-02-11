@@ -109,10 +109,10 @@ class MeQueryControllerWebMvcTest {
         var merchantJwt = jwt().authorities(new SimpleGrantedAuthority("ROLE_MERCHANT")).jwt(j -> j.claim("roles", List.of("MERCHANT")).claim("actor_type", "MERCHANT").claim("actor_id", "m-1"));
 
         when(clientMeTxDetailQueryUseCase.getById(any(), any())).thenReturn(new MeQueryModels.ClientTransactionDetails(
-                "11111111-1111-1111-1111-111111111111", "PAY_BY_CARD", "COMPLETED", new BigDecimal("10.00"), "KMF", "M-001", null, Instant.parse("2025-01-01T00:00:00Z")
+                "11111111-1111-1111-1111-111111111111", "PAY_BY_CARD", "COMPLETED", new BigDecimal("10.00"), new BigDecimal("1.00"), new BigDecimal("11.00"), "KMF", "M-001", null, Instant.parse("2025-01-01T00:00:00Z")
         ));
         when(merchantMeTxDetailQueryUseCase.getById(any(), any())).thenReturn(new MeQueryModels.MerchantTransactionDetails(
-                "11111111-1111-1111-1111-111111111111", "PAY_BY_CARD", "COMPLETED", new BigDecimal("10.00"), "KMF", null, "c-1", null, Instant.parse("2025-01-01T00:00:00Z")
+                "11111111-1111-1111-1111-111111111111", "PAY_BY_CARD", "COMPLETED", new BigDecimal("10.00"), new BigDecimal("2.00"), new BigDecimal("12.00"), "KMF", null, "c-1", null, Instant.parse("2025-01-01T00:00:00Z")
         ));
 
         mockMvc.perform(get(ApiPaths.CLIENT_ME + "/transactions/11111111-1111-1111-1111-111111111111")).andExpect(status().isUnauthorized());
@@ -120,6 +120,8 @@ class MeQueryControllerWebMvcTest {
         mockMvc.perform(get(ApiPaths.CLIENT_ME + "/transactions/11111111-1111-1111-1111-111111111111").with(clientJwt))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.merchantCode").value("M-001"))
+                .andExpect(jsonPath("$.fee").value(1.00))
+                .andExpect(jsonPath("$.totalDebited").value(11.00))
                 .andExpect(jsonPath("$.agentCode").doesNotExist());
 
         when(clientMeTxDetailQueryUseCase.getById(any(), eq("not-a-uuid"))).thenThrow(new ValidationException("Invalid transactionId", java.util.Map.of("field", "transactionId")));
@@ -134,9 +136,17 @@ class MeQueryControllerWebMvcTest {
         mockMvc.perform(get(ApiPaths.CLIENT_ME + "/transactions/33333333-3333-3333-3333-333333333333").with(clientJwt)).andExpect(status().isNotFound());
 
         mockMvc.perform(get(ApiPaths.MERCHANT_ME + "/transactions/11111111-1111-1111-1111-111111111111").with(clientJwt)).andExpect(status().isForbidden());
-        mockMvc.perform(get(ApiPaths.MERCHANT_ME + "/transactions/11111111-1111-1111-1111-111111111111").with(merchantJwt)).andExpect(status().isOk());
+        mockMvc.perform(get(ApiPaths.MERCHANT_ME + "/transactions/11111111-1111-1111-1111-111111111111").with(merchantJwt))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fee").value(2.00))
+                .andExpect(jsonPath("$.totalDebited").value(12.00));
 
         when(merchantMeTxDetailQueryUseCase.getById(any(), eq("22222222-2222-2222-2222-222222222222"))).thenThrow(new ForbiddenOperationException("Forbidden operation"));
         mockMvc.perform(get(ApiPaths.MERCHANT_ME + "/transactions/22222222-2222-2222-2222-222222222222").with(merchantJwt)).andExpect(status().isForbidden());
+
+        when(merchantMeTxDetailQueryUseCase.getById(any(), eq("33333333-3333-3333-3333-333333333333"))).thenThrow(new NotFoundException("Transaction not found"));
+        mockMvc.perform(get(ApiPaths.MERCHANT_ME + "/transactions/33333333-3333-3333-3333-333333333333")
+                .with(merchantJwt))
+                .andExpect(status().isNotFound());
     }
 }
