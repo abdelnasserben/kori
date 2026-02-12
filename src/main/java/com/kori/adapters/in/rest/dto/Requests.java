@@ -120,6 +120,11 @@ public final class Requests {
             @Size(max = 255) String reason
     ) {}
 
+    public record UpdatePlatformConfigRequest(
+            @NotNull @PositiveOrZero BigDecimal agentCashLimitGlobal,
+            @Size(max = 255) String reason
+    ) {}
+
     public record FailPayoutRequest(@NotBlank @Size(max = 255) String reason) {}
 
     public record RequestClientRefundRequest(@NotBlank String clientId) {}

@@ -177,6 +177,7 @@ POST `/api/v1/client-refunds/requests` (idempotent)
 
 PATCH `/api/v1/config/fees`
 PATCH `/api/v1/config/commissions`
+PATCH `/api/v1/config/platform` (includes `agentCashLimitGlobal`)
 
 All financial parameters are dynamic and configurable.
 

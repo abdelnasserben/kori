@@ -6,8 +6,10 @@ import com.kori.adapters.in.rest.dto.Requests.UpdateFeeConfigRequest;
 import com.kori.adapters.in.rest.error.RestExceptionHandler;
 import com.kori.application.port.in.UpdateCommissionConfigUseCase;
 import com.kori.application.port.in.UpdateFeeConfigUseCase;
+import com.kori.application.port.in.UpdatePlatformConfigUseCase;
 import com.kori.application.result.UpdateCommissionConfigResult;
 import com.kori.application.result.UpdateFeeConfigResult;
+import com.kori.application.result.UpdatePlatformConfigResult;
 import com.kori.bootstrap.config.JacksonConfig;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -44,6 +46,9 @@ class ConfigControllerWebMvcTest extends BaseWebMvcTest {
 
     @MockitoBean
     private UpdateCommissionConfigUseCase updateCommissionConfigUseCase;
+
+    @MockitoBean
+    private UpdatePlatformConfigUseCase updatePlatformConfigUseCase;
 
     @Test
     void should_update_fee_config() throws Exception {
@@ -124,6 +129,27 @@ class ConfigControllerWebMvcTest extends BaseWebMvcTest {
                 .andExpect(jsonPath("$.merchantWithdrawCommissionMin").value(1))
                 .andExpect(jsonPath("$.merchantWithdrawCommissionMax").value(10));
     }
+
+    @Test
+    void should_update_platform_config() throws Exception {
+        var request = new com.kori.adapters.in.rest.dto.Requests.UpdatePlatformConfigRequest(
+                new BigDecimal("1000"),
+                "policy"
+        );
+        var result = new UpdatePlatformConfigResult(new BigDecimal("1000"));
+        when(updatePlatformConfigUseCase.execute(any())).thenReturn(result);
+
+        mockMvc.perform(patch(URL + "/platform")
+                        .with(jwt().jwt(jwt -> jwt
+                                .claim(ACTOR_TYPE_KEY, ACTOR_TYPE)
+                                .claim(ACTOR_ID_KEY, ACTOR_ID)
+                        ))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.agentCashLimitGlobal").value(1000));
+    }
+
 
     @Test
     void should_return_400_when_request_is_invalid() throws Exception {

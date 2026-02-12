@@ -650,6 +650,19 @@ public class ApplicationWiringConfig {
         );
     }
 
+    @Bean
+    public UpdatePlatformConfigUseCase updatePlatformConfigUseCase(
+            PlatformConfigPort platformConfigPort,
+            AuditPort auditPort,
+            TimeProviderPort timeProviderPort
+    ) {
+        return new UpdatePlatformConfigService(
+                platformConfigPort,
+                auditPort,
+                timeProviderPort
+        );
+    }
+
     // -----------------------------
     // Policy and Guard
     // -----------------------------

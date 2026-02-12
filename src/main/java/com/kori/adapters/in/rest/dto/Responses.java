@@ -143,4 +143,8 @@ public final class Responses {
             BigDecimal merchantWithdrawCommissionMin,
             BigDecimal merchantWithdrawCommissionMax
     ) {}
+
+    public record UpdatePlatformConfigResponse(
+            BigDecimal agentCashLimitGlobal
+    ) {}
 }

@@ -54,6 +54,7 @@ class SecurityEndpointsWebMvcTest {
 
     @MockitoBean private UpdateFeeConfigUseCase updateFeeConfigUseCase;
     @MockitoBean private UpdateCommissionConfigUseCase updateCommissionConfigUseCase;
+    @MockitoBean private UpdatePlatformConfigUseCase updatePlatformConfigUseCase;
 
     @Test
     void critical_endpoints_require_token_and_expected_role() throws Exception {
@@ -74,6 +75,8 @@ class SecurityEndpointsWebMvcTest {
                         new BigDecimal("0.01"), new BigDecimal("1"), new BigDecimal("5"),
                         false, false, false
                 ));
+        when(updatePlatformConfigUseCase.execute(any()))
+                .thenReturn(new UpdatePlatformConfigResult(new BigDecimal("1000")));
 
         // success tokens (bon rôle + actor claims)
         var adminJwt = jwtWithActorAndRoles("ADMIN", List.of("ADMIN"));
@@ -89,6 +92,7 @@ class SecurityEndpointsWebMvcTest {
         assertAgentBankDeposit(adminJwt, wrongAsAgent);
         assertPayoutRequest(adminJwt, wrongAsAgent);
         assertUpdateFees(adminJwt, wrongAsAgent);
+        assertUpdatePlatform(adminJwt, wrongAsAgent);
     }
 
     @Test
@@ -137,8 +141,8 @@ class SecurityEndpointsWebMvcTest {
                 .andExpect(status().isCreated());
     }
 
-    private void assertPaymentCard(org.springframework.test.web.servlet.request.RequestPostProcessor successJwt,
-                                   org.springframework.test.web.servlet.request.RequestPostProcessor wrongRoleJwt) throws Exception {
+    private void assertPaymentCard(RequestPostProcessor successJwt,
+                                   RequestPostProcessor wrongRoleJwt) throws Exception {
         var request = new PayByCardRequest("terminal-1", "card-1", "1234", new BigDecimal("10"));
         var payload = objectMapper.writeValueAsString(request);
 
@@ -174,8 +178,8 @@ class SecurityEndpointsWebMvcTest {
                 .andExpect(status().isCreated());
     }
 
-    private void assertMerchantWithdraw(org.springframework.test.web.servlet.request.RequestPostProcessor successJwt,
-                                        org.springframework.test.web.servlet.request.RequestPostProcessor wrongRoleJwt) throws Exception {
+    private void assertMerchantWithdraw(RequestPostProcessor successJwt,
+                                        RequestPostProcessor wrongRoleJwt) throws Exception {
         var request = new MerchantWithdrawAtAgentRequest("M-1", "A-1", new BigDecimal("10"));
         var payload = objectMapper.writeValueAsString(request);
 
@@ -208,8 +212,8 @@ class SecurityEndpointsWebMvcTest {
                 .andExpect(status().isCreated());
     }
 
-    private void assertAgentBankDeposit(org.springframework.test.web.servlet.request.RequestPostProcessor adminJwt,
-                                        org.springframework.test.web.servlet.request.RequestPostProcessor wrongRoleJwt) throws Exception {
+    private void assertAgentBankDeposit(RequestPostProcessor adminJwt,
+                                        RequestPostProcessor wrongRoleJwt) throws Exception {
         var request = new AgentBankDepositReceiptRequest("A-1", new BigDecimal("10"));
         var payload = objectMapper.writeValueAsString(request);
 
@@ -242,8 +246,8 @@ class SecurityEndpointsWebMvcTest {
                 .andExpect(status().isCreated());
     }
 
-    private void assertPayoutRequest(org.springframework.test.web.servlet.request.RequestPostProcessor adminJwt,
-                                     org.springframework.test.web.servlet.request.RequestPostProcessor wrongRoleJwt) throws Exception {
+    private void assertPayoutRequest(RequestPostProcessor adminJwt,
+                                     RequestPostProcessor wrongRoleJwt) throws Exception {
         var request = new RequestAgentPayoutRequest("A-1");
         var payload = objectMapper.writeValueAsString(request);
 
@@ -276,8 +280,8 @@ class SecurityEndpointsWebMvcTest {
                 .andExpect(status().isCreated());
     }
 
-    private void assertUpdateFees(org.springframework.test.web.servlet.request.RequestPostProcessor adminJwt,
-                                  org.springframework.test.web.servlet.request.RequestPostProcessor wrongRoleJwt) throws Exception {
+    private void assertUpdateFees(RequestPostProcessor adminJwt,
+                                  RequestPostProcessor wrongRoleJwt) throws Exception {
         var request = new UpdateFeeConfigRequest(
                 new BigDecimal("10"), new BigDecimal("0.01"), new BigDecimal("1"), new BigDecimal("5"),
                 new BigDecimal("0.01"), new BigDecimal("1"), new BigDecimal("5"),
@@ -305,6 +309,31 @@ class SecurityEndpointsWebMvcTest {
                 .andExpect(jsonPath("$.path").exists());
 
         mockMvc.perform(patch(ApiPaths.CONFIG + "/fees")
+                        .with(adminJwt)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isOk());
+    }
+
+    private void assertUpdatePlatform(RequestPostProcessor adminJwt,
+                                      RequestPostProcessor wrongRoleJwt) throws Exception {
+        var request = new UpdatePlatformConfigRequest(new BigDecimal("1000"), "test");
+        var payload = objectMapper.writeValueAsString(request);
+
+        mockMvc.perform(patch(ApiPaths.CONFIG + "/platform")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+
+        mockMvc.perform(patch(ApiPaths.CONFIG + "/platform")
+                        .with(wrongRoleJwt)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("FORBIDDEN_OPERATION"));
+
+        mockMvc.perform(patch(ApiPaths.CONFIG + "/platform")
                         .with(adminJwt)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))

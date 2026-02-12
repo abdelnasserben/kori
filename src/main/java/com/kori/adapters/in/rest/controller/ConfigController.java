@@ -3,12 +3,16 @@ package com.kori.adapters.in.rest.controller;
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.dto.Requests.UpdateCommissionConfigRequest;
 import com.kori.adapters.in.rest.dto.Requests.UpdateFeeConfigRequest;
+import com.kori.adapters.in.rest.dto.Requests.UpdatePlatformConfigRequest;
 import com.kori.adapters.in.rest.dto.Responses.UpdateCommissionConfigResponse;
 import com.kori.adapters.in.rest.dto.Responses.UpdateFeeConfigResponse;
+import com.kori.adapters.in.rest.dto.Responses.UpdatePlatformConfigResponse;
 import com.kori.application.command.UpdateCommissionConfigCommand;
 import com.kori.application.command.UpdateFeeConfigCommand;
+import com.kori.application.command.UpdatePlatformConfigCommand;
 import com.kori.application.port.in.UpdateCommissionConfigUseCase;
 import com.kori.application.port.in.UpdateFeeConfigUseCase;
+import com.kori.application.port.in.UpdatePlatformConfigUseCase;
 import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -25,11 +29,13 @@ public class ConfigController {
 
     private final UpdateFeeConfigUseCase updateFeeConfigUseCase;
     private final UpdateCommissionConfigUseCase updateCommissionConfigUseCase;
+    private final UpdatePlatformConfigUseCase updatePlatformConfigUseCase;
 
     public ConfigController(UpdateFeeConfigUseCase updateFeeConfigUseCase,
-                            UpdateCommissionConfigUseCase updateCommissionConfigUseCase) {
+                            UpdateCommissionConfigUseCase updateCommissionConfigUseCase, UpdatePlatformConfigUseCase updatePlatformConfigUseCase) {
         this.updateFeeConfigUseCase = updateFeeConfigUseCase;
         this.updateCommissionConfigUseCase = updateCommissionConfigUseCase;
+        this.updatePlatformConfigUseCase = updatePlatformConfigUseCase;
     }
 
     @PatchMapping("/fees")
@@ -86,5 +92,19 @@ public class ConfigController {
                 result.merchantWithdrawCommissionMin(),
                 result.merchantWithdrawCommissionMax()
         );
+    }
+
+    @PatchMapping("/platform")
+    @Operation(summary = "Update platform config")
+    public UpdatePlatformConfigResponse updatePlatformConfig(
+            ActorContext actorContext,
+            @Valid @RequestBody UpdatePlatformConfigRequest request
+    ) {
+        var result = updatePlatformConfigUseCase.execute(new UpdatePlatformConfigCommand(
+                actorContext,
+                request.agentCashLimitGlobal(),
+                request.reason()
+        ));
+        return new UpdatePlatformConfigResponse(result.agentCashLimitGlobal());
     }
 }

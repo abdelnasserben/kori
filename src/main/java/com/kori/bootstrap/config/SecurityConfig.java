@@ -64,6 +64,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/account-profiles/status").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/config/fees").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/config/commissions").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, API_VERSION + "/config/platform").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/client-refunds/requests").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/client-refunds/*/complete").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/client-refunds/*/fail").hasRole("ADMIN")
