@@ -20,7 +20,6 @@ import com.kori.domain.model.common.Status;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 
 public final class AgentUpdateCardStatusService implements AgentUpdateCardStatusUseCase {
 
@@ -91,8 +90,8 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
         return new UpdateCardStatusResult(cmd.cardUid(), before, card.status().name());
     }
 
-    private Card getCard(UUID cardUid) {
-        return cardRepositoryPort.findByCardUid(cardUid.toString())
+    private Card getCard(String cardUid) {
+        return cardRepositoryPort.findByCardUid(cardUid)
                 .orElseThrow(() -> new NotFoundException("Card not found"));
     }
 }

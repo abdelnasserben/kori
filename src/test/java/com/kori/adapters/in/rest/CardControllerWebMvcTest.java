@@ -22,7 +22,6 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.math.BigDecimal;
-import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -118,7 +117,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
 
     @Test
     void should_admin_update_card_status() throws Exception {
-        var cardUid = UUID.fromString("11111111-1111-1111-1111-111111111111");
+        var cardUid = "04A1B2C3D4E5F6A7B8C9D";
         var request = new UpdateStatusRequest("BLOCKED", "fraud");
         var result = new UpdateCardStatusResult(cardUid, "ACTIVE", "BLOCKED");
         when(adminUpdateCardStatusUseCase.execute(any())).thenReturn(result);
@@ -131,14 +130,14 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subjectId").value(cardUid.toString()))
+                .andExpect(jsonPath("$.subjectId").value(cardUid))
                 .andExpect(jsonPath("$.previousStatus").value("ACTIVE"))
                 .andExpect(jsonPath("$.newStatus").value("BLOCKED"));
     }
 
     @Test
     void should_admin_unblock_card() throws Exception {
-        var cardUid = UUID.fromString("22222222-2222-2222-2222-222222222222");
+        var cardUid = "04A1B2C3D4E5F6A7B8C9D";
         var result = new UpdateCardStatusResult(cardUid, "BLOCKED", "ACTIVE");
         when(adminUnblockCardUseCase.execute(any())).thenReturn(result);
 
@@ -148,14 +147,14 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
                         .claim(ACTOR_ID_KEY, ACTOR_ID)
                         )))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subjectId").value(cardUid.toString()))
+                .andExpect(jsonPath("$.subjectId").value(cardUid))
                 .andExpect(jsonPath("$.previousStatus").value("BLOCKED"))
                 .andExpect(jsonPath("$.newStatus").value("ACTIVE"));
     }
 
     @Test
     void should_agent_update_card_status() throws Exception {
-        var cardUid = UUID.fromString("33333333-3333-3333-3333-333333333333");
+        var cardUid = "04A1B2C3D4E5F6A7B8C9D";
         var request = new AgentCardStatusRequest("agent-1", "BLOCKED", "lost");
         var result = new UpdateCardStatusResult(cardUid, "ACTIVE", "BLOCKED");
         when(agentUpdateCardStatusUseCase.execute(any())).thenReturn(result);
@@ -168,7 +167,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subjectId").value(cardUid.toString()))
+                .andExpect(jsonPath("$.subjectId").value(cardUid))
                 .andExpect(jsonPath("$.previousStatus").value("ACTIVE"))
                 .andExpect(jsonPath("$.newStatus").value("BLOCKED"));
     }

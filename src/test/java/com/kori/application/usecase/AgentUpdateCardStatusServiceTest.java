@@ -59,7 +59,7 @@ final class AgentUpdateCardStatusServiceTest {
 
     private static final UUID AGENT_UUID = UUID.fromString("11111111-1111-1111-1111-111111111111");
 
-    private static final UUID CARD_UID = UUID.fromString("22222222-2222-2222-2222-222222222222"); // command uses UUID
+    private static final String CARD_UID = "04A1B2C3D4E5F6A7B8C9D";
     private static final UUID CARD_ID_UUID = UUID.fromString("33333333-3333-3333-3333-333333333333");
     private static final UUID CLIENT_UUID = UUID.fromString("44444444-4444-4444-4444-444444444444");
 
@@ -86,7 +86,7 @@ final class AgentUpdateCardStatusServiceTest {
         return new Card(
                 new CardId(CARD_ID_UUID),
                 new ClientId(CLIENT_UUID),
-                CARD_UID.toString(),           // IMPORTANT: repo lookup uses CARD_UID.toString()
+                CARD_UID,           // IMPORTANT: repo lookup uses CARD_UID.toString()
                 new HashedPin("HASHED"),
                 status,
                 0,
@@ -94,13 +94,13 @@ final class AgentUpdateCardStatusServiceTest {
         );
     }
 
-    private static AgentUpdateCardStatusCommand cmd(ActorContext actor, String targetStatus, String reason) {
+    private static AgentUpdateCardStatusCommand cmd(ActorContext actor, String targetStatus) {
         return new AgentUpdateCardStatusCommand(
                 actor,
                 CARD_UID,
                 AGENT_CODE_RAW,
                 targetStatus,
-                reason
+                REASON
         );
     }
 
@@ -109,7 +109,7 @@ final class AgentUpdateCardStatusServiceTest {
     @Test
     void forbidden_whenActorIsNotAgent() {
         assertThrows(ForbiddenOperationException.class, () ->
-                service.execute(cmd(adminActor(), CardStatus.BLOCKED.name(), REASON))
+                service.execute(cmd(adminActor(), CardStatus.BLOCKED.name()))
         );
 
         verifyNoInteractions(timeProviderPort, agentRepositoryPort, cardRepositoryPort, auditPort);
@@ -118,7 +118,7 @@ final class AgentUpdateCardStatusServiceTest {
     @Test
     void forbidden_whenTargetStatusIsNotBlockedOrLost() {
         assertThrows(ForbiddenOperationException.class, () ->
-                service.execute(cmd(agentActor(), CardStatus.ACTIVE.name(), REASON))
+                service.execute(cmd(agentActor(), CardStatus.ACTIVE.name()))
         );
 
         // validation happens before any repo call
@@ -130,7 +130,7 @@ final class AgentUpdateCardStatusServiceTest {
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () ->
-                service.execute(cmd(agentActor(), CardStatus.BLOCKED.name(), REASON))
+                service.execute(cmd(agentActor(), CardStatus.BLOCKED.name()))
         );
 
         verify(agentRepositoryPort).findByCode(AGENT_CODE);
@@ -142,7 +142,7 @@ final class AgentUpdateCardStatusServiceTest {
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(suspendedAgent()));
 
         assertThrows(ForbiddenOperationException.class, () ->
-                service.execute(cmd(agentActor(), CardStatus.BLOCKED.name(), REASON))
+                service.execute(cmd(agentActor(), CardStatus.BLOCKED.name()))
         );
 
         verify(agentRepositoryPort).findByCode(AGENT_CODE);
@@ -152,14 +152,14 @@ final class AgentUpdateCardStatusServiceTest {
     @Test
     void throwsNotFound_whenCardDoesNotExist() {
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(activeAgent()));
-        when(cardRepositoryPort.findByCardUid(CARD_UID.toString())).thenReturn(Optional.empty());
+        when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () ->
-                service.execute(cmd(agentActor(), CardStatus.BLOCKED.name(), REASON))
+                service.execute(cmd(agentActor(), CardStatus.BLOCKED.name()))
         );
 
         verify(agentRepositoryPort).findByCode(AGENT_CODE);
-        verify(cardRepositoryPort).findByCardUid(CARD_UID.toString());
+        verify(cardRepositoryPort).findByCardUid(CARD_UID);
         verifyNoInteractions(timeProviderPort, auditPort);
         verify(cardRepositoryPort, never()).save(any());
     }
@@ -169,12 +169,12 @@ final class AgentUpdateCardStatusServiceTest {
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(activeAgent()));
 
         Card card = cardWithStatus(CardStatus.ACTIVE);
-        when(cardRepositoryPort.findByCardUid(CARD_UID.toString())).thenReturn(Optional.of(card));
+        when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(card));
         when(cardRepositoryPort.save(any(Card.class))).thenAnswer(inv -> inv.getArgument(0));
 
         when(timeProviderPort.now()).thenReturn(NOW);
 
-        UpdateCardStatusResult out = service.execute(cmd(agentActor(), CardStatus.BLOCKED.name(), REASON));
+        UpdateCardStatusResult out = service.execute(cmd(agentActor(), CardStatus.BLOCKED.name()));
 
         assertEquals(CARD_UID, out.cardUid());
         assertEquals(CardStatus.ACTIVE.name(), out.previousStatus());
@@ -202,12 +202,12 @@ final class AgentUpdateCardStatusServiceTest {
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(activeAgent()));
 
         Card card = cardWithStatus(CardStatus.ACTIVE);
-        when(cardRepositoryPort.findByCardUid(CARD_UID.toString())).thenReturn(Optional.of(card));
+        when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(card));
         when(cardRepositoryPort.save(any(Card.class))).thenAnswer(inv -> inv.getArgument(0));
 
         when(timeProviderPort.now()).thenReturn(NOW);
 
-        UpdateCardStatusResult out = service.execute(cmd(agentActor(), CardStatus.LOST.name(), REASON));
+        UpdateCardStatusResult out = service.execute(cmd(agentActor(), CardStatus.LOST.name()));
 
         assertEquals(CARD_UID, out.cardUid());
         assertEquals(CardStatus.ACTIVE.name(), out.previousStatus());
@@ -235,10 +235,10 @@ final class AgentUpdateCardStatusServiceTest {
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(activeAgent()));
 
         Card card = cardWithStatus(CardStatus.LOST);
-        when(cardRepositoryPort.findByCardUid(CARD_UID.toString())).thenReturn(Optional.of(card));
+        when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(card));
 
         assertThrows(InvalidStatusTransitionException.class, () ->
-                service.execute(cmd(agentActor(), CardStatus.BLOCKED.name(), REASON))
+                service.execute(cmd(agentActor(), CardStatus.BLOCKED.name()))
         );
 
         // domain throws before save/audit

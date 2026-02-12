@@ -16,7 +16,6 @@ import com.kori.domain.model.card.CardStatus;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
-import java.util.UUID;
 
 public final class AdminUpdateCardStatusService implements AdminUpdateCardStatusUseCase {
 
@@ -78,8 +77,8 @@ public final class AdminUpdateCardStatusService implements AdminUpdateCardStatus
         return new UpdateCardStatusResult(cmd.cardUid(), before, cmd.targetStatus());
     }
 
-    private Card getCard(UUID cardUid) {
-        return cardRepositoryPort.findByCardUid(cardUid.toString())
+    private Card getCard(String cardUid) {
+        return cardRepositoryPort.findByCardUid(cardUid)
                 .orElseThrow(() -> new NotFoundException("Card not found"));
     }
 }

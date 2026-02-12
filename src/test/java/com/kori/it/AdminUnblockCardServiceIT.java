@@ -8,8 +8,6 @@ import com.kori.domain.model.client.Client;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import java.util.UUID;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -21,8 +19,8 @@ class AdminUnblockCardServiceIT extends IntegrationTestBase {
     @Test
     void adminUnblockCard_unblocksCardAndWritesAudit() {
         Client client = createActiveClient("+262700000333");
-        UUID cardUid = UUID.randomUUID();
-        createCardWithStatus(client, cardUid.toString(), "1234", CardStatus.BLOCKED, 2);
+        String cardUid = "04A1B2C3D4E5F6A7B8C9D";
+        createCardWithStatus(client, cardUid, "1234", CardStatus.BLOCKED, 2);
 
         adminUnblockCardUseCase.execute(new AdminUnblockCardCommand(
                 adminActor(),
@@ -30,7 +28,7 @@ class AdminUnblockCardServiceIT extends IntegrationTestBase {
                 "test"
         ));
 
-        Card updated = cardRepositoryPort.findByCardUid(cardUid.toString()).orElseThrow();
+        Card updated = cardRepositoryPort.findByCardUid(cardUid).orElseThrow();
         assertEquals(CardStatus.ACTIVE, updated.status());
         assertEquals(0, updated.failedPinAttempts());
 

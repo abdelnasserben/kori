@@ -13,7 +13,6 @@ import com.kori.domain.model.card.Card;
 
 import java.time.Instant;
 import java.util.Map;
-import java.util.UUID;
 
 public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
 
@@ -60,8 +59,8 @@ public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
         return new UpdateCardStatusResult(cmd.cardUid(), before, card.status().name());
     }
 
-    private Card getCard(UUID cardUid) {
-        return cardRepositoryPort.findByCardUid(cardUid.toString())
+    private Card getCard(String cardUid) {
+        return cardRepositoryPort.findByCardUid(cardUid)
                 .orElseThrow(() -> new NotFoundException("Card not found"));
     }
 }

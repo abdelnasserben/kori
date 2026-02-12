@@ -1,9 +1,7 @@
 package com.kori.application.result;
 
-import java.util.UUID;
-
 public record UpdateCardStatusResult(
-        UUID cardUid,
+        String cardUid,
         String previousStatus,
         String newStatus
 ) {}

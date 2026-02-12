@@ -3,16 +3,15 @@ package com.kori.application.command;
 import com.kori.application.security.ActorContext;
 
 import java.util.Objects;
-import java.util.UUID;
 
 public record AdminUpdateCardStatusCommand(
         ActorContext actorContext,
-        UUID cardUid,
+        String cardUid,
         String targetStatus, // must be ACTIVE, INACTIVE or SUSPENDED
         String reason) {
 
     public AdminUpdateCardStatusCommand(ActorContext actorContext,
-                                        UUID cardUid,
+                                        String cardUid,
                                         String targetStatus,
                                         String reason) {
         this.actorContext = Objects.requireNonNull(actorContext);

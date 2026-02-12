@@ -49,7 +49,7 @@ final class AdminUnblockCardServiceTest {
     private static final String ADMIN_ID = "admin-actor";
     private static final String AGENT_ID = "agent-actor";
 
-    private static final UUID CARD_UID = UUID.fromString("11111111-1111-1111-1111-111111111111");
+    private static final String CARD_UID = "04A1B2C3D4E5F6A7B8C9D";
     private static final UUID CARD_ID_UUID = UUID.fromString("22222222-2222-2222-2222-222222222222");
     private static final UUID CLIENT_ID_UUID = UUID.fromString("33333333-3333-3333-3333-333333333333");
 
@@ -72,7 +72,7 @@ final class AdminUnblockCardServiceTest {
         return new Card(
                 new CardId(CARD_ID_UUID),
                 new ClientId(CLIENT_ID_UUID),
-                CARD_UID.toString(),
+                CARD_UID,
                 new HashedPin("HASHED"),
                 status,
                 failedAttempts,
@@ -93,13 +93,13 @@ final class AdminUnblockCardServiceTest {
 
     @Test
     void throwsNotFound_whenCardDoesNotExist() {
-        when(cardRepositoryPort.findByCardUid(CARD_UID.toString())).thenReturn(Optional.empty());
+        when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () ->
                 service.execute(cmd(adminActor(), REASON))
         );
 
-        verify(cardRepositoryPort).findByCardUid(CARD_UID.toString());
+        verify(cardRepositoryPort).findByCardUid(CARD_UID);
         verifyNoInteractions(timeProviderPort, auditPort);
         verify(cardRepositoryPort, never()).save(any(Card.class));
     }
@@ -108,7 +108,7 @@ final class AdminUnblockCardServiceTest {
     void throwsInvalidStatusTransition_whenCardIsNotBlocked() {
         Card active = card(CardStatus.ACTIVE, 2);
 
-        when(cardRepositoryPort.findByCardUid(CARD_UID.toString())).thenReturn(Optional.of(active));
+        when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(active));
 
         assertThrows(InvalidStatusTransitionException.class, () ->
                 service.execute(cmd(adminActor(), REASON))
@@ -122,7 +122,7 @@ final class AdminUnblockCardServiceTest {
     void happyPath_unblocksBlockedCard_resetsPinAttempts_saves_audits_andReturnsResult() {
         Card blocked = card(CardStatus.BLOCKED, 3);
 
-        when(cardRepositoryPort.findByCardUid(CARD_UID.toString())).thenReturn(Optional.of(blocked));
+        when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(blocked));
         when(cardRepositoryPort.save(any(Card.class))).thenAnswer(inv -> inv.getArgument(0));
         when(timeProviderPort.now()).thenReturn(NOW);
 
@@ -159,7 +159,7 @@ final class AdminUnblockCardServiceTest {
     void reasonDefaultsToNA_whenBlank() {
         Card blocked = card(CardStatus.BLOCKED, 1);
 
-        when(cardRepositoryPort.findByCardUid(CARD_UID.toString())).thenReturn(Optional.of(blocked));
+        when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(blocked));
         when(cardRepositoryPort.save(any(Card.class))).thenAnswer(inv -> inv.getArgument(0));
         when(timeProviderPort.now()).thenReturn(NOW);
 

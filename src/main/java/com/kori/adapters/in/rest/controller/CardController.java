@@ -20,8 +20,6 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.UUID;
-
 @RestController
 @RequestMapping(ApiPaths.CARDS)
 @Tag(name = "Cards")
@@ -116,12 +114,12 @@ public class CardController {
         var result = adminUpdateCardStatusUseCase.execute(
                 new AdminUpdateCardStatusCommand(
                         actorContext,
-                        UUID.fromString(cardUid),
+                        cardUid,
                         request.targetStatus(),
                         request.reason()
                 )
         );
-        return new UpdateStatusResponse(result.cardUid().toString(), result.previousStatus(), result.newStatus());
+        return new UpdateStatusResponse(result.cardUid(), result.previousStatus(), result.newStatus());
     }
 
     @PostMapping("/{cardUid}/unblock")
@@ -135,11 +133,11 @@ public class CardController {
         var result = adminUnblockCardUseCase.execute(
                 new AdminUnblockCardCommand(
                         actorContext,
-                        UUID.fromString(cardUid),
+                        cardUid,
                         reason
                 )
         );
-        return new UpdateStatusResponse(result.cardUid().toString(), result.previousStatus(), result.newStatus());
+        return new UpdateStatusResponse(result.cardUid(), result.previousStatus(), result.newStatus());
     }
 
     @PatchMapping("/{cardUid}/status/agent")
@@ -152,12 +150,12 @@ public class CardController {
         var result = agentUpdateCardStatusUseCase.execute(
                 new AgentUpdateCardStatusCommand(
                         actorContext,
-                        UUID.fromString(cardUid),
+                        cardUid,
                         request.agentCode(),
                         request.targetStatus(),
                         request.reason()
                 )
         );
-        return new UpdateStatusResponse(result.cardUid().toString(), result.previousStatus(), result.newStatus());
+        return new UpdateStatusResponse(result.cardUid(), result.previousStatus(), result.newStatus());
     }
 }
