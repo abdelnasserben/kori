@@ -248,9 +248,9 @@ Supported filters:
 * type
 * status
 * actorType
-* actorId
-* merchantId
-* agentId
+* actorRef
+* merchantCode
+* agentCode
 * terminalUid
 * cardUid
 * clientPhone
@@ -274,8 +274,8 @@ Response includes:
   "status": "...",
   "amount": 1500.00,
   "currency": "KMF",
-  "merchantId": "...",
-  "agentId": "...",
+  "merchantCode": "...",
+  "agentCode": "...",
   "clientPhone": "...",
   "terminalUid": "...",
   "cardUid": "...",

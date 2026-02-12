@@ -3,7 +3,6 @@ package com.kori.bootstrap.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.in.rest.error.SecurityAccessDeniedHandler;
 import com.kori.adapters.in.rest.error.SecurityAuthenticationEntryPoint;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -15,7 +14,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
 import java.util.*;
@@ -24,22 +22,16 @@ import java.util.stream.Stream;
 
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties(KoriSecurityProperties.class)
 public class SecurityConfig {
 
     private static final String API_VERSION = "/api/v1";
-
-    private final KoriSecurityProperties securityProperties;
-
-    public SecurityConfig(KoriSecurityProperties securityProperties) {
-        this.securityProperties = securityProperties;
-    }
 
     @Bean
     SecurityFilterChain securityFilterChain(
             HttpSecurity http,
             SecurityAuthenticationEntryPoint authenticationEntryPoint,
-            SecurityAccessDeniedHandler accessDeniedHandler) throws Exception {
+            SecurityAccessDeniedHandler accessDeniedHandler
+    ) throws Exception {
         return http
                 .csrf(AbstractHttpConfigurer::disable)
                 .httpBasic(AbstractHttpConfigurer::disable)
@@ -51,7 +43,13 @@ public class SecurityConfig {
                         .accessDeniedHandler(accessDeniedHandler)
                 )
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api-docs/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html", "/actuator/health/**").permitAll()
+                        .requestMatchers(
+                                "/api-docs/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui/**",
+                                "/swagger-ui.html",
+                                "/actuator/health/**"
+                        ).permitAll()
 
                         // Admin controllers
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/admins").hasRole("ADMIN")
@@ -89,7 +87,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/ledger/balance").hasAnyRole("ADMIN", "AGENT", "MERCHANT", "CLIENT")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/ledger/transactions/search").hasAnyRole("ADMIN", "AGENT", "MERCHANT", "CLIENT")
 
-                        // Backoffice terminalUid endpoints
+                        // Backoffice endpoints
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/transactions/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/audit-events").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/agents/**").hasRole("ADMIN")
@@ -97,11 +95,11 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/merchants/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/lookups").hasRole("ADMIN")
 
-                        // Agent terminalUid endpoints
+                        // Agent endpoints
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/agent/me/**").hasRole("AGENT")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/agent/search").hasRole("AGENT")
 
-                        // "ME" terminalUid endpoints
+                        // "ME" endpoints
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/client/me/**").hasRole("CLIENT")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/merchant/me/**").hasRole("MERCHANT")
 
@@ -109,7 +107,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/cards/*/status/admin").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/cards/*/unblock").hasRole("ADMIN")
 
-                        .anyRequest().denyAll())
+                        .anyRequest().denyAll()
+                )
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 .build();
     }
@@ -125,45 +124,18 @@ public class SecurityConfig {
     }
 
     private JwtAuthenticationConverter jwtAuthenticationConverter() {
-        var authoritiesConverter = new JwtGrantedAuthoritiesConverter();
-        authoritiesConverter.setAuthoritiesClaimName("roles");
-        authoritiesConverter.setAuthorityPrefix("ROLE_");
-
         var authenticationConverter = new JwtAuthenticationConverter();
         authenticationConverter.setJwtGrantedAuthoritiesConverter(jwt -> {
-            Collection<GrantedAuthority> directAuthorities = authoritiesConverter.convert(jwt);
-            Set<GrantedAuthority> mergedAuthorities = new LinkedHashSet<>();
-            if (directAuthorities != null) {
-                mergedAuthorities.addAll(directAuthorities);
-            }
-            mergedAuthorities.addAll(extractRealmRoles(jwt));
-            mergedAuthorities.addAll(extractResourceRoles(jwt, securityProperties.getKeycloak().getClientId()));
-
-            return mergedAuthorities;
+            Set<GrantedAuthority> merged = new LinkedHashSet<>();
+            merged.addAll(extractRealmRoles(jwt)); // <-- Keycloak realm roles: realm_access.roles
+            return merged;
         });
-
         return authenticationConverter;
     }
 
     private Collection<? extends GrantedAuthority> extractRealmRoles(Jwt jwt) {
         Map<String, Object> realmAccess = jwt.getClaim("realm_access");
         return toAuthorities(extractRolesFromAccessMap(realmAccess));
-    }
-
-    private Collection<? extends GrantedAuthority> extractResourceRoles(Jwt jwt, String clientId) {
-        Map<String, Object> resourceAccess = jwt.getClaim("resource_access");
-        if (resourceAccess == null) {
-            return List.of();
-        }
-
-        Object clientAccess = resourceAccess.get(clientId);
-        if (!(clientAccess instanceof Map<?, ?> clientAccessMap)) {
-            return List.of();
-        }
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> typedClientAccess = (Map<String, Object>) clientAccessMap;
-        return toAuthorities(extractRolesFromAccessMap(typedClientAccess));
     }
 
     private Collection<String> extractRolesFromAccessMap(Map<String, Object> accessMap) {
