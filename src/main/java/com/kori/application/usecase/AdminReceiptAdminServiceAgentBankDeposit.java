@@ -1,19 +1,17 @@
 package com.kori.application.usecase;
 
-import com.kori.application.command.AgentBankDepositReceiptCommand;
-import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.command.AdminReceiptAgentBankDepositCommand;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
+import com.kori.application.guard.ActorStatusGuards;
 import com.kori.application.idempotency.IdempotencyExecutor;
-import com.kori.application.port.in.AgentBankDepositReceiptUseCase;
+import com.kori.application.port.in.AdminReceiptAgentBankDepositUseCase;
 import com.kori.application.port.out.*;
-import com.kori.application.result.AgentBankDepositReceiptResult;
+import com.kori.application.result.AdminReceiptAgentBankDepositResult;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.common.Money;
-import com.kori.domain.model.common.Status;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
 
@@ -22,8 +20,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public final class AgentBankDepositReceiptService implements AgentBankDepositReceiptUseCase {
+public final class AdminReceiptAdminServiceAgentBankDeposit implements AdminReceiptAgentBankDepositUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final TimeProviderPort timeProviderPort;
     private final IdGeneratorPort idGeneratorPort;
     private final AgentRepositoryPort agentRepositoryPort;
@@ -32,13 +31,15 @@ public final class AgentBankDepositReceiptService implements AgentBankDepositRec
     private final AuditPort auditPort;
     private final IdempotencyExecutor idempotencyExecutor;
 
-    public AgentBankDepositReceiptService(TimeProviderPort timeProviderPort,
-                                          IdempotencyPort idempotencyPort,
-                                          IdGeneratorPort idGeneratorPort,
-                                          AgentRepositoryPort agentRepositoryPort,
-                                          TransactionRepositoryPort transactionRepositoryPort,
-                                          LedgerAppendPort ledgerAppendPort,
-                                          AuditPort auditPort) {
+    public AdminReceiptAdminServiceAgentBankDeposit(AdminAccessService adminAccessService,
+                                                    TimeProviderPort timeProviderPort,
+                                                    IdempotencyPort idempotencyPort,
+                                                    IdGeneratorPort idGeneratorPort,
+                                                    AgentRepositoryPort agentRepositoryPort,
+                                                    TransactionRepositoryPort transactionRepositoryPort,
+                                                    LedgerAppendPort ledgerAppendPort,
+                                                    AuditPort auditPort) {
+        this.adminAccessService = adminAccessService;
         this.timeProviderPort = timeProviderPort;
         this.idGeneratorPort = idGeneratorPort;
         this.agentRepositoryPort = agentRepositoryPort;
@@ -49,22 +50,18 @@ public final class AgentBankDepositReceiptService implements AgentBankDepositRec
     }
 
     @Override
-    public AgentBankDepositReceiptResult execute(AgentBankDepositReceiptCommand command) {
+    public AdminReceiptAgentBankDepositResult execute(AdminReceiptAgentBankDepositCommand command) {
         return idempotencyExecutor.execute(
                 command.idempotencyKey(),
                 command.idempotencyRequestHash(),
-                AgentBankDepositReceiptResult.class,
+                AdminReceiptAgentBankDepositResult.class,
                 () -> {
-                    // business logic
 
-                    ActorGuards.requireAdmin(command.actorContext(), "record bank deposit receipt");
+                    adminAccessService.requireActiveAdmin(command.actorContext(), "record bank deposit receipt");
 
                     var agent = agentRepositoryPort.findByCode(AgentCode.of(command.agentCode()))
                             .orElseThrow(() -> new NotFoundException("Agent not found"));
-
-                    if (agent.status() != Status.ACTIVE) {
-                        throw new ForbiddenOperationException("Agent is not active");
-                    }
+                    ActorStatusGuards.requireActiveAgent(agent);
 
                     Money amount = Money.positive(command.amount());
                     Instant now = timeProviderPort.now();
@@ -85,7 +82,6 @@ public final class AgentBankDepositReceiptService implements AgentBankDepositRec
 
                     Map<String, String> metadata = new HashMap<>();
                     metadata.put("transactionId", tx.id().value().toString());
-                    metadata.put("agentCode", agent.id().value().toString());
                     metadata.put("agentCode", agent.code().value());
                     metadata.put("amount", amount.asBigDecimal().toPlainString());
 
@@ -96,7 +92,7 @@ public final class AgentBankDepositReceiptService implements AgentBankDepositRec
                             metadata
                     ));
 
-                    return new AgentBankDepositReceiptResult(
+                    return new AdminReceiptAgentBankDepositResult(
                             tx.id().value().toString(),
                             agent.code().value(),
                             amount.asBigDecimal()

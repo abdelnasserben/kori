@@ -8,26 +8,36 @@ import java.util.Objects;
 
 public final class Client {
     private final ClientId id;
-    private final String phoneNumber;
+    private final ClientCode code;
+    private final PhoneNumber phoneNumber;
     private Status status;
     private final Instant createdAt;
 
-    public Client(ClientId id, String phoneNumber, Status status, Instant createdAt) {
+    public Client(ClientId id, ClientCode code, PhoneNumber phoneNumber, Status status, Instant createdAt) {
         this.id = Objects.requireNonNull(id);
+        this.code = Objects.requireNonNull(code);
         this.phoneNumber = Objects.requireNonNull(phoneNumber);
         this.status = Objects.requireNonNull(status);
         this.createdAt = Objects.requireNonNull(createdAt);
     }
 
-    public static Client activeNew(ClientId clientId, String phoneNumber, Instant createdAt) {
-        return new Client(clientId, phoneNumber, Status.ACTIVE, createdAt);
+    public Client(ClientId id, String phoneNumber, Status status, Instant createdAt) {
+        this(id, deriveLegacyCode(id), PhoneNumber.of(phoneNumber), status, createdAt);
+    }
+
+    public static Client activeNew(ClientId clientId, ClientCode code, PhoneNumber phoneNumber, Instant createdAt) {
+        return new Client(clientId, code, phoneNumber, Status.ACTIVE, createdAt);
     }
 
     public ClientId id() {
         return id;
     }
 
-    public String phoneNumber() {
+    public ClientCode code() {
+        return code;
+    }
+
+    public PhoneNumber phoneNumber() {
         return phoneNumber;
     }
 
@@ -64,5 +74,10 @@ public final class Client {
         if (status == Status.CLOSED) {
             throw new InvalidStatusTransitionException("Cannot " + action + " a CLOSED client");
         }
+    }
+
+    private static ClientCode deriveLegacyCode(ClientId id) {
+        int numeric = Math.floorMod(id.value().hashCode(), 1_000_000);
+        return ClientCode.of("C-" + String.format("%06d", numeric));
     }
 }

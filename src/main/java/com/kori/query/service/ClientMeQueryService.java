@@ -24,26 +24,26 @@ public class ClientMeQueryService implements ClientMeQueryUseCase {
     @Override
     public MeQueryModels.MeProfile getProfile(ActorContext actorContext) {
         requireClient(actorContext);
-        return readPort.findProfile(actorContext.actorId())
+        return readPort.findProfile(actorContext.actorRef())
                 .orElseThrow(() -> new NotFoundException("Client not found"));
     }
 
     @Override
     public MeQueryModels.MeBalance getBalance(ActorContext actorContext) {
         requireClient(actorContext);
-        return readPort.getBalance(actorContext.actorId());
+        return readPort.getBalance(actorContext.actorRef());
     }
 
     @Override
     public List<MeQueryModels.MeCardItem> listCards(ActorContext actorContext) {
         requireClient(actorContext);
-        return readPort.listCards(actorContext.actorId());
+        return readPort.listCards(actorContext.actorRef());
     }
 
     @Override
     public QueryPage<MeQueryModels.MeTransactionItem> listTransactions(ActorContext actorContext, MeQueryModels.MeTransactionsFilter filter) {
         requireClient(actorContext);
-        return readPort.listTransactions(actorContext.actorId(), filter);
+        return readPort.listTransactions(actorContext.actorRef(), filter);
     }
 
     private void requireClient(ActorContext actorContext) {

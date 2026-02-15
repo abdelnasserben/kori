@@ -3,12 +3,12 @@ package com.kori.application.usecase;
 import com.kori.application.command.AdminUpdateCardStatusCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.AdminUpdateCardStatusUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.CardRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateCardStatusResult;
+import com.kori.application.security.ActorContext;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.CardStatus;
@@ -19,14 +19,16 @@ import java.util.Objects;
 
 public final class AdminUpdateCardStatusService implements AdminUpdateCardStatusUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final TimeProviderPort timeProviderPort;
     private final CardRepositoryPort cardRepositoryPort;
     private final AuditPort auditPort;
 
     public AdminUpdateCardStatusService(
-            TimeProviderPort timeProviderPort,
+            AdminAccessService adminAccessService, TimeProviderPort timeProviderPort,
             CardRepositoryPort cardRepositoryPort,
             AuditPort auditPort) {
+        this.adminAccessService = adminAccessService;
         this.timeProviderPort = timeProviderPort;
         this.cardRepositoryPort = cardRepositoryPort;
         this.auditPort = auditPort;
@@ -35,7 +37,9 @@ public final class AdminUpdateCardStatusService implements AdminUpdateCardStatus
     @Override
     public UpdateCardStatusResult execute(AdminUpdateCardStatusCommand cmd) {
 
-        ActorGuards.requireAdmin(cmd.actorContext(), "update card status");
+        ActorContext actorContext = cmd.actorContext();
+
+        adminAccessService.requireActiveAdmin(actorContext, "update card status");
 
         if (!Objects.equals(cmd.targetStatus(), CardStatus.ACTIVE.name())
                 && !Objects.equals(cmd.targetStatus(), CardStatus.INACTIVE.name())
@@ -63,7 +67,7 @@ public final class AdminUpdateCardStatusService implements AdminUpdateCardStatus
         auditPort.publish(new AuditEvent(
                 auditAction,
                 cmd.actorContext().actorType().name(),
-                cmd.actorContext().actorId(),
+                cmd.actorContext().actorRef(),
                 now,
                 Map.of(
                         "cardId", card.id().value().toString(),

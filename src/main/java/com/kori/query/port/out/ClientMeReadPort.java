@@ -7,11 +7,11 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ClientMeReadPort {
-    Optional<MeQueryModels.MeProfile> findProfile(String clientId);
+    Optional<MeQueryModels.MeProfile> findProfile(String clientCode);
 
-    MeQueryModels.MeBalance getBalance(String clientId);
+    MeQueryModels.MeBalance getBalance(String clientCode);
 
-    List<MeQueryModels.MeCardItem> listCards(String clientId);
+    List<MeQueryModels.MeCardItem> listCards(String clientCode);
 
-    QueryPage<MeQueryModels.MeTransactionItem> listTransactions(String clientId, MeQueryModels.MeTransactionsFilter filter);
+    QueryPage<MeQueryModels.MeTransactionItem> listTransactions(String clientCode, MeQueryModels.MeTransactionsFilter filter);
 }

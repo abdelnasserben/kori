@@ -10,22 +10,19 @@ public record AddCardToExistingClientCommand(
         ActorContext actorContext,
         String phoneNumber,
         String cardUid,
-        String pin,
-        String agentCode) {
+        String pin) {
     public AddCardToExistingClientCommand(
             String idempotencyKey,
             String idempotencyRequestHash,
             ActorContext actorContext,
             String phoneNumber,
             String cardUid,
-            String pin,
-            String agentCode) {
+            String pin) {
         this.idempotencyKey = Objects.requireNonNull(idempotencyKey);
         this.idempotencyRequestHash = Objects.requireNonNull(idempotencyRequestHash, "idempotencyRequestHash");
         this.actorContext = Objects.requireNonNull(actorContext);
         this.phoneNumber = Objects.requireNonNull(phoneNumber);
         this.cardUid = Objects.requireNonNull(cardUid);
         this.pin = Objects.requireNonNull(pin);
-        this.agentCode = Objects.requireNonNull(agentCode);
     }
 }

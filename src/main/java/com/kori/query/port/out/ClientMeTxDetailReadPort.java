@@ -5,7 +5,7 @@ import com.kori.query.model.me.MeQueryModels;
 import java.util.Optional;
 
 public interface ClientMeTxDetailReadPort {
-    Optional<MeQueryModels.ClientTransactionDetails> findOwnedByClient(String clientId, String transactionId);
+    Optional<MeQueryModels.ClientTransactionDetails> findOwnedByClient(String clientCode, String transactionId);
 
     boolean existsTransaction(String transactionId);
 }

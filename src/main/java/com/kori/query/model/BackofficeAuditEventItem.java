@@ -7,7 +7,7 @@ public record BackofficeAuditEventItem(
         String eventId,
         Instant occurredAt,
         String actorType,
-        String actorId,
+        String actorRef,
         String action,
         String resourceType,
         String resourceId,

@@ -51,8 +51,8 @@ final class AgentUpdateCardStatusServiceTest {
     // ======= constants (single source of truth) =======
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
-    private static final String ACTOR_ID = "agent-actor";
-    private static final String ADMIN_ID = "admin-actor";
+    private static final String ACTOR_ID = "A-000001";
+    private static final String ADMIN_ID = "admin.user";
 
     private static final String AGENT_CODE_RAW = "A-123456";
     private static final AgentCode AGENT_CODE = AgentCode.of(AGENT_CODE_RAW);
@@ -188,7 +188,7 @@ final class AgentUpdateCardStatusServiceTest {
 
         assertEquals("AGENT_BLOCK_CARD", event.action());
         assertEquals("AGENT", event.actorType());
-        assertEquals(ACTOR_ID, event.actorId());
+        assertEquals(ACTOR_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
 
         assertEquals(CARD_ID_UUID.toString(), event.metadata().get("cardId"));
@@ -221,7 +221,7 @@ final class AgentUpdateCardStatusServiceTest {
 
         assertEquals("AGENT_MARK_CARD_LOST", event.action());
         assertEquals("AGENT", event.actorType());
-        assertEquals(ACTOR_ID, event.actorId());
+        assertEquals(ACTOR_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
 
         assertEquals(CARD_ID_UUID.toString(), event.metadata().get("cardId"));

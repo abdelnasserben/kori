@@ -3,7 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.RequestClientRefundCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
+import com.kori.application.guard.ActorStatusGuards;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.RequestClientRefundUseCase;
 import com.kori.application.port.out.*;
@@ -12,12 +12,11 @@ import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.client.Client;
-import com.kori.domain.model.client.ClientId;
+import com.kori.domain.model.client.ClientCode;
 import com.kori.domain.model.clientrefund.ClientRefund;
 import com.kori.domain.model.clientrefund.ClientRefundId;
 import com.kori.domain.model.clientrefund.ClientRefundStatus;
 import com.kori.domain.model.common.Money;
-import com.kori.domain.model.common.Status;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
 
@@ -28,6 +27,7 @@ import java.util.Map;
 
 public class RequestClientRefundService implements RequestClientRefundUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final TimeProviderPort timeProviderPort;
     private final ClientRepositoryPort clientRepositoryPort;
     private final LedgerAppendPort ledgerAppendPort;
@@ -39,7 +39,7 @@ public class RequestClientRefundService implements RequestClientRefundUseCase {
     private final IdGeneratorPort idGeneratorPort;
     private final IdempotencyExecutor idempotencyExecutor;
 
-    public RequestClientRefundService(TimeProviderPort timeProviderPort,
+    public RequestClientRefundService(AdminAccessService adminAccessService, TimeProviderPort timeProviderPort,
                                       IdempotencyPort idempotencyPort,
                                       ClientRepositoryPort clientRepositoryPort,
                                       LedgerAppendPort ledgerAppendPort,
@@ -48,6 +48,7 @@ public class RequestClientRefundService implements RequestClientRefundUseCase {
                                       ClientRefundRepositoryPort clientRefundRepositoryPort,
                                       AuditPort auditPort,
                                       IdGeneratorPort idGeneratorPort) {
+        this.adminAccessService = adminAccessService;
         this.timeProviderPort = timeProviderPort;
         this.clientRepositoryPort = clientRepositoryPort;
         this.ledgerAppendPort = ledgerAppendPort;
@@ -67,23 +68,19 @@ public class RequestClientRefundService implements RequestClientRefundUseCase {
                 cmd.idempotencyRequestHash(),
                 ClientRefundResult.class,
                 () -> {
-                    // business logic
 
-                    ActorGuards.requireAdmin(cmd.actorContext(), "initiate client refund");
+                    adminAccessService.requireActiveAdmin(cmd.actorContext(), "initiate client refund");
 
-                    ClientId clientId = ClientId.of(cmd.clientId());
-                    Client client = clientRepositoryPort.findById(clientId)
+                    ClientCode clientCode = ClientCode.of(cmd.clientCode());
+                    Client client = clientRepositoryPort.findByCode(clientCode)
                             .orElseThrow(() -> new NotFoundException("Client not found"));
+                    ActorStatusGuards.requireActiveClient(client);
 
-                    if (client.status() != Status.ACTIVE) {
-                        throw new ForbiddenOperationException("Client is not active");
-                    }
-
-                    if (clientRefundRepositoryPort.existsRequestedForClient(clientId)) {
+                    if (clientRefundRepositoryPort.existsRequestedForClient(client.id())) {
                         throw new ForbiddenOperationException("A refund is already REQUESTED for this client");
                     }
 
-                    var clientWallet = LedgerAccountRef.client(clientId.value().toString());
+                    var clientWallet = LedgerAccountRef.client(clientCode.value());
                     ledgerAccountLockPort.lock(clientWallet);
                     Money due = ledgerQueryPort.netBalance(clientWallet);
                     if (due.isZero()) {
@@ -103,13 +100,13 @@ public class RequestClientRefundService implements RequestClientRefundUseCase {
                     ));
 
                     ClientRefundId refundId = new ClientRefundId(idGeneratorPort.newUuid());
-                    ClientRefund refund = ClientRefund.requested(refundId, clientId, tx.id(), due, now);
+                    ClientRefund refund = ClientRefund.requested(refundId, client.id(), tx.id(), due, now);
                     clientRefundRepositoryPort.save(refund);
 
                     Map<String, String> metadata = new HashMap<>();
                     metadata.put("transactionId", tx.id().value().toString());
-                    metadata.put("clientId", cmd.clientId());
                     metadata.put("refundId", refund.id().value().toString());
+                    metadata.put("clientCode", cmd.clientCode());
 
                     auditPort.publish(AuditBuilder.buildBasicAudit(
                             "CLIENT_REFUND_REQUESTED",
@@ -121,7 +118,7 @@ public class RequestClientRefundService implements RequestClientRefundUseCase {
                     return new ClientRefundResult(
                             tx.id().value().toString(),
                             refund.id().value().toString(),
-                            cmd.clientId(),
+                            cmd.clientCode(),
                             due.asBigDecimal(),
                             ClientRefundStatus.REQUESTED.name()
                     );

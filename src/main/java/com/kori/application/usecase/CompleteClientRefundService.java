@@ -3,7 +3,6 @@ package com.kori.application.usecase;
 import com.kori.application.command.CompleteClientRefundCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.CompleteClientRefundUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.ClientRefundRepositoryPort;
@@ -23,15 +22,19 @@ import java.util.Map;
 
 public class CompleteClientRefundService implements CompleteClientRefundUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final TimeProviderPort timeProviderPort;
     private final ClientRefundRepositoryPort clientRefundRepositoryPort;
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
 
-    public CompleteClientRefundService(TimeProviderPort timeProviderPort,
-                                       ClientRefundRepositoryPort clientRefundRepositoryPort,
-                                       LedgerAppendPort ledgerAppendPort,
-                                       AuditPort auditPort) {
+    public CompleteClientRefundService(
+            AdminAccessService adminAccessService,
+            TimeProviderPort timeProviderPort,
+            ClientRefundRepositoryPort clientRefundRepositoryPort,
+            LedgerAppendPort ledgerAppendPort,
+            AuditPort auditPort) {
+        this.adminAccessService = adminAccessService;
         this.timeProviderPort = timeProviderPort;
         this.clientRefundRepositoryPort = clientRefundRepositoryPort;
         this.ledgerAppendPort = ledgerAppendPort;
@@ -40,7 +43,7 @@ public class CompleteClientRefundService implements CompleteClientRefundUseCase 
 
     @Override
     public FinalizationResult execute(CompleteClientRefundCommand cmd) {
-        ActorGuards.requireAdmin(cmd.actorContext(), "complete client refund");
+        adminAccessService.requireActiveAdmin(cmd.actorContext(), "complete client refund");
 
         ClientRefund refund = clientRefundRepositoryPort.findById(ClientRefundId.of(cmd.refundId()))
                 .orElseThrow(() -> new NotFoundException("Client refund not found"));

@@ -4,7 +4,6 @@ import com.kori.application.command.UpdateMerchantStatusCommand;
 import com.kori.application.events.MerchantStatusChangedEvent;
 import com.kori.application.exception.BalanceMustBeZeroException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateMerchantStatusUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.UpdateMerchantStatusResult;
@@ -20,6 +19,7 @@ import java.util.UUID;
 
 public class UpdateMerchantStatusService implements UpdateMerchantStatusUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final MerchantRepositoryPort merchantRepositoryPort;
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
@@ -27,11 +27,13 @@ public class UpdateMerchantStatusService implements UpdateMerchantStatusUseCase 
     private final LedgerQueryPort ledgerQueryPort;
 
     public UpdateMerchantStatusService(
+            AdminAccessService adminAccessService,
             MerchantRepositoryPort merchantRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort,
             DomainEventPublisherPort domainEventPublisherPort, LedgerQueryPort ledgerQueryPort
     ) {
+        this.adminAccessService = adminAccessService;
         this.merchantRepositoryPort = merchantRepositoryPort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
@@ -41,7 +43,7 @@ public class UpdateMerchantStatusService implements UpdateMerchantStatusUseCase 
 
     @Override
     public UpdateMerchantStatusResult execute(UpdateMerchantStatusCommand cmd) {
-        ActorGuards.requireAdmin(cmd.actorContext(), "update merchant status");
+        adminAccessService.requireActiveAdmin(cmd.actorContext(), "update merchant status");
 
         Merchant merchant = merchantRepositoryPort.findByCode(MerchantCode.of(cmd.merchantCode()))
                 .orElseThrow(() -> new NotFoundException("Merchant not found"));

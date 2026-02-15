@@ -137,10 +137,10 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
                        (SELECT MAX(ae.occurred_at) FROM audit_events ae WHERE ae.actor_type = 'TERMINAL' AND ae.actor_id = t.id::text) AS last_seen
                 FROM terminals t
                 JOIN merchants m ON m.id = t.merchant_id
-                WHERE t.id = CAST(:terminalId AS uuid) AND t.merchant_id = CAST(:merchantCode AS uuid)
+                WHERE t.id = CAST(:terminalUid AS uuid) AND t.merchant_id = CAST(:merchantCode AS uuid)
                 LIMIT 1
                 """;
-        var params = new MapSqlParameterSource().addValue("terminalId", terminalUid).addValue("merchantId", merchantId);
+        var params = new MapSqlParameterSource().addValue("terminalUid", terminalUid).addValue("merchantId", merchantId);
         var rows = jdbcTemplate.query(sql, params, (rs, n) -> new MeQueryModels.MeTerminalItem(
                 rs.getString("terminal_uid"),
                 rs.getString("status"),
@@ -152,8 +152,8 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
 
     @Override
     public boolean existsTerminal(String terminalUid) {
-        String sql = "SELECT COUNT(1) FROM terminals WHERE id = CAST(:terminalId AS uuid)";
-        Integer count = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource("terminalId", terminalUid), Integer.class);
+        String sql = "SELECT COUNT(1) FROM terminals WHERE id = CAST(:terminalUid AS uuid)";
+        Integer count = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource("terminalUid", terminalUid), Integer.class);
         return count != null && count > 0;
     }
 

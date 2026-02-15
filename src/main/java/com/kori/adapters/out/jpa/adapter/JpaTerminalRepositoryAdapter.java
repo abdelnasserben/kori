@@ -7,6 +7,7 @@ import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.MerchantId;
 import com.kori.domain.model.terminal.Terminal;
 import com.kori.domain.model.terminal.TerminalId;
+import com.kori.domain.model.terminal.TerminalUid;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -35,6 +36,7 @@ public class JpaTerminalRepositoryAdapter implements TerminalRepositoryPort {
     public void save(Terminal terminal) {
         repo.save(new TerminalEntity(
                 terminal.id().value(),
+                terminal.terminalUid().value(),
                 terminal.merchantId().value(),
                 terminal.status().name(),
                 terminal.createdAt()
@@ -50,9 +52,20 @@ public class JpaTerminalRepositoryAdapter implements TerminalRepositoryPort {
                 .toList();
     }
 
+    @Override
+    public Optional<Terminal> findByUid(TerminalUid terminalUid) {
+        return repo.findByTerminalUid(terminalUid.value());
+    }
+
+    @Override
+    public boolean existsByUid(TerminalUid terminalUid) {
+        return repo.existsByTerminalUid(terminalUid.value());
+    }
+
     private Terminal toDomain(TerminalEntity entity) {
         return new Terminal(
                 new TerminalId(entity.getId()),
+                TerminalUid.of(entity.getTerminalUid()),
                 new MerchantId(entity.getMerchantId()),
                 Status.valueOf(entity.getStatus()),
                 entity.getCreatedAt()

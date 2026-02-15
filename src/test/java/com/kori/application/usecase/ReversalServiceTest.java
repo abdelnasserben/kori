@@ -53,8 +53,8 @@ final class ReversalServiceTest {
 
     private static final String IDEM_KEY = "idem-1";
     private static final String REQUEST_HASH = "request-hash";
-    private static final String ADMIN_ACTOR_ID = "admin-actor";
-    private static final String NON_ADMIN_ACTOR_ID = "agent-actor";
+    private static final String ADMIN_ACTOR_ID = "admin.user";
+    private static final String NON_ADMIN_ACTOR_ID = "A-000001";
 
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 

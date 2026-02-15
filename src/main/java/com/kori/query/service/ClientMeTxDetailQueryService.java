@@ -24,7 +24,7 @@ public class ClientMeTxDetailQueryService implements ClientMeTxDetailQueryUseCas
         requireClient(actorContext);
         UuidParser.parse(transactionId, "transactionId");
 
-        return readPort.findOwnedByClient(actorContext.actorId(), transactionId)
+        return readPort.findOwnedByClient(actorContext.actorRef(), transactionId)
                 .orElseGet(() -> {
                     if (readPort.existsTransaction(transactionId)) {
                         throw new ForbiddenOperationException("Forbidden operation");

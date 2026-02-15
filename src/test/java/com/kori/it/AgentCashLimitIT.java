@@ -47,7 +47,7 @@ class AgentCashLimitIT extends IntegrationTestBase {
                         "idem-limit-cashin",
                         "hash-limit-cashin",
                         agentActor(agent.id().value().toString()),
-                        client.phoneNumber(),
+                        client.phoneNumber().value(),
                         new BigDecimal("100.00")
                 ))
         );
@@ -68,7 +68,7 @@ class AgentCashLimitIT extends IntegrationTestBase {
                 "idem-limit-pass",
                 "hash-limit-pass",
                 agentActor(agent.id().value().toString()),
-                client.phoneNumber(),
+                client.phoneNumber().value(),
                 new BigDecimal("500.00")
         ));
 
@@ -80,7 +80,7 @@ class AgentCashLimitIT extends IntegrationTestBase {
                         "idem-limit-fail",
                         "hash-limit-fail",
                         agentActor(agent.id().value().toString()),
-                        client.phoneNumber(),
+                        client.phoneNumber().value(),
                         new BigDecimal("600.00")
                 ))
         );

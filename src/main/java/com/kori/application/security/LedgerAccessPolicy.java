@@ -17,17 +17,17 @@ public final class LedgerAccessPolicy {
 
         switch (actorContext.actorType()) {
             case CLIENT -> {
-                if (!scope.isForClient() || !actorContext.actorId().equals(scope.ownerRef())) {
+                if (!scope.isForClient() || !actorContext.actorRef().equals(scope.ownerRef())) {
                     throw new ForbiddenOperationException("Client can only consult their own ledger");
                 }
             }
             case MERCHANT -> {
-                if (!scope.isForMerchant() || !actorContext.actorId().equals(scope.ownerRef())) {
+                if (!scope.isForMerchant() || !actorContext.actorRef().equals(scope.ownerRef())) {
                     throw new ForbiddenOperationException("Merchant can only consult their own ledger");
                 }
             }
             case AGENT -> {
-                if (!scope.isForAgent() || !actorContext.actorId().equals(scope.ownerRef())) {
+                if (!scope.isForAgent() || !actorContext.actorRef().equals(scope.ownerRef())) {
                     throw new ForbiddenOperationException("Agent can only consult their own ledger");
                 }
             }

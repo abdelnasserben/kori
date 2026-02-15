@@ -2,6 +2,7 @@ package com.kori.application.guard;
 
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.port.out.AccountProfilePort;
+import com.kori.application.usecase.OperationAuthorizationService;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.account.AccountProfile;
 import com.kori.domain.model.agent.Agent;
@@ -28,42 +29,43 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class OperationStatusGuardsTest {
+class OperationAuthorizationServiceTest {
 
     @Mock  AccountProfilePort accountProfilePort;
-    @InjectMocks OperationStatusGuards guards;
+    @InjectMocks
+    OperationAuthorizationService guards;
 
     private final static Instant NOW = Instant.now();
 
     // CLIENT
 
     @Test
-    void requireActiveClient_ok_whenClientAndAccountAreActive() {
+    void authorizePayment() {
         Client client = activeClient();
         AccountProfile profile = activeProfile();
 
         LedgerAccountRef ref = LedgerAccountRef.client(client.id().value().toString());
         when(accountProfilePort.findByAccount(ref)).thenReturn(Optional.of(profile));
 
-        assertDoesNotThrow(() -> guards.requireActiveClient(client));
+        assertDoesNotThrow(() -> guards.authorizeClientPayment(client));
 
         verify(accountProfilePort).findByAccount(ref);
     }
 
     @Test
-    void requireActiveClient_throws_whenClientNotActive() {
+    void authorizePayment() {
         Client client = clientWithStatus(Status.SUSPENDED);
 
         ForbiddenOperationException ex =
                 assertThrows(ForbiddenOperationException.class,
-                        () -> guards.requireActiveClient(client));
+                        () -> guards.authorizeClientPayment(client));
 
         assertEquals("CLIENT_NOT_ACTIVE", ex.getMessage());
         verifyNoInteractions(accountProfilePort);
     }
 
     @Test
-    void requireActiveClient_throws_whenAccountProfileMissing() {
+    void authorizeClient_Payment_throws_whenAccountProfileMissing() {
         Client client = activeClient();
         LedgerAccountRef ref = LedgerAccountRef.client(client.id().value().toString());
 
@@ -71,13 +73,13 @@ class OperationStatusGuardsTest {
 
         ForbiddenOperationException ex =
                 assertThrows(ForbiddenOperationException.class,
-                        () -> guards.requireActiveClient(client));
+                        () -> guards.authorizeClientPayment(client));
 
         assertEquals("CLIENT_ACCOUNT_INACTIVE_OR_MISSING", ex.getMessage());
     }
 
     @Test
-    void requireActiveClient_throws_whenAccountProfileSuspended() {
+    void authorizeClient_Payment_throws_whenAccountProfileSuspended() {
         Client client = activeClient();
         AccountProfile profile = profileWithStatus(Status.SUSPENDED);
 
@@ -86,7 +88,7 @@ class OperationStatusGuardsTest {
 
         ForbiddenOperationException ex =
                 assertThrows(ForbiddenOperationException.class,
-                        () -> guards.requireActiveClient(client));
+                        () -> guards.authorizeClientPayment(client));
 
         assertEquals("CLIENT_ACCOUNT_INACTIVE_OR_MISSING", ex.getMessage());
     }
@@ -94,23 +96,23 @@ class OperationStatusGuardsTest {
     // MERCHANT
 
     @Test
-    void requireActiveMerchant_ok_whenMerchantAndAccountAreActive() {
+    void authorizePayment() {
         Merchant merchant = activeMerchant();
         AccountProfile profile = activeProfile();
 
         LedgerAccountRef ref = LedgerAccountRef.merchant(merchant.id().value().toString());
         when(accountProfilePort.findByAccount(ref)).thenReturn(Optional.of(profile));
 
-        assertDoesNotThrow(() -> guards.requireActiveMerchant(merchant));
+        assertDoesNotThrow(() -> guards.authorizeMerchantPayment(merchant));
     }
 
     @Test
-    void requireActiveMerchant_throws_whenMerchantNotActive() {
+    void authorizePayment() {
         Merchant merchant = merchantWithStatus(Status.CLOSED);
 
         ForbiddenOperationException ex =
                 assertThrows(ForbiddenOperationException.class,
-                        () -> guards.requireActiveMerchant(merchant));
+                        () -> guards.authorizeMerchantPayment(merchant));
 
         assertEquals("MERCHANT_NOT_ACTIVE", ex.getMessage());
         verifyNoInteractions(accountProfilePort);
@@ -119,7 +121,7 @@ class OperationStatusGuardsTest {
     // AGENT
 
     @Test
-    void requireActiveAgent_ok_whenAgentAndAccountAreActive() {
+    void authorizeOperation() {
         Agent agent = activeAgent();
         AccountProfile profile = activeProfile();
 
@@ -128,23 +130,23 @@ class OperationStatusGuardsTest {
         when(accountProfilePort.findByAccount(walletRef)).thenReturn(Optional.of(profile));
         when(accountProfilePort.findByAccount(clearingRef)).thenReturn(Optional.of(profile));
 
-        assertDoesNotThrow(() -> guards.requireActiveAgent(agent));
+        assertDoesNotThrow(() -> guards.authorizeAgentOperation(agent));
     }
 
     @Test
-    void requireActiveAgent_throws_whenAgentSuspended() {
+    void authorizeAgent_throws_whenAgentOperationSuspended() {
         Agent agent = agentWithStatus(Status.SUSPENDED);
 
         ForbiddenOperationException ex =
                 assertThrows(ForbiddenOperationException.class,
-                        () -> guards.requireActiveAgent(agent));
+                        () -> guards.authorizeAgentOperation(agent));
 
         assertEquals("AGENT_NOT_ACTIVE", ex.getMessage());
         verifyNoInteractions(accountProfilePort);
     }
 
     @Test
-    void requireActiveAgent_throws_whenClearingAccountMissing() {
+    void authorizeAgent_Operation_throws_whenClearingAccountMissing() {
         Agent agent = activeAgent();
 
         LedgerAccountRef walletRef = LedgerAccountRef.agentWallet(agent.id().value().toString());
@@ -154,28 +156,9 @@ class OperationStatusGuardsTest {
 
         ForbiddenOperationException ex =
                 assertThrows(ForbiddenOperationException.class,
-                        () -> guards.requireActiveAgent(agent));
+                        () -> guards.authorizeAgentOperation(agent));
 
         assertEquals("AGENT_ACCOUNT_INACTIVE_OR_MISSING", ex.getMessage());
-    }
-
-    // ENROLL
-
-    @Test
-    void requireClientEligibleForEnroll_ok_whenClientActive() {
-        Client client = activeClient();
-        assertDoesNotThrow(() -> guards.requireClientEligibleForEnroll(client));
-    }
-
-    @Test
-    void requireClientEligibleForEnroll_throws_whenClientClosed() {
-        Client client = clientWithStatus(Status.CLOSED);
-
-        ForbiddenOperationException ex =
-                assertThrows(ForbiddenOperationException.class,
-                        () -> guards.requireClientEligibleForEnroll(client));
-
-        assertEquals("CLIENT_NOT_ACTIVE", ex.getMessage());
     }
 
     // HELPERS

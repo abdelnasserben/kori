@@ -22,16 +22,16 @@ public class ClientController {
         this.updateClientStatusUseCase = updateClientStatusUseCase;
     }
 
-    @PatchMapping("/{clientId}/status")
+    @PatchMapping("/{clientCode}/status")
     @Operation(summary = "Update client status")
     public UpdateStatusResponse updateClientStatus(
-            @PathVariable String clientId,
+            @PathVariable String clientCode,
             ActorContext actorContext,
             @Valid @RequestBody UpdateStatusRequest request
     ) {
         var result = updateClientStatusUseCase.execute(
-                new UpdateClientStatusCommand(actorContext, clientId, request.targetStatus(), request.reason())
+                new UpdateClientStatusCommand(actorContext, clientCode, request.targetStatus(), request.reason())
         );
-        return new UpdateStatusResponse(result.clientId(), result.previousStatus(), result.newStatus());
+        return new UpdateStatusResponse(result.clientCode(), result.previousStatus(), result.newStatus());
     }
 }

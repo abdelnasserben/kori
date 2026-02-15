@@ -3,7 +3,8 @@ package com.kori.application.usecase;
 import com.kori.application.command.AgentUpdateCardStatusCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
+import com.kori.application.guard.ActorStatusGuards;
+import com.kori.application.guard.ActorTypeGuards;
 import com.kori.application.port.in.AgentUpdateCardStatusUseCase;
 import com.kori.application.port.out.AgentRepositoryPort;
 import com.kori.application.port.out.AuditPort;
@@ -15,7 +16,6 @@ import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.CardStatus;
-import com.kori.domain.model.common.Status;
 
 import java.time.Instant;
 import java.util.Map;
@@ -23,18 +23,18 @@ import java.util.Objects;
 
 public final class AgentUpdateCardStatusService implements AgentUpdateCardStatusUseCase {
 
-    private final TimeProviderPort timeProviderPort;
     private final AgentRepositoryPort agentRepositoryPort;
+    private final TimeProviderPort timeProviderPort;
     private final CardRepositoryPort cardRepositoryPort;
     private final AuditPort auditPort;
 
     public AgentUpdateCardStatusService(
-            TimeProviderPort timeProviderPort,
             AgentRepositoryPort agentRepositoryPort,
+            TimeProviderPort timeProviderPort,
             CardRepositoryPort cardRepositoryPort,
             AuditPort auditPort) {
-        this.timeProviderPort = timeProviderPort;
         this.agentRepositoryPort = agentRepositoryPort;
+        this.timeProviderPort = timeProviderPort;
         this.cardRepositoryPort = cardRepositoryPort;
         this.auditPort = auditPort;
     }
@@ -42,19 +42,16 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
     @Override
     public UpdateCardStatusResult execute(AgentUpdateCardStatusCommand cmd) {
 
-        ActorGuards.requireAgent(cmd.actorContext(), "update card status");
+        ActorTypeGuards.onlyAgentCan(cmd.actorContext(), "update card status");
+
+        Agent agent = agentRepositoryPort.findByCode(AgentCode.of(cmd.actorContext().actorRef()))
+                .orElseThrow(() -> new NotFoundException("Agent not found"));
+
+        ActorStatusGuards.requireActiveAgent(agent);
 
         if (!Objects.equals(cmd.targetStatus(), CardStatus.BLOCKED.name())
                 && !Objects.equals(cmd.targetStatus(), CardStatus.LOST.name())) {
             throw new ForbiddenOperationException("Agent can only can set it");
-        }
-
-        // Agent must be active
-        Agent agent = agentRepositoryPort.findByCode(AgentCode.of(cmd.agentCode()))
-                .orElseThrow(() -> new NotFoundException("Agent not found"));
-
-        if (agent.status() != Status.ACTIVE) {
-            throw new ForbiddenOperationException("Agent is not active");
         }
 
         Card card = getCard(cmd.cardUid());
@@ -77,7 +74,7 @@ public final class AgentUpdateCardStatusService implements AgentUpdateCardStatus
         auditPort.publish(new AuditEvent(
                 auditAction,
                 cmd.actorContext().actorType().name(),
-                cmd.actorContext().actorId(),
+                cmd.actorContext().actorRef(),
                 now,
                 Map.of(
                         "cardId", card.id().value().toString(),

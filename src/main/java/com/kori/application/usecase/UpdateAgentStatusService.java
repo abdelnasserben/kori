@@ -4,7 +4,6 @@ import com.kori.application.command.UpdateAgentStatusCommand;
 import com.kori.application.events.AgentStatusChangedEvent;
 import com.kori.application.exception.BalanceMustBeZeroException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateAgentStatusUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.UpdateAgentStatusResult;
@@ -20,6 +19,7 @@ import java.util.UUID;
 
 public class UpdateAgentStatusService implements UpdateAgentStatusUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final AgentRepositoryPort agentRepositoryPort;
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
@@ -27,11 +27,14 @@ public class UpdateAgentStatusService implements UpdateAgentStatusUseCase {
     private final LedgerQueryPort ledgerQueryPort;
 
     public UpdateAgentStatusService(
+            AdminAccessService adminAccessService,
             AgentRepositoryPort agentRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort,
-            DomainEventPublisherPort domainEventPublisherPort, LedgerQueryPort ledgerQueryPort
+            DomainEventPublisherPort domainEventPublisherPort,
+            LedgerQueryPort ledgerQueryPort
     ) {
+        this.adminAccessService = adminAccessService;
         this.agentRepositoryPort = agentRepositoryPort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
@@ -41,7 +44,7 @@ public class UpdateAgentStatusService implements UpdateAgentStatusUseCase {
 
     @Override
     public UpdateAgentStatusResult execute(UpdateAgentStatusCommand cmd) {
-        ActorGuards.requireAdmin(cmd.actorContext(), "update agent status");
+        adminAccessService.requireActiveAdmin(cmd.actorContext(), "update agent status");
 
         Agent agent = agentRepositoryPort.findByCode(AgentCode.of(cmd.agentCode()))
                 .orElseThrow(() -> new NotFoundException("Agent not found"));

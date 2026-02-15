@@ -1,6 +1,5 @@
 package com.kori.bootstrap.config;
 
-import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.handler.OnAgentStatusChangedHandler;
 import com.kori.application.handler.OnClientStatusChangedHandler;
 import com.kori.application.handler.OnMerchantStatusChangedHandler;
@@ -20,6 +19,16 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class ApplicationWiringConfig {
 
     // -----------------------------
+    // Admin access service
+    // -----------------------------
+
+    @Bean
+    public AdminAccessService adminAccessService(AdminRepositoryPort adminRepositoryPort) {
+        return new AdminAccessService(adminRepositoryPort);
+    }
+
+
+    // -----------------------------
     // Use-cases
     // -----------------------------
 
@@ -29,6 +38,7 @@ public class ApplicationWiringConfig {
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
             IdGeneratorPort idGeneratorPort,
+            CodeGeneratorPort codeGeneratorPort,
             ClientRepositoryPort clientRepositoryPort,
             CardRepositoryPort cardRepositoryPort,
             AgentRepositoryPort agentRepositoryPort,
@@ -41,11 +51,12 @@ public class ApplicationWiringConfig {
             PlatformConfigPort platformConfigPort,
             AuditPort auditPort,
             PinHasherPort pinHasherPort,
-            OperationStatusGuards operationStatusGuards) {
+            OperationAuthorizationService operationAuthorizationService) {
         var useCase = new EnrollCardService(
                 timeProviderPort,
                 idempotencyPort,
                 idGeneratorPort,
+                codeGeneratorPort,
                 clientRepositoryPort,
                 cardRepositoryPort,
                 agentRepositoryPort,
@@ -58,7 +69,7 @@ public class ApplicationWiringConfig {
                 platformConfigPort,
                 auditPort,
                 pinHasherPort,
-                operationStatusGuards
+                operationAuthorizationService
         );
 
         // Make this @Transactional
@@ -83,7 +94,7 @@ public class ApplicationWiringConfig {
             PlatformConfigPort platformConfigPort,
             AuditPort auditPort,
             PinHasherPort pinHasherPort,
-            OperationStatusGuards operationStatusGuards
+            OperationAuthorizationService operationAuthorizationService
     ) {
         var useCase = new AddCardToExistingClientService(
                 timeProviderPort,
@@ -100,7 +111,7 @@ public class ApplicationWiringConfig {
                 platformConfigPort,
                 auditPort,
                 pinHasherPort,
-                operationStatusGuards
+                operationAuthorizationService
         );
 
         var transactionTemplate = new TransactionTemplate(transactionManager);
@@ -125,7 +136,7 @@ public class ApplicationWiringConfig {
             LedgerAccountLockPort ledgerAccountLockPort,
             AuditPort auditPort,
             PinHasherPort pinHasherPort,
-            OperationStatusGuards operationStatusGuards) {
+            OperationAuthorizationService operationAuthorizationService) {
         var useCase = new PayByCardService(
                 timeProviderPort,
                 idempotencyPort,
@@ -142,7 +153,7 @@ public class ApplicationWiringConfig {
                 ledgerAccountLockPort,
                 auditPort,
                 pinHasherPort,
-                operationStatusGuards
+                operationAuthorizationService
         );
 
         // Make this @Transactional
@@ -166,7 +177,7 @@ public class ApplicationWiringConfig {
             TransactionRepositoryPort transactionRepositoryPort,
             LedgerAppendPort ledgerAppendPort,
             AuditPort auditPort,
-            OperationStatusGuards operationStatusGuards
+            OperationAuthorizationService operationAuthorizationService
     ) {
         var useCase = new MerchantWithdrawAtAgentService(
                 timeProviderPort,
@@ -182,7 +193,7 @@ public class ApplicationWiringConfig {
                 transactionRepositoryPort,
                 ledgerAppendPort,
                 auditPort,
-                operationStatusGuards
+                operationAuthorizationService
         );
 
         // Make this @Transactional
@@ -203,7 +214,7 @@ public class ApplicationWiringConfig {
             TransactionRepositoryPort transactionRepositoryPort,
             LedgerAppendPort ledgerAppendPort,
             AuditPort auditPort,
-            OperationStatusGuards operationStatusGuards
+            OperationAuthorizationService operationAuthorizationService
     ) {
         var useCase = new CashInByAgentService(
                 timeProviderPort,
@@ -216,7 +227,7 @@ public class ApplicationWiringConfig {
                 transactionRepositoryPort,
                 ledgerAppendPort,
                 auditPort,
-                operationStatusGuards
+                operationAuthorizationService
         );
 
         var transactionTemplate = new TransactionTemplate(transactionManager);
@@ -224,8 +235,9 @@ public class ApplicationWiringConfig {
     }
 
     @Bean
-    public AgentBankDepositReceiptUseCase agentBankDepositReceiptUseCase(
+    public AdminReceiptAgentBankDepositUseCase agentBankDepositReceiptUseCase(
             PlatformTransactionManager transactionManager,
+            AdminAccessService adminAccessService,
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
             IdGeneratorPort idGeneratorPort,
@@ -234,7 +246,8 @@ public class ApplicationWiringConfig {
             LedgerAppendPort ledgerAppendPort,
             AuditPort auditPort
     ) {
-        var useCase = new AgentBankDepositReceiptService(
+        var useCase = new AdminReceiptAdminServiceAgentBankDeposit(
+                adminAccessService,
                 timeProviderPort,
                 idempotencyPort,
                 idGeneratorPort,
@@ -252,6 +265,7 @@ public class ApplicationWiringConfig {
     public RequestAgentPayoutUseCase agentPayoutUseCase(
             PlatformTransactionManager transactionManager,
             TimeProviderPort timeProviderPort,
+            AdminAccessService adminAccessService,
             IdempotencyPort idempotencyPort,
             AgentRepositoryPort agentRepositoryPort,
             LedgerAppendPort ledgerAppendPort,
@@ -264,6 +278,7 @@ public class ApplicationWiringConfig {
     ) {
         var useCase = new RequestAgentPayoutService(
                 timeProviderPort,
+                adminAccessService,
                 idempotencyPort,
                 agentRepositoryPort,
                 ledgerAppendPort,
@@ -282,11 +297,13 @@ public class ApplicationWiringConfig {
     @Bean
     public CompleteAgentPayoutUseCase completeAgentPayoutUseCase(
             PlatformTransactionManager transactionManager,
+            AdminAccessService adminAccessService,
             TimeProviderPort timeProviderPort,
             PayoutRepositoryPort payoutRepositoryPort,
             LedgerAppendPort ledgerAppendPort,
             AuditPort auditPort) {
         var useCase = new CompleteAgentPayoutService(
+                adminAccessService,
                 timeProviderPort,
                 payoutRepositoryPort,
                 ledgerAppendPort,
@@ -300,11 +317,13 @@ public class ApplicationWiringConfig {
     @Bean
     public FailAgentPayoutUseCase failAgentPayoutUseCase(
             PlatformTransactionManager transactionManager,
+            AdminAccessService adminAccessService,
             TimeProviderPort timeProviderPort,
             PayoutRepositoryPort payoutRepositoryPort,
             LedgerAppendPort ledgerAppendPort,
             AuditPort auditPort) {
         var useCase = new FailAgentPayoutService(
+                adminAccessService,
                 timeProviderPort,
                 payoutRepositoryPort,
                 ledgerAppendPort,
@@ -318,6 +337,7 @@ public class ApplicationWiringConfig {
     @Bean
     public RequestClientRefundUseCase requestClientRefundUseCase(
             PlatformTransactionManager transactionManager,
+            AdminAccessService adminAccessService,
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
             ClientRepositoryPort clientRepositoryPort,
@@ -330,6 +350,7 @@ public class ApplicationWiringConfig {
             IdGeneratorPort idGeneratorPort
     ) {
         var useCase = new RequestClientRefundService(
+                adminAccessService,
                 timeProviderPort,
                 idempotencyPort,
                 clientRepositoryPort,
@@ -349,11 +370,13 @@ public class ApplicationWiringConfig {
     @Bean
     public CompleteClientRefundUseCase completeClientRefundUseCase(
             PlatformTransactionManager transactionManager,
+            AdminAccessService adminAccessService,
             TimeProviderPort timeProviderPort,
             ClientRefundRepositoryPort clientRefundRepositoryPort,
             LedgerAppendPort ledgerAppendPort,
             AuditPort auditPort) {
         var useCase = new CompleteClientRefundService(
+                adminAccessService,
                 timeProviderPort,
                 clientRefundRepositoryPort,
                 ledgerAppendPort,
@@ -367,11 +390,13 @@ public class ApplicationWiringConfig {
     @Bean
     public FailClientRefundUseCase failClientRefundUseCase(
             PlatformTransactionManager transactionManager,
+            AdminAccessService adminAccessService,
             TimeProviderPort timeProviderPort,
             ClientRefundRepositoryPort clientRefundRepositoryPort,
             LedgerAppendPort ledgerAppendPort,
             AuditPort auditPort) {
         var useCase = new FailClientRefundService(
+                adminAccessService,
                 timeProviderPort,
                 clientRefundRepositoryPort,
                 ledgerAppendPort,
@@ -385,6 +410,7 @@ public class ApplicationWiringConfig {
     @Bean
     public ReversalUseCase reversalUseCase(
             PlatformTransactionManager transactionManager,
+            AdminAccessService adminAccessService,
             TimeProviderPort timeProviderPort,
             IdempotencyPort idempotencyPort,
             TransactionRepositoryPort transactionRepositoryPort,
@@ -396,6 +422,7 @@ public class ApplicationWiringConfig {
             PlatformConfigPort platformConfigPort
     ) {
         var useCase = new ReversalService(
+                adminAccessService,
                 timeProviderPort,
                 idempotencyPort,
                 transactionRepositoryPort,
@@ -414,6 +441,7 @@ public class ApplicationWiringConfig {
 
     @Bean
     public CreateAgentUseCase createAgentUseCase(
+            AdminAccessService adminAccessService,
             AgentRepositoryPort agentRepositoryPort,
             AccountProfilePort accountProfilePort,
             IdempotencyPort idempotencyPort,
@@ -423,6 +451,7 @@ public class ApplicationWiringConfig {
             IdGeneratorPort idGeneratorPort
     ) {
         return new CreateAgentService(
+                adminAccessService,
                 agentRepositoryPort,
                 accountProfilePort,
                 idempotencyPort,
@@ -435,6 +464,7 @@ public class ApplicationWiringConfig {
 
     @Bean
     public CreateMerchantUseCase createMerchantUseCase(
+            AdminAccessService adminAccessService,
             MerchantRepositoryPort merchantRepositoryPort,
             AccountProfilePort accountProfilePort,
             AuditPort auditPort,
@@ -444,6 +474,7 @@ public class ApplicationWiringConfig {
             IdGeneratorPort idGeneratorPort
     ) {
         return new CreateMerchantService(
+                adminAccessService,
                 merchantRepositoryPort,
                 accountProfilePort,
                 auditPort,
@@ -456,6 +487,7 @@ public class ApplicationWiringConfig {
 
     @Bean
     public CreateTerminalUseCase createTerminalUseCase(
+            AdminAccessService adminAccessService,
             TerminalRepositoryPort terminalRepositoryPort,
             MerchantRepositoryPort merchantRepositoryPort,
             TimeProviderPort timeProviderPort,
@@ -464,6 +496,7 @@ public class ApplicationWiringConfig {
             AuditPort auditPort
     ) {
         return new CreateTerminalService(
+                adminAccessService,
                 terminalRepositoryPort,
                 merchantRepositoryPort,
                 idempotencyPort,
@@ -475,6 +508,7 @@ public class ApplicationWiringConfig {
 
     @Bean
     public CreateAdminUseCase createAdminUseCase(
+            AdminAccessService adminAccessService,
             AdminRepositoryPort adminRepositoryPort,
             IdempotencyPort idempotencyPort,
             TimeProviderPort timeProviderPort,
@@ -482,6 +516,7 @@ public class ApplicationWiringConfig {
             AuditPort auditPort
     ) {
         return new CreateAdminService(
+                adminAccessService,
                 adminRepositoryPort,
                 idempotencyPort,
                 timeProviderPort,
@@ -492,14 +527,14 @@ public class ApplicationWiringConfig {
 
     @Bean
     public AgentUpdateCardStatusUseCase agentUpdateCardStatusUseCase(
-            TimeProviderPort timeProviderPort,
             AgentRepositoryPort agentRepositoryPort,
+            TimeProviderPort timeProviderPort,
             CardRepositoryPort cardRepositoryPort,
             AuditPort auditPort
     ) {
         return new AgentUpdateCardStatusService(
-                timeProviderPort,
                 agentRepositoryPort,
+                timeProviderPort,
                 cardRepositoryPort,
                 auditPort
         );
@@ -507,11 +542,13 @@ public class ApplicationWiringConfig {
 
     @Bean
     public AdminUnblockCardUseCase adminUnblockCardUseCase(
+            AdminAccessService adminAccessService,
             TimeProviderPort timeProviderPort,
             CardRepositoryPort cardRepositoryPort,
             AuditPort auditPort
     ) {
         return new AdminUnblockCardService(
+                adminAccessService,
                 timeProviderPort,
                 cardRepositoryPort,
                 auditPort
@@ -520,11 +557,13 @@ public class ApplicationWiringConfig {
 
     @Bean
     public AdminUpdateCardStatusUseCase adminUpdateCardStatusUseCase(
+            AdminAccessService adminAccessService,
             TimeProviderPort timeProviderPort,
             CardRepositoryPort cardRepositoryPort,
             AuditPort auditPort
     ) {
         return new AdminUpdateCardStatusService(
+                adminAccessService,
                 timeProviderPort,
                 cardRepositoryPort,
                 auditPort
@@ -533,6 +572,7 @@ public class ApplicationWiringConfig {
 
     @Bean
     public UpdateAgentStatusUseCase updateAgentStatusUseCase(
+            AdminAccessService adminAccessService,
             AgentRepositoryPort agentRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort,
@@ -540,6 +580,7 @@ public class ApplicationWiringConfig {
             LedgerQueryPort ledgerQueryPort
     ) {
         return new UpdateAgentStatusService(
+                adminAccessService,
                 agentRepositoryPort,
                 auditPort,
                 timeProviderPort,
@@ -551,12 +592,14 @@ public class ApplicationWiringConfig {
 
     @Bean
     public UpdateAccountProfileStatusUseCase updateAccountProfileStatusUseCase(
+            AdminAccessService adminAccessService,
             AccountProfilePort accountProfilePort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort,
             DomainEventPublisherPort domainEventPublisherPort
     ) {
         return new UpdateAccountProfileStatusService(
+                adminAccessService,
                 accountProfilePort,
                 auditPort,
                 timeProviderPort,
@@ -566,6 +609,7 @@ public class ApplicationWiringConfig {
 
     @Bean
     public UpdateClientStatusUseCase updateClientStatusUseCase(
+            AdminAccessService adminAccessService,
             ClientRepositoryPort clientRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort,
@@ -573,6 +617,7 @@ public class ApplicationWiringConfig {
             LedgerQueryPort ledgerQueryPort
     ) {
         return new UpdateClientStatusService(
+                adminAccessService,
                 clientRepositoryPort,
                 auditPort,
                 timeProviderPort,
@@ -583,6 +628,7 @@ public class ApplicationWiringConfig {
 
     @Bean
     public UpdateMerchantStatusUseCase updateMerchantStatusUseCase(
+            AdminAccessService adminAccessService,
             MerchantRepositoryPort merchantRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort,
@@ -590,6 +636,7 @@ public class ApplicationWiringConfig {
             LedgerQueryPort ledgerQueryPort
     ) {
         return new UpdateMerchantStatusService(
+                adminAccessService,
                 merchantRepositoryPort,
                 auditPort,
                 timeProviderPort,
@@ -600,11 +647,13 @@ public class ApplicationWiringConfig {
 
     @Bean
     public UpdateTerminalStatusUseCase updateTerminalStatusUseCase(
+            AdminAccessService adminAccessService,
             TerminalRepositoryPort terminalRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort
     ) {
         return new UpdateTerminalStatusService(
+                adminAccessService,
                 terminalRepositoryPort,
                 auditPort,
                 timeProviderPort
@@ -613,11 +662,13 @@ public class ApplicationWiringConfig {
 
     @Bean
     public UpdateAdminStatusUseCase updateAdminStatusUseCase(
+            AdminAccessService adminAccessService,
             AdminRepositoryPort adminRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort
     ) {
         return new UpdateAdminStatusService(
+                adminAccessService,
                 adminRepositoryPort,
                 auditPort,
                 timeProviderPort
@@ -626,11 +677,13 @@ public class ApplicationWiringConfig {
 
     @Bean
     public UpdateFeeConfigUseCase updateFeeConfigUseCase(
+            AdminAccessService adminAccessService,
             FeeConfigPort feeConfigPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort
     ) {
         return new UpdateFeeConfigService(
+                adminAccessService,
                 feeConfigPort,
                 auditPort,
                 timeProviderPort
@@ -639,11 +692,13 @@ public class ApplicationWiringConfig {
 
     @Bean
     public UpdateCommissionConfigUseCase updateCommissionConfigUseCase(
+            AdminAccessService adminAccessService,
             CommissionConfigPort commissionConfigPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort
     ) {
         return new UpdateCommissionConfigService(
+                adminAccessService,
                 commissionConfigPort,
                 auditPort,
                 timeProviderPort
@@ -652,11 +707,13 @@ public class ApplicationWiringConfig {
 
     @Bean
     public UpdatePlatformConfigUseCase updatePlatformConfigUseCase(
+            AdminAccessService adminAccessService,
             PlatformConfigPort platformConfigPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort
     ) {
         return new UpdatePlatformConfigService(
+                adminAccessService,
                 platformConfigPort,
                 auditPort,
                 timeProviderPort
@@ -673,34 +730,41 @@ public class ApplicationWiringConfig {
     }
 
     @Bean
-    public OperationStatusGuards operationStatusGuards(AccountProfilePort accountProfilePort) {
-        return new OperationStatusGuards(accountProfilePort);
+    public OperationAuthorizationService operationStatusGuards(AccountProfilePort accountProfilePort) {
+        return new OperationAuthorizationService(accountProfilePort);
     }
 
     // -----------------------------
-    // Read-side (Phase 1 services reused)
+    // Read-side
     // -----------------------------
 
     @Bean
     public GetBalanceUseCase getBalanceUseCase(
             LedgerQueryPort ledgerQueryPort,
-            LedgerAccessPolicy ledgerAccessPolicy
+            LedgerAccessPolicy ledgerAccessPolicy,
+            ClientRepositoryPort clientRepositoryPort
     ) {
-        return new GetBalanceService(ledgerQueryPort, ledgerAccessPolicy);
+        return new GetBalanceService(ledgerQueryPort, ledgerAccessPolicy, clientRepositoryPort);
     }
 
     @Bean
     public SearchTransactionHistoryUseCase searchTransactionHistoryUseCase(
             LedgerQueryPort ledgerQueryPort,
             TransactionRepositoryPort transactionRepositoryPort,
-            LedgerAccessPolicy ledgerAccessPolicy
+            LedgerAccessPolicy ledgerAccessPolicy,
+            ClientRepositoryPort clientRepositoryPort
     ) {
         return new SearchTransactionHistoryService(
                 ledgerQueryPort,
                 transactionRepositoryPort,
-                ledgerAccessPolicy
+                ledgerAccessPolicy,
+                clientRepositoryPort
         );
     }
+
+    // -----------------------------
+    // Read query use-cases
+    // -----------------------------
 
     @Bean
     public BackofficeTransactionQueryUseCase backofficeTransactionQueryUseCase(

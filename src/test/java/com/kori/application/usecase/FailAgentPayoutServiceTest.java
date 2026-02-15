@@ -49,8 +49,8 @@ final class FailAgentPayoutServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
-    private static final String ADMIN_ACTOR_ID = "admin-actor";
-    private static final String NON_ADMIN_ACTOR_ID = "agent-actor";
+    private static final String ADMIN_ACTOR_ID = "admin.user";
+    private static final String NON_ADMIN_ACTOR_ID = "A-000001";
 
     private static final String REASON = "Bank transfer failed";
 
@@ -165,7 +165,7 @@ final class FailAgentPayoutServiceTest {
 
         assertEquals("AGENT_PAYOUT_FAILED", event.action());
         assertEquals("ADMIN", event.actorType());
-        assertEquals(ADMIN_ACTOR_ID, event.actorId());
+        assertEquals(ADMIN_ACTOR_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
         assertEquals(PAYOUT_UUID.toString(), event.metadata().get("payoutId"));
         assertEquals(REASON, event.metadata().get("reason"));

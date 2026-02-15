@@ -9,4 +9,6 @@ public interface AdminRepositoryPort {
     Optional<Admin> findById(AdminId adminId);
 
     void save(Admin admin);
+
+    Optional<Admin> findByUsername(String username);
 }

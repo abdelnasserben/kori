@@ -33,7 +33,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class TerminalControllerWebMvcTest extends BaseWebMvcTest {
 
     private static final String URL = ApiPaths.TERMINALS;
-    private static final String URL_PATH_VARIABLE_STATUS = URL + "/{terminalId}/status";
+    private static final String URL_PATH_VARIABLE_STATUS = URL + "/{terminalUid}/status";
 
 
     @MockitoBean
@@ -57,7 +57,7 @@ class TerminalControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.terminalId").value("terminal-123"))
+                .andExpect(jsonPath("$.terminalUid").value("terminal-123"))
                 .andExpect(jsonPath("$.merchantCode").value("merchant-1"));
     }
 
@@ -75,7 +75,7 @@ class TerminalControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subjectId").value("terminal-123"))
+                .andExpect(jsonPath("$.subjectRef").value("terminal-123"))
                 .andExpect(jsonPath("$.previousStatus").value("INACTIVE"))
                 .andExpect(jsonPath("$.newStatus").value("ACTIVE"));
     }

@@ -2,7 +2,6 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.UpdatePlatformConfigCommand;
 import com.kori.application.exception.ValidationException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdatePlatformConfigUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.PlatformConfigPort;
@@ -19,15 +18,18 @@ import java.util.Optional;
 
 public class UpdatePlatformConfigService implements UpdatePlatformConfigUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final PlatformConfigPort platformConfigPort;
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
 
     public UpdatePlatformConfigService(
+            AdminAccessService adminAccessService,
             PlatformConfigPort platformConfigPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort
     ) {
+        this.adminAccessService = adminAccessService;
         this.platformConfigPort = platformConfigPort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
@@ -35,7 +37,8 @@ public class UpdatePlatformConfigService implements UpdatePlatformConfigUseCase 
 
     @Override
     public UpdatePlatformConfigResult execute(UpdatePlatformConfigCommand cmd) {
-        ActorGuards.requireAdmin(cmd.actorContext(), "update platform config");
+        adminAccessService.requireActiveAdmin(cmd.actorContext(), "update platform config");
+
         validate(cmd.agentCashLimitGlobal());
 
         Optional<PlatformConfig> previous = platformConfigPort.get();

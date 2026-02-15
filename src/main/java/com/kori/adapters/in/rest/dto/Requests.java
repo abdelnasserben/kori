@@ -19,7 +19,10 @@ public final class Requests {
      * Comoros country calling code: +269
      * National significant number length is typically 7 digits.
      */
+
     public static final String COMOROS_PHONE_REGEX = "^(\\+269)?\\d{7}$";
+
+    public static final String ADMIN_USERNAME_FORMAT = "^[A-Za-z0-9._@-]{3,64}$";
 
     private Requests() {}
 
@@ -33,9 +36,7 @@ public final class Requests {
             @NotBlank @Size(max = 64)
             String cardUid,
             @Pattern(regexp = PIN_REGEX_4_DIGITS, message = "PIN must be exactly 4 digits")
-            String pin,
-            @NotBlank @Size(max = 16)
-            String agentCode
+            String pin
     ) {}
 
     public record AddCardToExistingClientRequest(
@@ -44,8 +45,7 @@ public final class Requests {
             String phoneNumber,
             @NotBlank @Size(max = 64) String cardUid,
             @Pattern(regexp = PIN_REGEX_4_DIGITS, message = "PIN must be exactly 4 digits")
-            String pin,
-            @NotBlank @Size(max = 16) String agentCode
+            String pin
     ) {}
 
     public record PayByCardRequest(
@@ -58,7 +58,6 @@ public final class Requests {
 
     public record MerchantWithdrawAtAgentRequest(
             @NotBlank @Size(max = 16) String merchantCode,
-            @NotBlank @Size(max = 16) String agentCode,
             @NotNull @Positive BigDecimal amount
     ) {}
 
@@ -86,7 +85,6 @@ public final class Requests {
     ) {}
 
     public record AgentCardStatusRequest(
-            @NotBlank @Size(max = 16) String agentCode,
             @NotBlank String targetStatus,
             @Size(max = 255) String reason
     ) {}
@@ -127,9 +125,14 @@ public final class Requests {
 
     public record FailPayoutRequest(@NotBlank @Size(max = 255) String reason) {}
 
-    public record RequestClientRefundRequest(@NotBlank String clientId) {}
+    public record RequestClientRefundRequest(@NotBlank String clientCode) {}
 
     public record FailClientRefundRequest(@NotBlank @Size(max = 255) String reason) {}
+
+    public record CreateAdminRequest(
+            @Pattern(regexp = ADMIN_USERNAME_FORMAT, message = "Invalid username format")
+            String username
+    ) {}
 
     /**
      * Standard cursor-based pagination for list endpoints.

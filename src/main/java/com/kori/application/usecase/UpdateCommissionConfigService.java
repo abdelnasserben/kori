@@ -2,7 +2,6 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateCommissionConfigCommand;
 import com.kori.application.exception.ValidationException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateCommissionConfigUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.CommissionConfigPort;
@@ -20,15 +19,18 @@ import java.util.Optional;
 
 public class UpdateCommissionConfigService implements UpdateCommissionConfigUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final CommissionConfigPort commissionConfigPort;
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
 
     public UpdateCommissionConfigService(
+            AdminAccessService adminAccessService,
             CommissionConfigPort commissionConfigPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort
     ) {
+        this.adminAccessService = adminAccessService;
         this.commissionConfigPort = commissionConfigPort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
@@ -36,7 +38,7 @@ public class UpdateCommissionConfigService implements UpdateCommissionConfigUseC
 
     @Override
     public UpdateCommissionConfigResult execute(UpdateCommissionConfigCommand cmd) {
-        ActorGuards.requireAdmin(cmd.actorContext(), "update commission config");
+        adminAccessService.requireActiveAdmin(cmd.actorContext(), "update commission config");
 
         validate(cmd);
 

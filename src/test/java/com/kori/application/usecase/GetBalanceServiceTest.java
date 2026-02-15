@@ -3,6 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.GetBalanceCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.ValidationException;
+import com.kori.application.port.out.ClientRepositoryPort;
 import com.kori.application.port.out.LedgerQueryPort;
 import com.kori.application.result.BalanceResult;
 import com.kori.application.security.ActorContext;
@@ -32,6 +33,7 @@ import static org.mockito.Mockito.*;
 final class GetBalanceServiceTest {
 
     @Mock LedgerQueryPort ledgerQueryPort;
+    @Mock ClientRepositoryPort clientRepositoryPort;
 
     private static final LedgerAccessPolicy POLICY = new LedgerAccessPolicy();
 
@@ -39,7 +41,7 @@ final class GetBalanceServiceTest {
     private static final TransactionId TX_2 = new TransactionId(UUID.fromString("22222222-2222-2222-2222-222222222222"));
 
     private static ActorContext adminActor() {
-        return new ActorContext(ActorType.ADMIN, "admin-actor", Map.of());
+        return new ActorContext(ActorType.ADMIN, "admin.user", Map.of());
     }
 
     private static ActorContext agentActor(String agentCode) {
@@ -48,7 +50,7 @@ final class GetBalanceServiceTest {
 
     @Test
     void admin_canReadSpecifiedAccount() {
-        GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY);
+        GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY, clientRepositoryPort);
 
         LedgerAccountRef scope = new LedgerAccountRef(LedgerAccountType.MERCHANT, "M-123456");
 
@@ -73,7 +75,7 @@ final class GetBalanceServiceTest {
 
     @Test
     void admin_forbidden_whenScopeMissing() {
-        GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY);
+        GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY, clientRepositoryPort);
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(new GetBalanceCommand(
                 adminActor(),
@@ -86,7 +88,7 @@ final class GetBalanceServiceTest {
 
     @Test
     void agent_canReadOwnBalance_withoutProvidingScope() {
-        GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY);
+        GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY, clientRepositoryPort);
 
         String agentCode = "A-123456";
         LedgerAccountRef scope = LedgerAccountRef.agentWallet(agentCode);
@@ -113,7 +115,7 @@ final class GetBalanceServiceTest {
 
     @Test
     void agent_forbidden_whenTryingToReadAnotherAccount() {
-        GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY);
+        GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY, clientRepositoryPort);
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(new GetBalanceCommand(
                 agentActor("A-123456"),
@@ -126,7 +128,7 @@ final class GetBalanceServiceTest {
 
     @Test
     void agent_throwsValidation_whenProvidesPartialScope() {
-        GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY);
+        GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY, clientRepositoryPort);
 
         assertThrows(ValidationException.class, () -> service.execute(new GetBalanceCommand(
                 agentActor("A-123456"),
@@ -139,9 +141,9 @@ final class GetBalanceServiceTest {
 
     @Test
     void terminal_forbidden() {
-        GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY);
+        GetBalanceService service = new GetBalanceService(ledgerQueryPort, POLICY, clientRepositoryPort);
 
-        ActorContext terminal = new ActorContext(ActorType.TERMINAL, "T-1", Map.of());
+        ActorContext terminal = new ActorContext(ActorType.TERMINAL, "TERM-1001", Map.of());
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(new GetBalanceCommand(
                 terminal,

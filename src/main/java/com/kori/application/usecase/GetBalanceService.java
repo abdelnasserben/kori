@@ -3,6 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.GetBalanceCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.port.in.GetBalanceUseCase;
+import com.kori.application.port.out.ClientRepositoryPort;
 import com.kori.application.port.out.LedgerQueryPort;
 import com.kori.application.result.BalanceResult;
 import com.kori.application.security.ActorContext;
@@ -11,6 +12,7 @@ import com.kori.application.security.LedgerAccessPolicy;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerAccountType;
 import com.kori.domain.ledger.LedgerEntryType;
+import com.kori.domain.model.client.ClientCode;
 import com.kori.domain.model.common.Money;
 
 import java.util.Objects;
@@ -19,10 +21,12 @@ public final class GetBalanceService implements GetBalanceUseCase {
 
     private final LedgerQueryPort ledgerQueryPort;
     private final LedgerAccessPolicy ledgerAccessPolicy;
+    private final ClientRepositoryPort clientRepositoryPort;
 
-    public GetBalanceService(LedgerQueryPort ledgerQueryPort, LedgerAccessPolicy ledgerAccessPolicy) {
+    public GetBalanceService(LedgerQueryPort ledgerQueryPort, LedgerAccessPolicy ledgerAccessPolicy, ClientRepositoryPort clientRepositoryPort) {
         this.ledgerQueryPort = Objects.requireNonNull(ledgerQueryPort);
         this.ledgerAccessPolicy = Objects.requireNonNull(ledgerAccessPolicy);
+        this.clientRepositoryPort = Objects.requireNonNull(clientRepositoryPort);
     }
 
     @Override
@@ -72,12 +76,18 @@ public final class GetBalanceService implements GetBalanceUseCase {
         return own;
     }
 
-    private static LedgerAccountRef ownScope(ActorContext actor) {
+    private LedgerAccountRef ownScope(ActorContext actor) {
         return switch (actor.actorType()) {
-            case AGENT -> LedgerAccountRef.agentWallet(actor.actorId());
-            case MERCHANT -> LedgerAccountRef.merchant(actor.actorId());
-            case CLIENT -> LedgerAccountRef.client(actor.actorId());
+            case AGENT -> LedgerAccountRef.agentWallet(actor.actorRef());
+            case MERCHANT -> LedgerAccountRef.merchant(actor.actorRef());
+            case CLIENT -> LedgerAccountRef.client(resolveClientOwnerRef(actor.actorRef()));
             default -> throw new ForbiddenOperationException("Actor type cannot consult ledger");
         };
+    }
+
+    private String resolveClientOwnerRef(String clientActorRef) {
+        return clientRepositoryPort.findByCode(ClientCode.of(clientActorRef))
+                .orElseThrow(() -> new ForbiddenOperationException("Client not found"))
+                .id().value().toString();
     }
 }

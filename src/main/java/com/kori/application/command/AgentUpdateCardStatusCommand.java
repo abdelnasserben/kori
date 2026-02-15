@@ -7,18 +7,15 @@ import java.util.Objects;
 public record AgentUpdateCardStatusCommand(
         ActorContext actorContext,
         String cardUid,
-        String agentCode,
         String targetStatus, // must be ACTIVE, INACTIVE or SUSPENDED
         String reason) {
 
     public AgentUpdateCardStatusCommand(ActorContext actorContext,
                                         String cardUid,
-                                        String agentCode,
                                         String targetStatus,
                                         String reason) {
         this.actorContext = Objects.requireNonNull(actorContext);
         this.cardUid = Objects.requireNonNull(cardUid);
-        this.agentCode = Objects.requireNonNull(agentCode);
         this.targetStatus = Objects.requireNonNull(targetStatus);
         this.reason = (reason == null || reason.isBlank()) ? "N/A" : reason;
     }

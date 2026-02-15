@@ -43,7 +43,7 @@ final class UpdateCommissionConfigServiceTest {
     }
 
     private static ActorContext nonAdminActor() {
-        return new ActorContext(ActorType.AGENT, "agent-1", Map.of());
+        return new ActorContext(ActorType.AGENT, "A-000001", Map.of());
     }
 
     private UpdateCommissionConfigCommand command(ActorContext actor, String reason) {
@@ -104,7 +104,7 @@ final class UpdateCommissionConfigServiceTest {
         AuditEvent event = auditCaptor.getValue();
         assertEquals("ADMIN_UPDATE_COMMISSION_CONFIG", event.action());
         assertEquals("ADMIN", event.actorType());
-        assertEquals("admin-1", event.actorId());
+        assertEquals("admin-1", event.actorRef());
         assertEquals(NOW, event.occurredAt());
         assertEquals("ops update", event.metadata().get("reason"));
         assertEquals("2.00", event.metadata().get("previousCardEnrollmentAgentCommission"));

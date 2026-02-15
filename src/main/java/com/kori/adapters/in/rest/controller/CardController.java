@@ -60,8 +60,7 @@ public class CardController {
                         actorContext,
                         request.phoneNumber(),
                         request.cardUid(),
-                        request.pin(),
-                        request.agentCode()
+                        request.pin()
                 )
         );
         return new EnrollCardResponse(
@@ -91,8 +90,7 @@ public class CardController {
                         actorContext,
                         request.phoneNumber(),
                         request.cardUid(),
-                        request.pin(),
-                        request.agentCode()
+                        request.pin()
                 )
         );
         return new AddCardToExistingClientResponse(
@@ -151,7 +149,6 @@ public class CardController {
                 new AgentUpdateCardStatusCommand(
                         actorContext,
                         cardUid,
-                        request.agentCode(),
                         request.targetStatus(),
                         request.reason()
                 )

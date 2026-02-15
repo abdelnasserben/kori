@@ -3,8 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.AddCardToExistingClientCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
-import com.kori.application.guard.OperationStatusGuards;
+import com.kori.application.guard.ActorTypeGuards;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.AddCardToExistingClientUseCase;
 import com.kori.application.port.out.*;
@@ -13,6 +12,7 @@ import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.client.Client;
+import com.kori.domain.model.client.PhoneNumber;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -25,7 +25,7 @@ public final class AddCardToExistingClientService implements AddCardToExistingCl
     private final ClientRepositoryPort clientRepositoryPort;
     private final CardRepositoryPort cardRepositoryPort;
     private final AgentRepositoryPort agentRepositoryPort;
-    private final OperationStatusGuards operationStatusGuards;
+    private final OperationAuthorizationService operationAuthorizationService;
     private final CardEnrollmentWorkflow enrollmentWorkflow;
     private final AuditPort auditPort;
     private final IdempotencyExecutor idempotencyExecutor;
@@ -45,13 +45,13 @@ public final class AddCardToExistingClientService implements AddCardToExistingCl
             PlatformConfigPort platformConfigPort,
             AuditPort auditPort,
             PinHasherPort pinHasherPort,
-            OperationStatusGuards operationStatusGuards
+            OperationAuthorizationService operationAuthorizationService
     ) {
         this.timeProviderPort = timeProviderPort;
         this.clientRepositoryPort = clientRepositoryPort;
         this.cardRepositoryPort = cardRepositoryPort;
         this.agentRepositoryPort = agentRepositoryPort;
-        this.operationStatusGuards = operationStatusGuards;
+        this.operationAuthorizationService = operationAuthorizationService;
         this.auditPort = auditPort;
         this.enrollmentWorkflow = new CardEnrollmentWorkflow(
                 idGeneratorPort,
@@ -78,17 +78,17 @@ public final class AddCardToExistingClientService implements AddCardToExistingCl
                 command.idempotencyRequestHash(),
                 AddCardToExistingClientResult.class,
                 () -> {
-                    // business logic
 
-                    ActorGuards.requireAgent(command.actorContext(), "add a card to an existing client");
+                    ActorTypeGuards.onlyAgentCan(command.actorContext(), "add a card to an existing client");
 
-                    Agent agent = agentRepositoryPort.findByCode(AgentCode.of(command.agentCode()))
+                    String agentCode = command.actorContext().actorRef();
+                    Agent agent = agentRepositoryPort.findByCode(AgentCode.of(agentCode))
                             .orElseThrow(() -> new NotFoundException("Agent not found"));
-                    operationStatusGuards.requireActiveAgent(agent);
+                    operationAuthorizationService.authorizeAgentOperation(agent);
 
-                    Client client = clientRepositoryPort.findByPhoneNumber(command.phoneNumber())
+                    Client client = clientRepositoryPort.findByPhoneNumber(PhoneNumber.of(command.phoneNumber()))
                             .orElseThrow(() -> new NotFoundException("Client not found"));
-                    operationStatusGuards.requireActiveClient(client);
+                    operationAuthorizationService.authorizeClientPayment(client);
 
                     // Card UID must doesn't exists
                     if (cardRepositoryPort.findByCardUid(command.cardUid()).isPresent()) {
@@ -101,8 +101,7 @@ public final class AddCardToExistingClientService implements AddCardToExistingCl
 
                     Map<String, String> metadata = new HashMap<>();
                     metadata.put("transactionId", outcome.transaction().id().value().toString());
-                    metadata.put("agentCode", command.agentCode());
-                    metadata.put("clientId", client.id().value().toString());
+                    metadata.put("clientCode", client.code().value());
                     metadata.put("cardUid", outcome.card().cardUid());
 
                     auditPort.publish(AuditBuilder.buildBasicAudit(

@@ -30,9 +30,9 @@ class CreateTerminalServiceIT extends IntegrationTestBase {
                 merchant.code().value()
         ));
 
-        assertNotNull(result.terminalId());
+        assertNotNull(result.terminalUid());
 
-        Terminal terminal = terminalRepositoryPort.findById(new TerminalId(java.util.UUID.fromString(result.terminalId())))
+        Terminal terminal = terminalRepositoryPort.findById(new TerminalId(java.util.UUID.fromString(result.terminalUid())))
                 .orElseThrow();
         assertEquals(Status.ACTIVE, terminal.status());
         assertEquals(merchant.id(), terminal.merchantId());

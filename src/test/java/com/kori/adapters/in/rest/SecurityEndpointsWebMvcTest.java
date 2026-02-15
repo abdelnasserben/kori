@@ -31,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class SecurityEndpointsWebMvcTest {
 
     private static final String IDEMPOTENCY_KEY = "idem-1";
-    private static final String ACTOR_ID = "actor-1";
+    private static final String ACTOR_ID = "A-000001";
 
     @Autowired
     private MockMvc mockMvc;
@@ -46,7 +46,7 @@ class SecurityEndpointsWebMvcTest {
     @MockitoBean private MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase;
     @MockitoBean private CashInByAgentUseCase cashInByAgentUseCase;
     @MockitoBean private ReversalUseCase reversalUseCase;
-    @MockitoBean private AgentBankDepositReceiptUseCase agentBankDepositReceiptUseCase;
+    @MockitoBean private AdminReceiptAgentBankDepositUseCase adminReceiptAgentBankDepositUseCase;
 
     @MockitoBean private RequestAgentPayoutUseCase requestAgentPayoutUseCase;
     @MockitoBean private CompleteAgentPayoutUseCase completeAgentPayoutUseCase;
@@ -65,8 +65,8 @@ class SecurityEndpointsWebMvcTest {
         when(merchantWithdrawAtAgentUseCase.execute(any()))
                 .thenReturn(new MerchantWithdrawAtAgentResult("tx-2", "m-1", "a-1",
                         new BigDecimal("10"), new BigDecimal("1"), new BigDecimal("1"), new BigDecimal("11")));
-        when(agentBankDepositReceiptUseCase.execute(any()))
-                .thenReturn(new AgentBankDepositReceiptResult("tx-3", "A-1", new BigDecimal("10")));
+        when(adminReceiptAgentBankDepositUseCase.execute(any()))
+                .thenReturn(new AdminReceiptAgentBankDepositResult("tx-3", "A-1", new BigDecimal("10")));
         when(requestAgentPayoutUseCase.execute(any()))
                 .thenReturn(new AgentPayoutResult("tx-4", "p-1", "A-1", new BigDecimal("10"), "REQUESTED"));
         when(updateFeeConfigUseCase.execute(any()))

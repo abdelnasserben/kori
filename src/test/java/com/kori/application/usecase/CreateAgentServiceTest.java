@@ -48,7 +48,7 @@ final class CreateAgentServiceTest {
     // ======= constants =======
     private static final String IDEM_KEY = "idem-1";
     private static final String REQUEST_HASH = "request-hash";
-    private static final String ADMIN_ID = "admin-actor";
+    private static final String ADMIN_ID = "admin.user";
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
     private static final UUID AGENT_UUID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -63,7 +63,7 @@ final class CreateAgentServiceTest {
     }
 
     private static ActorContext nonAdminActor() {
-        return new ActorContext(ActorType.AGENT, "agent-actor", Map.of());
+        return new ActorContext(ActorType.AGENT, "A-000001", Map.of());
     }
 
     private static CreateAgentCommand cmd(ActorContext actor) {
@@ -84,7 +84,7 @@ final class CreateAgentServiceTest {
 
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
-        CreateAgentResult cached = new CreateAgentResult("agent-1", "A-000001");
+        CreateAgentResult cached = new CreateAgentResult("A-000001", "A-000001");
         when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, CreateAgentResult.class)).thenReturn(IdempotencyClaim.completed(cached));
         CreateAgentResult out = service.execute(cmd(adminActor()));
 
@@ -148,9 +148,9 @@ final class CreateAgentServiceTest {
 
         assertEquals("AGENT_CREATED", event.action());
         assertEquals("ADMIN", event.actorType());
-        assertEquals(ADMIN_ID, event.actorId());
+        assertEquals(ADMIN_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
-        assertEquals(ADMIN_ID, event.metadata().get("adminId"));
+        assertEquals(ADMIN_ID, event.metadata().get("adminUsername"));
         assertEquals(AGENT_CODE_1, event.metadata().get("agentCode"));
 
         verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateAgentResult.class));

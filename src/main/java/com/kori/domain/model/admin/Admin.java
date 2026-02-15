@@ -8,21 +8,27 @@ import java.util.Objects;
 
 public final class Admin {
     private final AdminId id;
+    private final AdminUsername username;
     private Status status;
     private final Instant createdAt;
 
-    public Admin(AdminId id, Status status, Instant createdAt) {
+    public Admin(AdminId id, AdminUsername username, Status status, Instant createdAt) {
         this.id = Objects.requireNonNull(id, "id");
+        this.username = Objects.requireNonNull(username, "username");
         this.status = Objects.requireNonNull(status, "status");
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
     }
 
-    public static Admin activeNew(AdminId id, Instant createdAt) {
-        return new Admin(id, Status.ACTIVE, createdAt);
+    public static Admin activeNew(AdminId id, AdminUsername username, Instant createdAt) {
+        return new Admin(id, username, Status.ACTIVE, createdAt);
     }
 
     public AdminId id() {
         return id;
+    }
+
+    public AdminUsername username() {
+        return username;
     }
 
     public Status status() {

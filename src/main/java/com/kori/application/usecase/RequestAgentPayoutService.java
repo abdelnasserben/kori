@@ -3,7 +3,7 @@ package com.kori.application.usecase;
 import com.kori.application.command.RequestAgentPayoutCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
+import com.kori.application.guard.ActorStatusGuards;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.RequestAgentPayoutUseCase;
 import com.kori.application.port.out.*;
@@ -15,7 +15,6 @@ import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.agent.AgentId;
 import com.kori.domain.model.common.Money;
-import com.kori.domain.model.common.Status;
 import com.kori.domain.model.payout.Payout;
 import com.kori.domain.model.payout.PayoutId;
 import com.kori.domain.model.payout.PayoutStatus;
@@ -31,6 +30,7 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
 
     private final TimeProviderPort timeProviderPort;
 
+    private final AdminAccessService adminAccessService;
     private final AgentRepositoryPort agentRepositoryPort;
     private final LedgerAppendPort ledgerAppendPort;
     private final LedgerQueryPort ledgerQueryPort;
@@ -42,7 +42,7 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
     private final IdempotencyExecutor idempotencyExecutor;
 
     public RequestAgentPayoutService(
-            TimeProviderPort timeProviderPort,
+            TimeProviderPort timeProviderPort, AdminAccessService adminAccessService,
             IdempotencyPort idempotencyPort,
             AgentRepositoryPort agentRepositoryPort, LedgerAppendPort ledgerAppendPort,
             LedgerQueryPort ledgerQueryPort, LedgerAccountLockPort ledgerAccountLockPort,
@@ -50,6 +50,7 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
             PayoutRepositoryPort payoutRepositoryPort,
             AuditPort auditPort, IdGeneratorPort idGeneratorPort) {
         this.timeProviderPort = timeProviderPort;
+        this.adminAccessService = adminAccessService;
         this.agentRepositoryPort = agentRepositoryPort;
         this.ledgerAppendPort = ledgerAppendPort;
         this.ledgerQueryPort = ledgerQueryPort;
@@ -68,18 +69,13 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
                 command.idempotencyRequestHash(),
                 AgentPayoutResult.class,
                 () -> {
-                    // business logic
 
-                    // ADMIN only
-                    ActorGuards.requireAdmin(command.actorContext(), "initiate agent payout");
+                    adminAccessService.requireActiveAdmin(command.actorContext(), "initiate agent payout");
 
                     // Agent must exist and active
                     Agent agent = agentRepositoryPort.findByCode(AgentCode.of(command.agentCode()))
                             .orElseThrow(() -> new NotFoundException("Agent not found"));
-
-                    if (!agent.status().equals(Status.ACTIVE)) {
-                        throw new ForbiddenOperationException("Agent is not active");
-                    }
+                    ActorStatusGuards.requireActiveAgent(agent);
                     AgentId agentId = agent.id();
 
                     // Check existing agent request
@@ -87,7 +83,7 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
                         throw new ForbiddenOperationException("A payout is already REQUESTED for this agent");
                     }
 
-                    // Spec: payout must compensate exactly what is due to the agent.
+                    // Payout must compensate exactly what is due to the agent.
                     var agentWalletAcc = LedgerAccountRef.agentWallet(agentId.value().toString());
                     ledgerAccountLockPort.lock(agentWalletAcc);
                     Money due = ledgerQueryPort.netBalance(agentWalletAcc);
@@ -114,8 +110,8 @@ public class RequestAgentPayoutService implements RequestAgentPayoutUseCase {
 
                     Map<String, String> metadata = new HashMap<>();
                     metadata.put("transactionId", tx.id().value().toString());
-                    metadata.put("agentCode", command.agentCode());
                     metadata.put("payoutId", payout.id().value().toString());
+                    metadata.put("agentCode", command.agentCode());
 
                     auditPort.publish(AuditBuilder.buildBasicAudit(
                             "AGENT_PAYOUT_REQUESTED",

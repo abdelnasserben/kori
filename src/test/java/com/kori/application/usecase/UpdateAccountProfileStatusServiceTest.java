@@ -47,7 +47,7 @@ final class UpdateAccountProfileStatusServiceTest {
     // ======= constants =======
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
-    private static final String ADMIN_ID = "admin-actor";
+    private static final String ADMIN_ID = "admin.user";
     private static final String MERCHANT_ID = "merchant-actor";
 
     private static final String ACCOUNT_TYPE_RAW = LedgerAccountType.MERCHANT.name();
@@ -122,7 +122,7 @@ final class UpdateAccountProfileStatusServiceTest {
 
         assertEquals("ADMIN_UPDATE_ACCOUNT_PROFILE_STATUS_" + Status.SUSPENDED.name(), event.action());
         assertEquals(ActorType.ADMIN.name(), event.actorType());
-        assertEquals(ADMIN_ID, event.actorId());
+        assertEquals(ADMIN_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
 
         assertEquals(ACCOUNT_TYPE_RAW, event.metadata().get("ledgerAccountType"));

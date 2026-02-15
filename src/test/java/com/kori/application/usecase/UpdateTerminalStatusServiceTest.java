@@ -44,8 +44,8 @@ final class UpdateTerminalStatusServiceTest {
     // ======= constants =======
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
-    private static final String ADMIN_ID = "admin-actor";
-    private static final String AGENT_ID = "agent-actor";
+    private static final String ADMIN_ID = "admin.user";
+    private static final String AGENT_ID = "A-000001";
 
     private static final TerminalId TERMINAL_ID = new TerminalId(UUID.randomUUID());
     private static final String TERMINAL_ID_RAW = TERMINAL_ID.value().toString();
@@ -102,7 +102,7 @@ final class UpdateTerminalStatusServiceTest {
 
         UpdateTerminalStatusResult out = service.execute(cmd(adminActor(), Status.SUSPENDED.name(), REASON));
 
-        assertEquals(TERMINAL_ID_RAW, out.terminalId());
+        assertEquals(TERMINAL_ID_RAW, out.terminalUid());
         assertEquals(Status.ACTIVE.name(), out.previousStatus());
         assertEquals(Status.SUSPENDED.name(), out.newStatus());
 
@@ -115,10 +115,10 @@ final class UpdateTerminalStatusServiceTest {
 
         assertEquals("ADMIN_UPDATE_TERMINAL_STATUS", event.action());
         assertEquals(ActorType.ADMIN.name(), event.actorType());
-        assertEquals(ADMIN_ID, event.actorId());
+        assertEquals(ADMIN_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
 
-        assertEquals(TERMINAL_ID_RAW, event.metadata().get("terminalId"));
+        assertEquals(TERMINAL_ID_RAW, event.metadata().get("terminalUid"));
         assertEquals(Status.ACTIVE.name(), event.metadata().get("before"));
         assertEquals(Status.SUSPENDED.name(), event.metadata().get("after"));
         assertEquals(REASON, event.metadata().get("reason"));

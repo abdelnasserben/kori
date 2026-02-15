@@ -4,7 +4,6 @@ import com.kori.application.command.CashInByAgentCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.IdempotencyConflictException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CashInByAgentResult;
@@ -19,6 +18,7 @@ import com.kori.domain.model.agent.AgentId;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientId;
+import com.kori.domain.model.client.PhoneNumber;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import org.junit.jupiter.api.Test;
@@ -55,7 +55,8 @@ final class CashInByAgentServiceTest {
     @Mock TransactionRepositoryPort transactionRepositoryPort;
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock AuditPort auditPort;
-    @Mock OperationStatusGuards operationStatusGuards;
+    @Mock
+    OperationAuthorizationService operationAuthorizationService;
 
     @InjectMocks CashInByAgentService service;
 
@@ -87,7 +88,7 @@ final class CashInByAgentServiceTest {
     }
 
     private static Agent activeAgent() {
-        return new Agent(new AgentId(AGENT_UUID), AgentCode.of("A-123456"), NOW.minusSeconds(60), Status.ACTIVE);
+        return new Agent(new AgentId(AGENT_UUID), AgentCode.of("A-000001"), NOW.minusSeconds(60), Status.ACTIVE);
     }
 
     private static Client activeClient() {
@@ -122,7 +123,7 @@ final class CashInByAgentServiceTest {
                 transactionRepositoryPort,
                 ledgerAppendPort,
                 auditPort,
-                operationStatusGuards,
+                operationAuthorizationService,
                 idempotencyPort
         );
     }
@@ -136,10 +137,10 @@ final class CashInByAgentServiceTest {
         Client client = activeClient();
 
         when(agentRepositoryPort.findById(new AgentId(AGENT_UUID))).thenReturn(Optional.of(agent));
-        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
+        doNothing().when(operationAuthorizationService).authorizeAgentOperation(agent);
 
-        when(clientRepositoryPort.findByPhoneNumber(PHONE)).thenReturn(Optional.of(client));
-        doNothing().when(operationStatusGuards).requireActiveClient(client);
+        when(clientRepositoryPort.findByPhoneNumber(PhoneNumber.of(PHONE))).thenReturn(Optional.of(client));
+        doNothing().when(operationAuthorizationService).authorizeClientPayment(client);
         when(agentRepositoryPort.findByIdForUpdate(new AgentId(AGENT_UUID))).thenReturn(Optional.of(agent));
         when(ledgerQueryPort.getBalance(LedgerAccountRef.agentCashClearing(AGENT_UUID.toString()))).thenReturn(Money.zero());
         when(platformConfigPort.get()).thenReturn(Optional.of(new com.kori.domain.model.config.PlatformConfig(new BigDecimal("1000.00"))));
@@ -186,10 +187,10 @@ final class CashInByAgentServiceTest {
         Agent agent = activeAgent();
         when(agentRepositoryPort.findById(new AgentId(AGENT_UUID))).thenReturn(Optional.of(agent));
         doThrow(new ForbiddenOperationException("AGENT_NOT_ACTIVE"))
-                .when(operationStatusGuards).requireActiveAgent(agent);
+                .when(operationAuthorizationService).authorizeAgentOperation(agent);
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd()));
-        verify(operationStatusGuards).requireActiveAgent(agent);
+        verify(operationAuthorizationService).authorizeAgentOperation(agent);
         verifyNoInteractions(clientRepositoryPort, ledgerAppendPort, auditPort);
     }
 
@@ -200,12 +201,12 @@ final class CashInByAgentServiceTest {
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findById(new AgentId(AGENT_UUID))).thenReturn(Optional.of(agent));
-        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
+        doNothing().when(operationAuthorizationService).authorizeAgentOperation(agent);
 
-        when(clientRepositoryPort.findByPhoneNumber(PHONE)).thenReturn(Optional.empty());
+        when(clientRepositoryPort.findByPhoneNumber(PhoneNumber.of(PHONE))).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> service.execute(cmd()));
-        verify(clientRepositoryPort).findByPhoneNumber(PHONE);
+        verify(clientRepositoryPort).findByPhoneNumber(PhoneNumber.of(PHONE));
         verifyNoInteractions(ledgerAppendPort, auditPort);
     }
 

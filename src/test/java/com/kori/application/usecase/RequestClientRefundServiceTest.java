@@ -48,7 +48,7 @@ class RequestClientRefundServiceTest {
     @Test
     void forbidden_when_client_wallet_zero() {
         var clientId = UUID.randomUUID();
-        var cmd = new RequestClientRefundCommand("idem", "hash", new ActorContext(ActorType.ADMIN, "a", Map.of()), clientId.toString());
+        var cmd = new RequestClientRefundCommand("idem", "hash", new ActorContext(ActorType.ADMIN, "admin.user", Map.of()), clientId.toString());
         when(idempotencyPort.claimOrLoad(any(), any(), eq(ClientRefundResult.class))).thenReturn(IdempotencyClaim.claimed());
         when(clientRepositoryPort.findById(any())).thenReturn(Optional.of(new Client(new ClientId(clientId), "7712345", Status.ACTIVE, Instant.now())));
         when(clientRefundRepositoryPort.existsRequestedForClient(any())).thenReturn(false);
@@ -60,7 +60,7 @@ class RequestClientRefundServiceTest {
     @Test
     void happy_path_requests_refund() {
         var clientId = UUID.randomUUID();
-        var cmd = new RequestClientRefundCommand("idem", "hash", new ActorContext(ActorType.ADMIN, "a", Map.of()), clientId.toString());
+        var cmd = new RequestClientRefundCommand("idem", "hash", new ActorContext(ActorType.ADMIN, "admin.user", Map.of()), clientId.toString());
         when(idempotencyPort.claimOrLoad(any(), any(), eq(ClientRefundResult.class))).thenReturn(IdempotencyClaim.claimed());
         when(clientRepositoryPort.findById(any())).thenReturn(Optional.of(new Client(new ClientId(clientId), "7712345", Status.ACTIVE, Instant.now())));
         when(clientRefundRepositoryPort.existsRequestedForClient(any())).thenReturn(false);

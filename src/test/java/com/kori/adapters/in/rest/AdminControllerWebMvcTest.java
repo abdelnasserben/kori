@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class AdminControllerWebMvcTest extends BaseWebMvcTest {
 
     private final static String URL = ApiPaths.ADMINS;
-    private final static String URL_PATH_VARIABLE_STATUS = URL + "/{adminId}/status";
+    private final static String URL_PATH_VARIABLE_STATUS = URL + "/{adminUsername}/status";
 
     @MockitoBean
     private CreateAdminUseCase createAdminUseCase;
@@ -52,7 +52,7 @@ class AdminControllerWebMvcTest extends BaseWebMvcTest {
                         ))
                         .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1"))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.adminId").value("admin-123"));
+                .andExpect(jsonPath("$.adminUsername").value("admin-123"));
     }
 
     @Test
@@ -69,7 +69,7 @@ class AdminControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subjectId").value("admin-123"))
+                .andExpect(jsonPath("$.subjectRef").value("admin-123"))
                 .andExpect(jsonPath("$.previousStatus").value("INACTIVE"))
                 .andExpect(jsonPath("$.newStatus").value("ACTIVE"));
     }

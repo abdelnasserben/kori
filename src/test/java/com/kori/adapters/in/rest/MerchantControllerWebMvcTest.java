@@ -70,7 +70,7 @@ class MerchantControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subjectId").value("M-123456"))
+                .andExpect(jsonPath("$.subjectRef").value("M-123456"))
                 .andExpect(jsonPath("$.previousStatus").value("INACTIVE"))
                 .andExpect(jsonPath("$.newStatus").value("ACTIVE"));
     }

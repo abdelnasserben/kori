@@ -48,8 +48,8 @@ final class UpdateMerchantStatusServiceTest {
     // ======= constants =======
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
-    private static final String ADMIN_ID = "admin-actor";
-    private static final String AGENT_ID = "agent-actor";
+    private static final String ADMIN_ID = "admin.user";
+    private static final String AGENT_ID = "A-000001";
 
     private static final MerchantCode MERCHANT_CODE = MerchantCode.of("M-123456");
 
@@ -118,7 +118,7 @@ final class UpdateMerchantStatusServiceTest {
 
         assertEquals("ADMIN_UPDATE_MERCHANT_STATUS_" + Status.SUSPENDED.name(), event.action());
         assertEquals(ActorType.ADMIN.name(), event.actorType());
-        assertEquals(ADMIN_ID, event.actorId());
+        assertEquals(ADMIN_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
 
         assertEquals(MERCHANT_CODE.value(), event.metadata().get("merchantCode"));

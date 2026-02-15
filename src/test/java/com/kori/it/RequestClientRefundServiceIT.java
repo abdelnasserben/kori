@@ -19,7 +19,7 @@ class RequestClientRefundServiceIT extends IntegrationTestBase {
 
     @Test
     void requestClientRefund_happyPath() {
-        Client client = createActiveClient("7712345");
+        Client client = createActiveClient("+2694631523");
         LedgerAccountRef clientAcc = LedgerAccountRef.client(client.id().value().toString());
         seedLedgerCredit(clientAcc, new BigDecimal("25.00"));
 

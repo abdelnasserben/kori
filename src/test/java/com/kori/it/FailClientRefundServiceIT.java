@@ -20,7 +20,7 @@ class FailClientRefundServiceIT extends IntegrationTestBase {
 
     @Test
     void failClientRefund_returns_funds_to_client_wallet() {
-        Client client = createActiveClient("7712347");
+        Client client = createActiveClient("+2694631523");
         var clientAcc = LedgerAccountRef.client(client.id().value().toString());
         seedLedgerCredit(clientAcc, new BigDecimal("35.00"));
 
@@ -33,7 +33,7 @@ class FailClientRefundServiceIT extends IntegrationTestBase {
 
     @Test
     void failClientRefund_isIdempotent_whenAlreadyFailed() {
-        Client client = createActiveClient("7712349");
+        Client client = createActiveClient("+2694631523");
         var clientAcc = LedgerAccountRef.client(client.id().value().toString());
         seedLedgerCredit(clientAcc, new BigDecimal("35.00"));
 

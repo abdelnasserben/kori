@@ -66,7 +66,7 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
         ));
         boolean hasMore = rows.size() > limit;
         if (hasMore) rows = new ArrayList<>(rows.subList(0, limit));
-        String next = hasMore && !rows.isEmpty() ? codec.encode(rows.get(rows.size() - 1).createdAt(), UUID.fromString(rows.get(rows.size() - 1).actorId())) : null;
+        String next = hasMore && !rows.isEmpty() ? codec.encode(rows.get(rows.size() - 1).createdAt(), UUID.fromString(rows.get(rows.size() - 1).actorRef())) : null;
         return new QueryPage<>(rows, next, hasMore);
     }
 }

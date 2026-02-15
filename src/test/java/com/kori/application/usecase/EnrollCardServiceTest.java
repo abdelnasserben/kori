@@ -3,7 +3,6 @@ package com.kori.application.usecase;
 import com.kori.application.command.EnrollCardCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.EnrollCardResult;
@@ -21,10 +20,12 @@ import com.kori.domain.model.card.Card;
 import com.kori.domain.model.card.HashedPin;
 import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientId;
+import com.kori.domain.model.client.PhoneNumber;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
@@ -52,6 +53,7 @@ final class EnrollCardServiceTest {
     @Mock
     IdempotencyPort idempotencyPort;
     @Mock IdGeneratorPort idGeneratorPort;
+    @Mock CodeGeneratorPort codeGeneratorPort;
 
     @Mock ClientRepositoryPort clientRepositoryPort;
     @Mock CardRepositoryPort cardRepositoryPort;
@@ -67,15 +69,16 @@ final class EnrollCardServiceTest {
     @Mock AuditPort auditPort;
     @Mock PinHasherPort pinHasherPort;
 
-    @Mock OperationStatusGuards operationStatusGuards;
+    @Mock
+    OperationAuthorizationService operationAuthorizationService;
 
     @InjectMocks EnrollCardService enrollCardService;
 
     // ======= constants (single source of truth) =======
     private static final String IDEM_KEY = "idem-1";
     private static final String REQUEST_HASH = "request-hash";
-    private static final String ACTOR_ID = "agent-actor";
-    private static final String ADMIN_ACTOR_ID = "admin-actor";
+    private static final String ACTOR_ID = "A-000001";
+    private static final String ADMIN_ACTOR_ID = "admin.user";
 
     private static final String CLIENT_PHONE = "+26912345678";
     private static final String CARD_UID = "CARD-001";
@@ -119,6 +122,11 @@ final class EnrollCardServiceTest {
         return new Agent(new AgentId(AGENT_UUID), AGENT_CODE, NOW.minusSeconds(60), Status.ACTIVE);
     }
 
+    @BeforeEach
+    void setUp() {
+        lenient().when(codeGeneratorPort.next6Digits()).thenReturn("000001");
+    }
+
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
         EnrollCardResult cached = new EnrollCardResult(
@@ -151,7 +159,7 @@ final class EnrollCardServiceTest {
                 ledgerAppendPort,
                 auditPort,
                 pinHasherPort,
-                operationStatusGuards,
+                operationAuthorizationService,
                 idempotencyPort
         );
     }
@@ -178,7 +186,7 @@ final class EnrollCardServiceTest {
                 ledgerAppendPort,
                 auditPort,
                 pinHasherPort,
-                operationStatusGuards
+                operationAuthorizationService
         );
     }
 
@@ -206,7 +214,7 @@ final class EnrollCardServiceTest {
                 ledgerAppendPort,
                 auditPort,
                 pinHasherPort,
-                operationStatusGuards
+                operationAuthorizationService
         );
     }
 
@@ -220,12 +228,12 @@ final class EnrollCardServiceTest {
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
-        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
+        doNothing().when(operationAuthorizationService).authorizeAgentOperation(agent);
 
         LedgerAccountRef agentAccount = LedgerAccountRef.agentWallet(agent.id().value().toString());
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.empty());
 
-        when(clientRepositoryPort.findByPhoneNumber(CLIENT_PHONE)).thenReturn(Optional.empty());
+        when(clientRepositoryPort.findByPhoneNumber(PhoneNumber.of(CLIENT_PHONE))).thenReturn(Optional.empty());
         when(clientRepositoryPort.save(any(Client.class))).thenAnswer(inv -> inv.getArgument(0));
 
         LedgerAccountRef clientAccount = LedgerAccountRef.client(CLIENT_UUID.toString());
@@ -286,7 +294,7 @@ final class EnrollCardServiceTest {
         AuditEvent event = auditCaptor.getValue();
         assertEquals("ENROLL_CARD", event.action());
         assertEquals("AGENT", event.actorType());
-        assertEquals(ACTOR_ID, event.actorId());
+        assertEquals(ACTOR_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
         assertEquals(TX_UUID.toString(), event.metadata().get("transactionId"));
         assertEquals(AGENT_CODE_RAW, event.metadata().get("agentCode"));
@@ -302,7 +310,7 @@ final class EnrollCardServiceTest {
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
-        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
+        doNothing().when(operationAuthorizationService).authorizeAgentOperation(agent);
 
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(mock(Card.class)));
 
@@ -335,11 +343,10 @@ final class EnrollCardServiceTest {
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
-        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
+        doNothing().when(operationAuthorizationService).authorizeAgentOperation(agent);
 
         Client client = new Client(new ClientId(CLIENT_UUID), CLIENT_PHONE, Status.ACTIVE, NOW);
-        when(clientRepositoryPort.findByPhoneNumber(CLIENT_PHONE)).thenReturn(Optional.of(client));
-        doNothing().when(operationStatusGuards).requireClientEligibleForEnroll(client);
+        when(clientRepositoryPort.findByPhoneNumber(PhoneNumber.of(CLIENT_PHONE))).thenReturn(Optional.of(client));
 
         LedgerAccountRef clientAccount = LedgerAccountRef.client(CLIENT_UUID.toString());
         when(accountProfilePort.findByAccount(clientAccount))

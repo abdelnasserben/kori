@@ -1,7 +1,6 @@
 package com.kori.application.usecase;
 
 import com.kori.application.command.AddCardToExistingClientCommand;
-import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.AddCardToExistingClientResult;
@@ -13,6 +12,7 @@ import com.kori.domain.model.agent.AgentId;
 import com.kori.domain.model.card.HashedPin;
 import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientId;
+import com.kori.domain.model.client.PhoneNumber;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.config.PlatformConfig;
@@ -54,13 +54,14 @@ final class AddCardToExistingClientServiceTest {
     @Mock PlatformConfigPort platformConfigPort;
     @Mock AuditPort auditPort;
     @Mock PinHasherPort pinHasherPort;
-    @Mock OperationStatusGuards operationStatusGuards;
+    @Mock
+    OperationAuthorizationService operationAuthorizationService;
 
     @InjectMocks AddCardToExistingClientService service;
 
     private static final String IDEM_KEY = "idem-1";
     private static final String REQUEST_HASH = "request-hash";
-    private static final String ACTOR_ID = "agent-actor";
+    private static final String ACTOR_ID = "A-000001";
     private static final String PHONE = "+2691234567";
     private static final String CARD_UID = "CARD-001";
     private static final String RAW_PIN = "1234";
@@ -114,7 +115,7 @@ final class AddCardToExistingClientServiceTest {
                 platformConfigPort,
                 auditPort,
                 pinHasherPort,
-                operationStatusGuards
+                operationAuthorizationService
         );
     }
 
@@ -125,11 +126,11 @@ final class AddCardToExistingClientServiceTest {
 
         Agent agent = new Agent(new AgentId(AGENT_UUID), AGENT_CODE, NOW.minusSeconds(60), Status.ACTIVE);
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
-        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
+        doNothing().when(operationAuthorizationService).authorizeAgentOperation(agent);
 
         Client client = new Client(new ClientId(CLIENT_UUID), PHONE, Status.ACTIVE, NOW.minusSeconds(120));
-        when(clientRepositoryPort.findByPhoneNumber(PHONE)).thenReturn(Optional.of(client));
-        doNothing().when(operationStatusGuards).requireActiveClient(client);
+        when(clientRepositoryPort.findByPhoneNumber(PhoneNumber.of(PHONE))).thenReturn(Optional.of(client));
+        doNothing().when(operationAuthorizationService).authorizeClientPayment(client);
 
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.empty());
         when(cardRepositoryPort.save(any())).thenAnswer(invocation -> invocation.getArgument(0));

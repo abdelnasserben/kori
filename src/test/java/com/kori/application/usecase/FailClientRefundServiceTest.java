@@ -46,7 +46,7 @@ class FailClientRefundServiceTest {
         when(clientRefundRepositoryPort.findById(any())).thenReturn(Optional.of(refund));
         when(timeProviderPort.now()).thenReturn(Instant.now());
 
-        var out = service.execute(new FailClientRefundCommand(new ActorContext(ActorType.ADMIN, "a", Map.of()), refund.id().value().toString(), "x"));
+        var out = service.execute(new FailClientRefundCommand(new ActorContext(ActorType.ADMIN, "admin.user", Map.of()), refund.id().value().toString(), "x"));
 
         assertEquals(FinalizationResult.APPLIED, out);
         verify(ledgerAppendPort).append(any());
@@ -69,7 +69,7 @@ class FailClientRefundServiceTest {
         );
         when(clientRefundRepositoryPort.findById(any())).thenReturn(Optional.of(refund));
 
-        var out = service.execute(new FailClientRefundCommand(new ActorContext(ActorType.ADMIN, "a", Map.of()), refund.id().value().toString(), "x"));
+        var out = service.execute(new FailClientRefundCommand(new ActorContext(ActorType.ADMIN, "admin.user", Map.of()), refund.id().value().toString(), "x"));
 
         assertEquals(FinalizationResult.ALREADY_APPLIED, out);
         verifyNoInteractions(ledgerAppendPort, auditPort, timeProviderPort);
@@ -93,7 +93,7 @@ class FailClientRefundServiceTest {
         when(clientRefundRepositoryPort.findById(any())).thenReturn(Optional.of(refund));
 
         assertThrows(ForbiddenOperationException.class,
-                () -> service.execute(new FailClientRefundCommand(new ActorContext(ActorType.ADMIN, "a", Map.of()), refund.id().value().toString(), "x")));
+                () -> service.execute(new FailClientRefundCommand(new ActorContext(ActorType.ADMIN, "admin.user", Map.of()), refund.id().value().toString(), "x")));
 
         verifyNoInteractions(ledgerAppendPort, auditPort, timeProviderPort);
         verify(clientRefundRepositoryPort, never()).save(any());

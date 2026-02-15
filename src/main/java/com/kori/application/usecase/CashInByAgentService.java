@@ -2,20 +2,19 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.CashInByAgentCommand;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
+import com.kori.application.guard.ActorTypeGuards;
 import com.kori.application.guard.AgentCashLimitGuard;
-import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.CashInByAgentUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CashInByAgentResult;
 import com.kori.application.utils.AuditBuilder;
-import com.kori.application.utils.UuidParser;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.agent.Agent;
-import com.kori.domain.model.agent.AgentId;
+import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.client.Client;
+import com.kori.domain.model.client.PhoneNumber;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
@@ -35,7 +34,7 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
     private final AgentCashLimitGuard agentCashLimitGuard;
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
-    private final OperationStatusGuards operationStatusGuards;
+    private final OperationAuthorizationService operationAuthorizationService;
     private final IdempotencyExecutor idempotencyExecutor;
 
     public CashInByAgentService(TimeProviderPort timeProviderPort,
@@ -48,7 +47,7 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
                                 TransactionRepositoryPort transactionRepositoryPort,
                                 LedgerAppendPort ledgerAppendPort,
                                 AuditPort auditPort,
-                                OperationStatusGuards operationStatusGuards) {
+                                OperationAuthorizationService operationAuthorizationService) {
         this.timeProviderPort = timeProviderPort;
         this.idGeneratorPort = idGeneratorPort;
         this.agentRepositoryPort = agentRepositoryPort;
@@ -57,7 +56,7 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
         this.agentCashLimitGuard = new AgentCashLimitGuard(ledgerQueryPort, platformConfigPort);
         this.ledgerAppendPort = ledgerAppendPort;
         this.auditPort = auditPort;
-        this.operationStatusGuards = operationStatusGuards;
+        this.operationAuthorizationService = operationAuthorizationService;
         this.idempotencyExecutor = new IdempotencyExecutor(idempotencyPort);
     }
 
@@ -68,20 +67,18 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
                 command.idempotencyRequestHash(),
                 CashInByAgentResult.class,
                 () -> {
-                    // business logic
 
-                    ActorGuards.requireAgent(command.actorContext(), "initiate cash-in");
+                    ActorTypeGuards.onlyAgentCan(command.actorContext(), "initiate cash-in");
 
-                    AgentId agentId = new AgentId(UuidParser.parse(command.actorContext().actorId(), "agentCode"));
-                    Agent agent = agentRepositoryPort.findById(agentId)
+                    Agent agent = agentRepositoryPort.findByCode(AgentCode.of(command.actorContext().actorRef()))
                             .orElseThrow(() -> new NotFoundException("Agent not found"));
 
-                    operationStatusGuards.requireActiveAgent(agent);
+                    operationAuthorizationService.authorizeAgentOperation(agent);
 
-                    Client client = clientRepositoryPort.findByPhoneNumber(command.clientPhoneNumber())
+                    Client client = clientRepositoryPort.findByPhoneNumber(PhoneNumber.of(command.clientPhoneNumber()))
                             .orElseThrow(() -> new NotFoundException("Client not found"));
 
-                    operationStatusGuards.requireActiveClient(client);
+                    operationAuthorizationService.authorizeClientPayment(client);
 
                     Money amount = Money.positive(command.amount());
                     Instant now = timeProviderPort.now();
@@ -104,9 +101,7 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
 
                     Map<String, String> metadata = new HashMap<>();
                     metadata.put("transactionId", tx.id().value().toString());
-                    metadata.put("agentCode", agent.id().value().toString());
-                    metadata.put("clientId", client.id().value().toString());
-                    metadata.put("clientPhoneNumber", client.phoneNumber());
+                    metadata.put("clientCode", client.code().value());
                     metadata.put("amount", amount.asBigDecimal().toPlainString());
 
                     auditPort.publish(AuditBuilder.buildBasicAudit(
@@ -120,7 +115,7 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
                             tx.id().value().toString(),
                             agent.id().value().toString(),
                             client.id().value().toString(),
-                            client.phoneNumber(),
+                            client.phoneNumber().value(),
                             amount.asBigDecimal()
                     );
                 }

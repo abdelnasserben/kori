@@ -39,7 +39,7 @@ class CashInByAgentServiceIT extends IntegrationTestBase {
                         "idem-1",
                         "hash-1",
                         agentActor(agent.id().value().toString()),
-                        client.phoneNumber(),
+                        client.phoneNumber().value(),
                         amountBd
                 )
         );

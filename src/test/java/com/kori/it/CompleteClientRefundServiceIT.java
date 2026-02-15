@@ -20,7 +20,7 @@ class CompleteClientRefundServiceIT extends IntegrationTestBase {
 
     @Test
     void completeClientRefund_moves_to_platform_bank() {
-        Client client = createActiveClient("7712346");
+        Client client = createActiveClient("+2694631523");
         var clientAcc = LedgerAccountRef.client(client.id().value().toString());
         seedLedgerCredit(clientAcc, new BigDecimal("30.00"));
 
@@ -33,7 +33,7 @@ class CompleteClientRefundServiceIT extends IntegrationTestBase {
 
     @Test
     void completeClientRefund_isIdempotent_whenAlreadyCompleted() {
-        Client client = createActiveClient("7712348");
+        Client client = createActiveClient("°2694631523");
         var clientAcc = LedgerAccountRef.client(client.id().value().toString());
         seedLedgerCredit(clientAcc, new BigDecimal("30.00"));
 

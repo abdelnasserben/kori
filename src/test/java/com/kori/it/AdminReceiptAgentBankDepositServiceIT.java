@@ -1,8 +1,8 @@
 package com.kori.it;
 
-import com.kori.application.command.AgentBankDepositReceiptCommand;
-import com.kori.application.port.in.AgentBankDepositReceiptUseCase;
-import com.kori.application.result.AgentBankDepositReceiptResult;
+import com.kori.application.command.AdminReceiptAgentBankDepositCommand;
+import com.kori.application.port.in.AdminReceiptAgentBankDepositUseCase;
+import com.kori.application.result.AdminReceiptAgentBankDepositResult;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.common.Money;
@@ -16,10 +16,10 @@ import java.math.BigDecimal;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class AgentBankDepositReceiptServiceIT extends IntegrationTestBase {
+class AdminReceiptAgentBankDepositServiceIT extends IntegrationTestBase {
 
     @Autowired
-    AgentBankDepositReceiptUseCase agentBankDepositReceiptUseCase;
+    AdminReceiptAgentBankDepositUseCase adminReceiptAgentBankDepositUseCase;
 
     @Test
     void recordsBankDepositReceipt_andReducesAgentCashExposure() {
@@ -31,8 +31,8 @@ class AgentBankDepositReceiptServiceIT extends IntegrationTestBase {
         Money before = ledgerQueryPort.netBalance(clearing);
         assertEquals(new BigDecimal("-120.00"), before.asBigDecimal());
 
-        AgentBankDepositReceiptResult result = agentBankDepositReceiptUseCase.execute(
-                new AgentBankDepositReceiptCommand(
+        AdminReceiptAgentBankDepositResult result = adminReceiptAgentBankDepositUseCase.execute(
+                new AdminReceiptAgentBankDepositCommand(
                         "idem-bank-1",
                         "request-hash",
                         adminActor(),

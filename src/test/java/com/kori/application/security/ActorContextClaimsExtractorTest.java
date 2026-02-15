@@ -17,13 +17,14 @@ class ActorContextClaimsExtractorTest {
         Map<String, Object> claims = Map.of(
                 "sub", "subject-1",
                 "actor_type", "admin",
-                "actor_id", "admin-1"
+                "actor_id", "admin.user"
         );
 
         ActorContext context = extractor.extract(claims);
 
         assertEquals(ActorType.ADMIN, context.actorType());
-        assertEquals("admin-1", context.actorId());
+        assertEquals("admin.user", context.actorRef());
+        assertEquals("subject-1", context.authSubject().value());
     }
 
     @Test
@@ -31,26 +32,23 @@ class ActorContextClaimsExtractorTest {
         Map<String, Object> claims = Map.of(
                 "sub", "subject-1",
                 "actorType", "terminal",
-                "actorRef", "term-1"
+                "actorRef", "TERM-1001"
         );
 
         ActorContext context = extractor.extract(claims);
 
         assertEquals(ActorType.TERMINAL, context.actorType());
-        assertEquals("term-1", context.actorId());
+        assertEquals("TERM-1001", context.actorRef());
     }
 
     @Test
-    void should_fallback_to_subject_for_actor_id() {
+    void should_fail_when_actor_ref_is_missing_even_if_subject_exists() {
         Map<String, Object> claims = Map.of(
-                "sub", "agent-42",
+                "sub", "A-000042",
                 "actor_type", "agent"
         );
 
-        ActorContext context = extractor.extract(claims);
-
-        assertEquals(ActorType.AGENT, context.actorType());
-        assertEquals("agent-42", context.actorId());
+        assertThrows(ActorContextAuthenticationException.class, () -> extractor.extract(claims));
     }
 
     @Test

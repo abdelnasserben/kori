@@ -1,9 +1,11 @@
 package com.kori.application.usecase;
 
 import com.kori.application.command.CreateTerminalCommand;
-import com.kori.application.exception.ForbiddenOperationException;
+import com.kori.application.exception.ApplicationErrorCategory;
+import com.kori.application.exception.ApplicationErrorCode;
+import com.kori.application.exception.ApplicationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
+import com.kori.application.guard.ActorStatusGuards;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.CreateTerminalUseCase;
 import com.kori.application.port.out.*;
@@ -14,13 +16,19 @@ import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
 import com.kori.domain.model.terminal.Terminal;
 import com.kori.domain.model.terminal.TerminalId;
+import com.kori.domain.model.terminal.TerminalUid;
 
+import java.math.BigInteger;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Random;
 
 public class CreateTerminalService implements CreateTerminalUseCase {
 
+    private static final int MAX_CODE_GENERATION_ATTEMPTS = 20;
+
+    private final AdminAccessService adminAccessService;
     private final TerminalRepositoryPort terminalRepositoryPort;
     private final MerchantRepositoryPort merchantRepositoryPort;
     private final TimeProviderPort timeProviderPort;
@@ -28,7 +36,8 @@ public class CreateTerminalService implements CreateTerminalUseCase {
     private final AuditPort auditPort;
     private final IdempotencyExecutor idempotencyExecutor;
 
-    public CreateTerminalService(TerminalRepositoryPort terminalRepositoryPort, MerchantRepositoryPort merchantRepositoryPort, IdempotencyPort idempotencyPort, TimeProviderPort timeProviderPort, IdGeneratorPort idGeneratorPort, AuditPort auditPort) {
+    public CreateTerminalService(AdminAccessService adminAccessService, TerminalRepositoryPort terminalRepositoryPort, MerchantRepositoryPort merchantRepositoryPort, IdempotencyPort idempotencyPort, TimeProviderPort timeProviderPort, IdGeneratorPort idGeneratorPort, AuditPort auditPort) {
+        this.adminAccessService = adminAccessService;
         this.terminalRepositoryPort = terminalRepositoryPort;
         this.merchantRepositoryPort = merchantRepositoryPort;
         this.timeProviderPort = timeProviderPort;
@@ -44,29 +53,24 @@ public class CreateTerminalService implements CreateTerminalUseCase {
                 command.idempotencyRequestHash(),
                 CreateTerminalResult.class,
                 () -> {
-                    // business logic
 
                     var actorContext = command.actorContext();
-
-                    ActorGuards.requireAdmin(command.actorContext(), "create a terminal.");
+                    adminAccessService.requireActiveAdmin(actorContext, "create a terminal.");
 
                     // Merchant
                     Merchant merchant = merchantRepositoryPort.findByCode(MerchantCode.of(command.merchantCode()))
                             .orElseThrow(() -> new NotFoundException("Merchant not found"));
-
-                    if(merchant.status() != Status.ACTIVE) {
-                        throw new ForbiddenOperationException("Merchant is not active");
-                    }
+                    ActorStatusGuards.requireActiveMerchant(merchant);
 
                     Instant now = timeProviderPort.now();
 
                     TerminalId terminalId = new TerminalId(idGeneratorPort.newUuid());
-                    Terminal terminal = new Terminal(terminalId, merchant.id(), Status.ACTIVE, now);
+                    TerminalUid terminalUid = generateUniqueTerminalUid();
+                    Terminal terminal = new Terminal(terminalId, terminalUid, merchant.id(), Status.ACTIVE, now);
                     terminalRepositoryPort.save(terminal);
 
                     Map<String, String> metadata = new HashMap<>();
-                    metadata.put("adminId", actorContext.actorId());
-                    metadata.put("terminalId", terminalId.value().toString());
+                    metadata.put("terminalUid", terminalId.value().toString());
                     metadata.put("merchantCode", merchant.code().value());
 
                     auditPort.publish(AuditBuilder.buildBasicAudit(
@@ -76,8 +80,26 @@ public class CreateTerminalService implements CreateTerminalUseCase {
                             metadata
                     ));
 
-                    return new CreateTerminalResult(terminalId.value().toString(), command.merchantCode());
+                    return new CreateTerminalResult(terminalUid.value(), command.merchantCode());
                 }
+        );
+    }
+
+    private TerminalUid generateUniqueTerminalUid() {
+        for (int i = 0; i < MAX_CODE_GENERATION_ATTEMPTS; i++) {
+            Random random = new Random();
+            String suffix = new BigInteger(50, random).toString(36).toUpperCase();
+            TerminalUid.of("T-" + suffix);
+            TerminalUid candidate = TerminalUid.of("T-" + suffix);;
+            if (!terminalRepositoryPort.existsByUid(candidate)) {
+                return candidate;
+            }
+        }
+
+        throw new ApplicationException(
+                ApplicationErrorCode.TECHNICAL_FAILURE,
+                ApplicationErrorCategory.TECHNICAL,
+                "Unable to generate unique terminalUid."
         );
     }
 }

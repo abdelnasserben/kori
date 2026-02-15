@@ -3,7 +3,6 @@ package com.kori.application.usecase;
 import com.kori.application.command.UpdateAccountProfileStatusCommand;
 import com.kori.application.events.AccountProfileStatusChangedEvent;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateAccountProfileStatusUseCase;
 import com.kori.application.port.out.AccountProfilePort;
 import com.kori.application.port.out.AuditPort;
@@ -23,17 +22,20 @@ import java.util.UUID;
 
 public class UpdateAccountProfileStatusService implements UpdateAccountProfileStatusUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final AccountProfilePort accountProfilePort;
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
     private final DomainEventPublisherPort domainEventPublisherPort;
 
     public UpdateAccountProfileStatusService(
+            AdminAccessService adminAccessService,
             AccountProfilePort accountProfilePort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort,
             DomainEventPublisherPort domainEventPublisherPort
     ) {
+        this.adminAccessService = adminAccessService;
         this.accountProfilePort = accountProfilePort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
@@ -42,7 +44,7 @@ public class UpdateAccountProfileStatusService implements UpdateAccountProfileSt
 
     @Override
     public UpdateAccountProfileStatusResult execute(UpdateAccountProfileStatusCommand cmd) {
-        ActorGuards.requireAdmin(cmd.actorContext(), "update account status");
+        adminAccessService.requireActiveAdmin(cmd.actorContext(), "update account status");
 
         LedgerAccountRef accountRef = resolveLedgerAccountRef(cmd.accountType(), cmd.ownerRef());
 

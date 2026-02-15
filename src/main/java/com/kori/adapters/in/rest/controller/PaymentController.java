@@ -23,17 +23,17 @@ public class PaymentController {
     private final PayByCardUseCase payByCardUseCase;
     private final MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase;
     private final CashInByAgentUseCase cashInByAgentUseCase;
-    private final AgentBankDepositReceiptUseCase agentBankDepositReceiptUseCase;
+    private final AdminReceiptAgentBankDepositUseCase adminReceiptAgentBankDepositUseCase;
     private final ReversalUseCase reversalUseCase;
     private final IdempotencyRequestHasher idempotencyRequestHasher;
 
     public PaymentController(PayByCardUseCase payByCardUseCase,
-                             MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase, CashInByAgentUseCase cashInByAgentUseCase, AgentBankDepositReceiptUseCase agentBankDepositReceiptUseCase,
+                             MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase, CashInByAgentUseCase cashInByAgentUseCase, AdminReceiptAgentBankDepositUseCase adminReceiptAgentBankDepositUseCase,
                              ReversalUseCase reversalUseCase, IdempotencyRequestHasher idempotencyRequestHasher) {
         this.payByCardUseCase = payByCardUseCase;
         this.merchantWithdrawAtAgentUseCase = merchantWithdrawAtAgentUseCase;
         this.cashInByAgentUseCase = cashInByAgentUseCase;
-        this.agentBankDepositReceiptUseCase = agentBankDepositReceiptUseCase;
+        this.adminReceiptAgentBankDepositUseCase = adminReceiptAgentBankDepositUseCase;
         this.reversalUseCase = reversalUseCase;
         this.idempotencyRequestHasher = idempotencyRequestHasher;
     }
@@ -83,7 +83,6 @@ public class PaymentController {
                         idempotencyRequestHasher.hashPayload(request),
                         actorContext,
                         request.merchantCode(),
-                        request.agentCode(),
                         request.amount()
                 )
         );
@@ -134,8 +133,8 @@ public class PaymentController {
             ActorContext actorContext,
             @Valid @RequestBody AgentBankDepositReceiptRequest request
     ) {
-        var result = agentBankDepositReceiptUseCase.execute(
-                new AgentBankDepositReceiptCommand(
+        var result = adminReceiptAgentBankDepositUseCase.execute(
+                new AdminReceiptAgentBankDepositCommand(
                         idempotencyKey,
                         idempotencyRequestHasher.hashPayload(request),
                         actorContext,

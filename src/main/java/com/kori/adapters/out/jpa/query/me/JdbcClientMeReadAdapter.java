@@ -29,33 +29,38 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
     }
 
     @Override
-    public Optional<MeQueryModels.MeProfile> findProfile(String clientId) {
-        String sql = "SELECT id::text AS actor_id, phone_number AS code, status, created_at FROM clients WHERE id = CAST(:id AS uuid) LIMIT 1";
-        var rows = jdbcTemplate.query(sql, new MapSqlParameterSource("id", clientId), (rs, n) ->
-                new MeQueryModels.MeProfile(rs.getString("actor_id"), rs.getString("code"), rs.getString("status"), rs.getTimestamp("created_at").toInstant()));
+    public Optional<MeQueryModels.MeProfile> findProfile(String clientCode) {
+        String sql = "SELECT client_code AS actor_ref, phone_number AS code, status, created_at FROM clients WHERE client_code = :clientCode LIMIT 1";
+        var rows = jdbcTemplate.query(sql, new MapSqlParameterSource("clientCode", clientCode), (rs, n) ->
+                new MeQueryModels.MeProfile(rs.getString("actor_ref"), rs.getString("code"), rs.getString("status"), rs.getTimestamp("created_at").toInstant()));
         return rows.stream().findFirst();
     }
 
     @Override
-    public MeQueryModels.MeBalance getBalance(String clientId) {
+    public MeQueryModels.MeBalance getBalance(String clientCode) {
         String sql = """
                 SELECT COALESCE(SUM(CASE WHEN entry_type = 'CREDIT' THEN amount ELSE -amount END), 0) AS balance
                 FROM ledger_entries
-                WHERE account_type = 'CLIENT' AND owner_ref = :ownerRef
+                WHERE account_type = 'CLIENT' AND owner_ref = (SELECT id::text FROM clients WHERE client_code = :clientCode)
                 """;
-        var balance = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource("ownerRef", clientId), java.math.BigDecimal.class);
-        return new MeQueryModels.MeBalance("CLIENT", clientId, balance, "KMF");
+        var balance = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource("clientCode", clientCode), java.math.BigDecimal.class);
+        return new MeQueryModels.MeBalance("CLIENT", clientCode, balance, "KMF");
     }
 
     @Override
-    public List<MeQueryModels.MeCardItem> listCards(String clientId) {
-        String sql = "SELECT card_uid, status, created_at FROM cards WHERE client_id = CAST(:clientId AS uuid) ORDER BY created_at DESC, id DESC";
-        return jdbcTemplate.query(sql, new MapSqlParameterSource("clientId", clientId), (rs, n) ->
+    public List<MeQueryModels.MeCardItem> listCards(String clientCode) {
+        String sql = """
+                SELECT card_uid, status, created_at
+                FROM cards
+                WHERE client_id = (SELECT id FROM clients WHERE client_code = :clientCode)
+                ORDER BY created_at DESC, id DESC
+                """;
+        return jdbcTemplate.query(sql, new MapSqlParameterSource("clientCode", clientCode), (rs, n) ->
                 new MeQueryModels.MeCardItem(rs.getString("card_uid"), rs.getString("status"), rs.getTimestamp("created_at").toInstant()));
     }
 
     @Override
-    public QueryPage<MeQueryModels.MeTransactionItem> listTransactions(String clientId, MeQueryModels.MeTransactionsFilter filter) {
+    public QueryPage<MeQueryModels.MeTransactionItem> listTransactions(String clientCode, MeQueryModels.MeTransactionsFilter filter) {
         int limit = QueryInputValidator.normalizeLimit(filter.limit(), DEFAULT_LIMIT, MAX_LIMIT);
         boolean desc = QueryInputValidator.resolveSort(filter.sort(), "createdAt");
         QueryInputValidator.validateEnumFilter("type", filter.type());
@@ -72,10 +77,10 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
                      FROM ledger_entries le
                      WHERE le.transaction_id = t.id
                      AND le.account_type = 'CLIENT'
-                     AND le.owner_ref = :ownerRef
+                     AND le.owner_ref = (SELECT id::text FROM clients WHERE client_code = :clientCode)
                 )
                 """);
-        var params = new MapSqlParameterSource("ownerRef", clientId);
+        var params = new MapSqlParameterSource("clientCode", clientCode);
         applyTransactionFilters(sql, params, filter);
         applyCursor(sql, params, cursor, desc);
         sql.append(" ORDER BY t.created_at ").append(desc ? "DESC" : "ASC").append(", t.id ").append(desc ? "DESC" : "ASC");

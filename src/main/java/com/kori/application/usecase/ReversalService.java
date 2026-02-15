@@ -3,7 +3,6 @@ package com.kori.application.usecase;
 import com.kori.application.command.ReversalCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.guard.AgentCashLimitGuard;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.ReversalUseCase;
@@ -27,11 +26,10 @@ import java.util.function.Predicate;
 
 public final class ReversalService implements ReversalUseCase {
     private static final LedgerAccountRef FEE_ACCOUNT = LedgerAccountRef.platformFeeRevenue();
-    // Legacy compatibility: pre-slice cash withdraws were credited to PLATFORM_CLEARING.
     private static final LedgerAccountRef LEGACY_PLATFORM_CLEARING_ACCOUNT = LedgerAccountRef.platformClearing();
 
+    private final AdminAccessService adminAccessService;
     private final TimeProviderPort timeProviderPort;
-
     private final TransactionRepositoryPort transactionRepositoryPort;
     private final LedgerQueryPort ledgerQueryPort;
     private final LedgerAppendPort ledgerAppendPort;
@@ -41,7 +39,8 @@ public final class ReversalService implements ReversalUseCase {
     private final AgentCashLimitGuard agentCashLimitGuard;
     private final IdempotencyExecutor idempotencyExecutor;
 
-    public ReversalService(TimeProviderPort timeProviderPort,
+    public ReversalService(AdminAccessService adminAccessService,
+                           TimeProviderPort timeProviderPort,
                            IdempotencyPort idempotencyPort,
                            TransactionRepositoryPort transactionRepositoryPort,
                            LedgerQueryPort ledgerQueryPort,
@@ -50,6 +49,7 @@ public final class ReversalService implements ReversalUseCase {
                            IdGeneratorPort idGeneratorPort,
                            FeeConfigPort feeConfigPort,
                            PlatformConfigPort platformConfigPort) {
+        this.adminAccessService = adminAccessService;
         this.timeProviderPort = timeProviderPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.ledgerQueryPort = ledgerQueryPort;
@@ -68,9 +68,8 @@ public final class ReversalService implements ReversalUseCase {
                 cmd.idempotencyRequestHash(),
                 ReversalResult.class,
                 () -> {
-                    // business logic
 
-                    ActorGuards.requireAdmin(cmd.actorContext(), "initiate reversal");
+                    adminAccessService.requireActiveAdmin(cmd.actorContext(), "initiate reversal");
 
                     TransactionId originalTxId = TransactionId.of(cmd.originalTransactionId());
                     Transaction originalTx = transactionRepositoryPort.findById(originalTxId)

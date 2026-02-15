@@ -43,7 +43,7 @@ final class UpdatePlatformConfigServiceTest {
     }
 
     private static ActorContext nonAdminActor() {
-        return new ActorContext(ActorType.AGENT, "agent-1", Map.of());
+        return new ActorContext(ActorType.AGENT, "A-000001", Map.of());
     }
 
     @Test

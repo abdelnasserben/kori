@@ -77,7 +77,7 @@ public final class Responses {
     public record ClientRefundResponse(
             String transactionId,
             String refundId,
-            String clientId,
+            String clientCode,
             BigDecimal amount,
             String status
     ) {}
@@ -115,7 +115,7 @@ public final class Responses {
             BigDecimal totalDebited
     ) {}
 
-    public record UpdateStatusResponse(String subjectId, String previousStatus, String newStatus) {}
+    public record UpdateStatusResponse(String subjectRef, String previousStatus, String newStatus) {}
 
     public record UpdateAccountProfileStatusResponse(
             String accountType,

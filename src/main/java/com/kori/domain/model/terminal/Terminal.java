@@ -9,12 +9,14 @@ import java.util.Objects;
 
 public final class Terminal {
     private final TerminalId id;
+    private final TerminalUid terminalUid;
     private final MerchantId merchantId;
     private Status status;
     private final Instant createdAt;
 
-    public Terminal(TerminalId id, MerchantId merchantId, Status status, Instant createdAt) {
+    public Terminal(TerminalId id, TerminalUid terminalUid, MerchantId merchantId, Status status, Instant createdAt) {
         this.id = Objects.requireNonNull(id);
+        this.terminalUid = Objects.requireNonNull(terminalUid);
         this.merchantId = Objects.requireNonNull(merchantId);
         this.status = Objects.requireNonNull(status);
         this.createdAt = Objects.requireNonNull(createdAt);
@@ -22,6 +24,10 @@ public final class Terminal {
 
     public TerminalId id() {
         return id;
+    }
+
+    public TerminalUid terminalUid(){
+        return terminalUid;
     }
 
     public MerchantId merchantId() {

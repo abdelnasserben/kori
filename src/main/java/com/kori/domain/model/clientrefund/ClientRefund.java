@@ -43,7 +43,8 @@ public final class ClientRefund {
     }
 
     public void complete(Instant at) {
-        if (status != ClientRefundStatus.REQUESTED) throw new IllegalStateException("Can only complete REQUESTED client refund");
+        if (status != ClientRefundStatus.REQUESTED)
+            throw new IllegalStateException("Can only complete REQUESTED client refund");
         status = ClientRefundStatus.COMPLETED;
         completedAt = at;
     }

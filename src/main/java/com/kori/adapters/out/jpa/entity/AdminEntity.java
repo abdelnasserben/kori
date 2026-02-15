@@ -21,6 +21,9 @@ public class AdminEntity {
     @Column(nullable = false, updatable = false)
     private UUID id;
 
+    @Column(nullable = false, updatable = false, length = 16, unique = true)
+    private String username;
+
     @Column(nullable = false, length = 16)
     private String status;
 
@@ -31,8 +34,9 @@ public class AdminEntity {
         // for JPA
     }
 
-    public AdminEntity(UUID id, String status, Instant createdAt) {
+    public AdminEntity(UUID id, String username, String status, Instant createdAt) {
         this.id = id;
+        this.username = username;
         this.status = status;
         this.createdAt = createdAt;
     }

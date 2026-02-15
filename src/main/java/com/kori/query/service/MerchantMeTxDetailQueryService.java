@@ -24,7 +24,7 @@ public class MerchantMeTxDetailQueryService implements MerchantMeTxDetailQueryUs
         requireMerchant(actorContext);
         UuidParser.parse(transactionId, "transactionId");
 
-        return readPort.findOwnedByMerchant(actorContext.actorId(), transactionId)
+        return readPort.findOwnedByMerchant(actorContext.actorRef(), transactionId)
                 .orElseGet(() -> {
                     if (readPort.existsTransaction(transactionId)) {
                         throw new ForbiddenOperationException("Forbidden operation");

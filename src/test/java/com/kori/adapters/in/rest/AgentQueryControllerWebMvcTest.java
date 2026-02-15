@@ -42,9 +42,9 @@ class AgentQueryControllerWebMvcTest {
     @Test
     void agent_endpoints_are_agent_only() throws Exception {
         when(agentMeQueryUseCase.getSummary(any())).thenReturn(new AgentQueryModels.AgentSummary(
-                "agent-1", "AG001", "ACTIVE", new BigDecimal("1200.00"), new BigDecimal("300.00"), 4L));
+                "A-000001", "AG001", "ACTIVE", new BigDecimal("1200.00"), new BigDecimal("300.00"), 4L));
 
-        var agent = jwt().authorities(new SimpleGrantedAuthority("ROLE_AGENT")).jwt(j -> j.claim("roles", List.of("AGENT")).claim("actor_type", "AGENT").claim("actor_id", "agent-1"));
+        var agent = jwt().authorities(new SimpleGrantedAuthority("ROLE_AGENT")).jwt(j -> j.claim("roles", List.of("AGENT")).claim("actor_type", "AGENT").claim("actor_id", "A-000001"));
         var admin = jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")).jwt(j -> j.claim("roles", List.of("ADMIN")).claim("actor_type", "ADMIN").claim("actor_id", "admin-1"));
 
         mockMvc.perform(get(ApiPaths.AGENT_ME + "/summary"))
@@ -55,7 +55,7 @@ class AgentQueryControllerWebMvcTest {
 
         mockMvc.perform(get(ApiPaths.AGENT_ME + "/summary").with(agent))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.agentId").value("agent-1"));
+                .andExpect(jsonPath("$.agentId").value("A-000001"));
     }
 
     @Test
@@ -65,10 +65,10 @@ class AgentQueryControllerWebMvcTest {
         ), "cursor-2", true));
 
         when(agentMeQueryUseCase.listActivities(any(), any())).thenReturn(new QueryPage<>(List.of(
-                new AgentQueryModels.AgentActivityItem("evt-1", Instant.parse("2025-01-02T00:00:00Z"), "LOGIN", "AGENT", "agent-1", Map.of("ip", "127.0.0.1"))
+                new AgentQueryModels.AgentActivityItem("evt-1", Instant.parse("2025-01-02T00:00:00Z"), "LOGIN", "AGENT", "A-000001", Map.of("ip", "127.0.0.1"))
         ), null, false));
 
-        var agent = jwt().authorities(new SimpleGrantedAuthority("ROLE_AGENT")).jwt(j -> j.claim("roles", List.of("AGENT")).claim("actor_type", "AGENT").claim("actor_id", "agent-1"));
+        var agent = jwt().authorities(new SimpleGrantedAuthority("ROLE_AGENT")).jwt(j -> j.claim("roles", List.of("AGENT")).claim("actor_type", "AGENT").claim("actor_id", "A-000001"));
 
         mockMvc.perform(get(ApiPaths.AGENT_ME + "/transactions").with(agent).param("limit", "1").param("sort", "createdAt:desc"))
                 .andExpect(status().isOk())
@@ -89,7 +89,7 @@ class AgentQueryControllerWebMvcTest {
                 new AgentQueryModels.AgentSearchItem("CLIENT", "client-1", "26900001", "ACTIVE", Map.of("client", "/api/v1/clients/client-1"))
         ));
 
-        var agent = jwt().authorities(new SimpleGrantedAuthority("ROLE_AGENT")).jwt(j -> j.claim("roles", List.of("AGENT")).claim("actor_type", "AGENT").claim("actor_id", "agent-1"));
+        var agent = jwt().authorities(new SimpleGrantedAuthority("ROLE_AGENT")).jwt(j -> j.claim("roles", List.of("AGENT")).claim("actor_type", "AGENT").claim("actor_id", "A-000001"));
         var admin = jwt().authorities(new SimpleGrantedAuthority("ROLE_ADMIN")).jwt(j -> j.claim("roles", List.of("ADMIN")).claim("actor_type", "ADMIN").claim("actor_id", "admin-1"));
 
         mockMvc.perform(get(ApiPaths.AGENT_SEARCH).with(admin).param("phone", "26900001"))
@@ -110,7 +110,7 @@ class AgentQueryControllerWebMvcTest {
         when(agentMeQueryUseCase.listTransactions(any(), any()))
                 .thenThrow(new ValidationException("Invalid sort format. Use <field>:<asc|desc>"));
 
-        var agent = jwt().authorities(new SimpleGrantedAuthority("ROLE_AGENT")).jwt(j -> j.claim("roles", List.of("AGENT")).claim("actor_type", "AGENT").claim("actor_id", "agent-1"));
+        var agent = jwt().authorities(new SimpleGrantedAuthority("ROLE_AGENT")).jwt(j -> j.claim("roles", List.of("AGENT")).claim("actor_type", "AGENT").claim("actor_id", "A-000001"));
 
         mockMvc.perform(get(ApiPaths.AGENT_ME + "/transactions").with(agent).param("sort", "createdAt:wrong"))
                 .andExpect(status().isBadRequest())

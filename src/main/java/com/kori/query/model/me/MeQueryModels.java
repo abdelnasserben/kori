@@ -7,7 +7,7 @@ public final class MeQueryModels {
     private MeQueryModels() {}
 
     public record MeProfile(
-            String actorId,
+            String actorRef,
             String code,
             String status,
             Instant createdAt) {}

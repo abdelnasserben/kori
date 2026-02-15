@@ -3,7 +3,6 @@ package com.kori.application.usecase;
 import com.kori.application.command.MerchantWithdrawAtAgentCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.InsufficientFundsException;
-import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.MerchantWithdrawAtAgentResult;
@@ -64,14 +63,15 @@ final class MerchantWithdrawAtAgentServiceTest {
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock AuditPort auditPort;
 
-    @Mock OperationStatusGuards operationStatusGuards;
+    @Mock
+    OperationAuthorizationService operationAuthorizationService;
 
     @InjectMocks MerchantWithdrawAtAgentService service;
 
     // ======= constants (single source of truth) =======
     private static final String IDEM_KEY = "idem-1";
     private static final String REQUEST_HASH = "request-hash";
-    private static final String ACTOR_ID = "agent-actor";
+    private static final String ACTOR_ID = "A-000001";
 
     // IMPORTANT formats
     private static final String AGENT_CODE_RAW = "A-123456";
@@ -100,7 +100,7 @@ final class MerchantWithdrawAtAgentServiceTest {
     }
 
     private static ActorContext adminActor() {
-        return new ActorContext(ActorType.ADMIN, "admin-actor", Map.of());
+        return new ActorContext(ActorType.ADMIN, "admin.user", Map.of());
     }
 
     private static MerchantWithdrawAtAgentCommand cmd(ActorContext actor) {
@@ -152,7 +152,7 @@ final class MerchantWithdrawAtAgentServiceTest {
                 transactionRepositoryPort,
                 ledgerAppendPort,
                 auditPort,
-                operationStatusGuards,
+                operationAuthorizationService,
                 idempotencyPort
         );
     }
@@ -178,7 +178,7 @@ final class MerchantWithdrawAtAgentServiceTest {
                 transactionRepositoryPort,
                 ledgerAppendPort,
                 auditPort,
-                operationStatusGuards
+                operationAuthorizationService
         );
     }
 
@@ -192,7 +192,7 @@ final class MerchantWithdrawAtAgentServiceTest {
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(agentActor())));
 
         verify(agentRepositoryPort).findByCode(AGENT_CODE);
-        verifyNoInteractions(merchantRepositoryPort, feePolicyPort, ledgerAppendPort, auditPort, operationStatusGuards);
+        verifyNoInteractions(merchantRepositoryPort, feePolicyPort, ledgerAppendPort, auditPort, operationAuthorizationService);
     }
 
     @Test
@@ -201,7 +201,7 @@ final class MerchantWithdrawAtAgentServiceTest {
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
-        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
+        doNothing().when(operationAuthorizationService).authorizeAgentOperation(agent);
 
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.empty());
 
@@ -219,7 +219,7 @@ final class MerchantWithdrawAtAgentServiceTest {
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
 
         doThrow(new ForbiddenOperationException("AGENT_NOT_ACTIVE"))
-                .when(operationStatusGuards).requireActiveAgent(agent);
+                .when(operationAuthorizationService).authorizeAgentOperation(agent);
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(agentActor())));
 
@@ -232,13 +232,13 @@ final class MerchantWithdrawAtAgentServiceTest {
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
-        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
+        doNothing().when(operationAuthorizationService).authorizeAgentOperation(agent);
 
         Merchant merchant = activeMerchant();
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(merchant));
 
         doThrow(new ForbiddenOperationException("MERCHANT_ACCOUNT_NOT_ACTIVE"))
-                .when(operationStatusGuards).requireActiveMerchant(merchant);
+                .when(operationAuthorizationService).authorizeMerchantPayment(merchant);
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(agentActor())));
 
@@ -251,11 +251,11 @@ final class MerchantWithdrawAtAgentServiceTest {
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
-        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
+        doNothing().when(operationAuthorizationService).authorizeAgentOperation(agent);
 
         Merchant merchant = activeMerchant();
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(merchant));
-        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
+        doNothing().when(operationAuthorizationService).authorizeMerchantPayment(merchant);
 
         when(timeProviderPort.now()).thenReturn(NOW);
         when(feePolicyPort.merchantWithdrawFee(AMOUNT)).thenReturn(Money.of(new BigDecimal("10.00")));
@@ -273,11 +273,11 @@ final class MerchantWithdrawAtAgentServiceTest {
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
-        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
+        doNothing().when(operationAuthorizationService).authorizeAgentOperation(agent);
 
         Merchant merchant = activeMerchant();
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(merchant));
-        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
+        doNothing().when(operationAuthorizationService).authorizeMerchantPayment(merchant);
 
         LedgerAccountRef merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
 
@@ -298,11 +298,11 @@ final class MerchantWithdrawAtAgentServiceTest {
 
         Agent agent = activeAgent();
         when(agentRepositoryPort.findByCode(AGENT_CODE)).thenReturn(Optional.of(agent));
-        doNothing().when(operationStatusGuards).requireActiveAgent(agent);
+        doNothing().when(operationAuthorizationService).authorizeAgentOperation(agent);
 
         Merchant merchant = activeMerchant();
         when(merchantRepositoryPort.findByCode(MERCHANT_CODE)).thenReturn(Optional.of(merchant));
-        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
+        doNothing().when(operationAuthorizationService).authorizeMerchantPayment(merchant);
 
         LedgerAccountRef agentAcc = LedgerAccountRef.agentWallet(agent.id().value().toString());
         LedgerAccountRef merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
@@ -385,7 +385,7 @@ final class MerchantWithdrawAtAgentServiceTest {
         AuditEvent event = auditCaptor.getValue();
         assertEquals("MERCHANT_WITHDRAW_AT_AGENT", event.action());
         assertEquals("AGENT", event.actorType());
-        assertEquals(ACTOR_ID, event.actorId());
+        assertEquals(ACTOR_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
 
         Map<String, String> md = event.metadata();

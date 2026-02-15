@@ -4,6 +4,7 @@ import com.kori.adapters.in.rest.ApiHeaders;
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.doc.IdempotencyRequestHasher;
 import com.kori.adapters.in.rest.doc.IdempotentOperation;
+import com.kori.adapters.in.rest.dto.Requests.CreateAdminRequest;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.dto.Responses.CreateAdminResponse;
 import com.kori.adapters.in.rest.dto.Responses.UpdateStatusResponse;
@@ -39,24 +40,29 @@ public class AdminController {
     @IdempotentOperation
     public CreateAdminResponse createAdmin(
             @RequestHeader(ApiHeaders.IDEMPOTENCY_KEY) String idempotencyKey,
-            ActorContext actorContext
-    ) {
+            ActorContext actorContext,
+            @Valid @RequestBody CreateAdminRequest request
+            ) {
         var result = createAdminUseCase.execute(
-                new CreateAdminCommand(idempotencyKey, idempotencyRequestHasher.hashPayload(null), actorContext)
+                new CreateAdminCommand(
+                        idempotencyKey,
+                        idempotencyRequestHasher.hashPayload(request),
+                        actorContext,
+                        request.username())
         );
         return new CreateAdminResponse(result.adminId());
     }
 
-    @PatchMapping("/{adminId}/status")
+    @PatchMapping("/{adminUsername}/status")
     @Operation(summary = "Update admin status")
     public UpdateStatusResponse updateAdminStatus(
-            @PathVariable String adminId,
+            @PathVariable String adminUsername,
             ActorContext actorContext,
             @Valid @RequestBody UpdateStatusRequest request
     ) {
         var result = updateAdminStatusUseCase.execute(
-                new UpdateAdminStatusCommand(actorContext, adminId, request.targetStatus(), request.reason())
+                new UpdateAdminStatusCommand(actorContext, adminUsername, request.targetStatus(), request.reason())
         );
-        return new UpdateStatusResponse(result.adminId(), result.previousStatus(), result.newStatus());
+        return new UpdateStatusResponse(result.adminUsername(), result.previousStatus(), result.newStatus());
     }
 }

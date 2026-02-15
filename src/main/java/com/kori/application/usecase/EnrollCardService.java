@@ -1,10 +1,9 @@
 package com.kori.application.usecase;
 
 import com.kori.application.command.EnrollCardCommand;
-import com.kori.application.exception.ForbiddenOperationException;
-import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
-import com.kori.application.guard.OperationStatusGuards;
+import com.kori.application.exception.*;
+import com.kori.application.guard.ActorStatusGuards;
+import com.kori.application.guard.ActorTypeGuards;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.EnrollCardUseCase;
 import com.kori.application.port.out.*;
@@ -15,7 +14,9 @@ import com.kori.domain.model.account.AccountProfile;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.client.Client;
+import com.kori.domain.model.client.ClientCode;
 import com.kori.domain.model.client.ClientId;
+import com.kori.domain.model.client.PhoneNumber;
 import com.kori.domain.model.common.Status;
 
 import java.time.Instant;
@@ -25,8 +26,11 @@ import java.util.Optional;
 
 public final class EnrollCardService implements EnrollCardUseCase {
 
+    private static final int MAX_CODE_GENERATION_ATTEMPTS = 20;
+
     private final TimeProviderPort timeProviderPort;
     private final IdGeneratorPort idGeneratorPort;
+    private final CodeGeneratorPort codeGeneratorPort;
 
     private final ClientRepositoryPort clientRepositoryPort;
     private final CardRepositoryPort cardRepositoryPort;
@@ -36,13 +40,13 @@ public final class EnrollCardService implements EnrollCardUseCase {
     private final AccountProfilePort accountProfilePort;
 
     private final AuditPort auditPort;
-    private final OperationStatusGuards operationStatusGuards;
+    private final OperationAuthorizationService operationAuthorizationService;
     private final CardEnrollmentWorkflow enrollmentWorkflow;
     private final IdempotencyExecutor idempotencyExecutor;
 
     public EnrollCardService(TimeProviderPort timeProviderPort,
                              IdempotencyPort idempotencyPort,
-                             IdGeneratorPort idGeneratorPort,
+                             IdGeneratorPort idGeneratorPort, CodeGeneratorPort codeGeneratorPort,
                              ClientRepositoryPort clientRepositoryPort,
                              CardRepositoryPort cardRepositoryPort,
                              AgentRepositoryPort agentRepositoryPort,
@@ -55,15 +59,16 @@ public final class EnrollCardService implements EnrollCardUseCase {
                              PlatformConfigPort platformConfigPort,
                              AuditPort auditPort,
                              PinHasherPort pinHasherPort,
-                             OperationStatusGuards operationStatusGuards) {
+                             OperationAuthorizationService operationAuthorizationService) {
         this.timeProviderPort = timeProviderPort;
         this.idGeneratorPort = idGeneratorPort;
+        this.codeGeneratorPort = codeGeneratorPort;
         this.clientRepositoryPort = clientRepositoryPort;
         this.cardRepositoryPort = cardRepositoryPort;
         this.agentRepositoryPort = agentRepositoryPort;
         this.accountProfilePort = accountProfilePort;
         this.auditPort = auditPort;
-        this.operationStatusGuards = operationStatusGuards;
+        this.operationAuthorizationService = operationAuthorizationService;
         this.enrollmentWorkflow = new CardEnrollmentWorkflow(
                 idGeneratorPort,
                 cardRepositoryPort,
@@ -87,38 +92,41 @@ public final class EnrollCardService implements EnrollCardUseCase {
                 command.idempotencyRequestHash(),
                 EnrollCardResult.class,
                 () -> {
-                    // business logic
 
-                    // 1) Authorization: enrollment must be initiated by an AGENT
-                    ActorGuards.requireAgent(command.actorContext(), "enroll a card");
+                    ActorTypeGuards.onlyAgentCan(command.actorContext(), "enroll a card");
 
-                    // 2) Agent must exist (by code) + must be ACTIVE
-                    Agent agent = agentRepositoryPort.findByCode(AgentCode.of(command.agentCode()))
+                    String agentCode = command.actorContext().actorRef();
+                    Agent agent = agentRepositoryPort.findByCode(AgentCode.of(agentCode))
                             .orElseThrow(() -> new NotFoundException("Agent not found"));
 
-                    operationStatusGuards.requireActiveAgent(agent);
+                    operationAuthorizationService.authorizeAgentOperation(agent);
 
-                    // 3) Card UID must be unique
+                    // Card UID must be unique
                     if (cardRepositoryPort.findByCardUid(command.cardUid()).isPresent()) {
                         throw new ForbiddenOperationException("Card UID already enrolled");
                     }
 
                     Instant now = timeProviderPort.now();
 
-                    // 4) client (find or create by phone)
+                    // Client (find or create by phone)
                     boolean clientCreated = false;
-                    Optional<Client> existingClient = clientRepositoryPort.findByPhoneNumber(command.phoneNumber());
-                    existingClient.ifPresent(operationStatusGuards::requireClientEligibleForEnroll);
+                    Optional<Client> existingClient = clientRepositoryPort.findByPhoneNumber(PhoneNumber.of(command.phoneNumber()));
+                    existingClient.ifPresent(ActorStatusGuards::requireActiveClient);
 
                     Client client = existingClient.orElse(null);
 
                     if (client == null) {
-                        client = Client.activeNew(new ClientId(idGeneratorPort.newUuid()), command.phoneNumber(), now);
+                        client = Client.activeNew(
+                                new ClientId(idGeneratorPort.newUuid()),
+                                generateUniqueClientCode(),
+                                PhoneNumber.of(command.phoneNumber()),
+                                now
+                        );
                         client = clientRepositoryPort.save(client);
                         clientCreated = true;
                     }
 
-                    // 5) client AccountProfile (create if absent)
+                    // Client AccountProfile (create if absent)
                     boolean clientAccountProfileCreated = false;
                     var clientAccount = LedgerAccountRef.client(client.id().value().toString());
                     var clientProfileOpt = accountProfilePort.findByAccount(clientAccount);
@@ -133,14 +141,13 @@ public final class EnrollCardService implements EnrollCardUseCase {
                         }
                     }
 
-                    // 6-9) card enrollment workflow (create card, transaction, ledger entries, etc.)
+                    // Card enrollment workflow (create card, transaction, ledger entries, etc.)
                     var outcome = enrollmentWorkflow.enrollCard(client, agent, command.cardUid(), command.pin(), now);
 
-                    // 10) audit
+                    // Audit
                     Map<String, String> metadata = new HashMap<>();
                     metadata.put("transactionId", outcome.transaction().id().value().toString());
-                    metadata.put("agentCode", command.agentCode());
-                    metadata.put("clientPhoneNumber", client.phoneNumber());
+                    metadata.put("clientPhoneNumber", client.phoneNumber().value());
                     metadata.put("cardUid", outcome.card().cardUid());
 
                     auditPort.publish(AuditBuilder.buildBasicAudit(
@@ -152,7 +159,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
 
                     return new EnrollCardResult(
                             outcome.transaction().id().value().toString(),
-                            client.phoneNumber(),
+                            client.phoneNumber().value(),
                             outcome.card().cardUid(),
                             outcome.cardPrice().asBigDecimal(),
                             outcome.agentCommission().asBigDecimal(),
@@ -160,6 +167,21 @@ public final class EnrollCardService implements EnrollCardUseCase {
                             clientAccountProfileCreated
                     );
                 }
+        );
+    }
+
+    private ClientCode generateUniqueClientCode() {
+        for (int i = 0; i < MAX_CODE_GENERATION_ATTEMPTS; i++) {
+            String digits = codeGeneratorPort.next6Digits();
+            ClientCode candidate = ClientCode.of("C-" + digits);
+            if (!clientRepositoryPort.existsByCode(candidate)) {
+                return candidate;
+            }
+        }
+        throw new ApplicationException(
+                ApplicationErrorCode.TECHNICAL_FAILURE,
+                ApplicationErrorCategory.TECHNICAL,
+                "Unable to generate unique clientCode."
         );
     }
 }

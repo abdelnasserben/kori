@@ -18,7 +18,7 @@ public class JdbcClientMeTxDetailReadAdapter implements ClientMeTxDetailReadPort
     }
 
     @Override
-    public Optional<MeQueryModels.ClientTransactionDetails> findOwnedByClient(String clientId, String transactionId) {
+    public Optional<MeQueryModels.ClientTransactionDetails> findOwnedByClient(String clientCode, String transactionId) {
         String sql = """
                 SELECT t.id::text AS transaction_id,
                        t.type,
@@ -37,7 +37,7 @@ public class JdbcClientMeTxDetailReadAdapter implements ClientMeTxDetailReadPort
                       FROM ledger_entries le
                       WHERE le.transaction_id = CAST(:transactionId AS uuid)
                         AND le.account_type = 'CLIENT'
-                        AND le.owner_ref = :clientId
+                        AND le.owner_ref = (SELECT id::text FROM clients WHERE client_code = :clientCode)
                       GROUP BY le.transaction_id
                 ) owned ON owned.transaction_id = t.id
                 LEFT JOIN payouts p ON p.transaction_id = t.id
@@ -48,7 +48,7 @@ public class JdbcClientMeTxDetailReadAdapter implements ClientMeTxDetailReadPort
                 LIMIT 1
                 """;
         var params = new MapSqlParameterSource()
-                .addValue("clientId", clientId)
+                .addValue("clientCode", clientCode)
                 .addValue("transactionId", transactionId);
         var rows = jdbcTemplate.query(sql, params, (rs, i) -> new MeQueryModels.ClientTransactionDetails(
                 rs.getString("transaction_id"),

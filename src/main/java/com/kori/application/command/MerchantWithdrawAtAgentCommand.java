@@ -9,19 +9,18 @@ public record MerchantWithdrawAtAgentCommand(
         String idempotencyKey,
         String idempotencyRequestHash,
         ActorContext actorContext,
-        String merchantCode, String agentCode, BigDecimal amount) {
+        String merchantCode,
+        BigDecimal amount) {
     public MerchantWithdrawAtAgentCommand(
             String idempotencyKey,
             String idempotencyRequestHash,
             ActorContext actorContext,
             String merchantCode,
-            String agentCode,
             BigDecimal amount) {
         this.idempotencyKey = Objects.requireNonNull(idempotencyKey);
-        this.idempotencyRequestHash = Objects.requireNonNull(idempotencyRequestHash, "idempotencyRequestHash");
+        this.idempotencyRequestHash = Objects.requireNonNull(idempotencyRequestHash);
         this.actorContext = Objects.requireNonNull(actorContext);
         this.merchantCode = Objects.requireNonNull(merchantCode);
-        this.agentCode = Objects.requireNonNull(agentCode);
         this.amount = Objects.requireNonNull(amount);
     }
 }

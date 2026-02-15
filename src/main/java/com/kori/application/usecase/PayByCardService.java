@@ -5,8 +5,8 @@ import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.exception.ValidationException;
-import com.kori.application.guard.ActorGuards;
-import com.kori.application.guard.OperationStatusGuards;
+import com.kori.application.guard.ActorStatusGuards;
+import com.kori.application.guard.ActorTypeGuards;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.PayByCardUseCase;
 import com.kori.application.port.out.*;
@@ -19,7 +19,6 @@ import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.card.Card;
 import com.kori.domain.model.client.Client;
 import com.kori.domain.model.common.Money;
-import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.terminal.Terminal;
 import com.kori.domain.model.terminal.TerminalId;
@@ -53,7 +52,7 @@ public final class PayByCardService implements PayByCardUseCase {
 
     private final AuditPort auditPort;
     private final PinHasherPort pinHasherPort;
-    private final OperationStatusGuards operationStatusGuards;
+    private final OperationAuthorizationService operationAuthorizationService;
     private final IdempotencyExecutor idempotencyExecutor;
 
     public PayByCardService(TimeProviderPort timeProviderPort,
@@ -70,7 +69,7 @@ public final class PayByCardService implements PayByCardUseCase {
                             LedgerQueryPort ledgerQueryPort, LedgerAccountLockPort ledgerAccountLockPort,
                             AuditPort auditPort,
                             PinHasherPort pinHasherPort,
-                            OperationStatusGuards operationStatusGuards) {
+                            OperationAuthorizationService operationAuthorizationService) {
         this.timeProviderPort = timeProviderPort;
         this.idGeneratorPort = idGeneratorPort;
         this.terminalRepositoryPort = terminalRepositoryPort;
@@ -85,7 +84,7 @@ public final class PayByCardService implements PayByCardUseCase {
         this.ledgerAccountLockPort = ledgerAccountLockPort;
         this.auditPort = auditPort;
         this.pinHasherPort = pinHasherPort;
-        this.operationStatusGuards = operationStatusGuards;
+        this.operationAuthorizationService = operationAuthorizationService;
         this.idempotencyExecutor = new IdempotencyExecutor(idempotencyPort);
     }
 
@@ -96,38 +95,31 @@ public final class PayByCardService implements PayByCardUseCase {
                 command.idempotencyRequestHash(),
                 PayByCardResult.class,
                 () -> {
-                    // business logic
 
-                    ActorGuards.requireTerminal(command.actorContext(), "initiate PayByCard");
+                    // Terminal
+                    ActorTypeGuards.onlyTerminalCan(command.actorContext(), "initiate PayByCard");
 
-                    TerminalId terminalId = new TerminalId(UuidParser.parse(command.terminalUid(), "terminalId"));
+                    TerminalId terminalId = new TerminalId(UuidParser.parse(command.terminalUid(), "terminalUid"));
                     Terminal terminal = terminalRepositoryPort.findById(terminalId)
                             .orElseThrow(() -> new NotFoundException("Terminal not found"));
+                    ActorStatusGuards.requireActiveTerminal(terminal);
 
-                    if (terminal.status() != Status.ACTIVE) {
-                        throw new ForbiddenOperationException("Terminal is not active");
-                    }
-
-                    Merchant merchant = merchantRepositoryPort.findById(terminal.merchantId())
-                            .orElseThrow(() -> new NotFoundException("Merchant not found"));
-
-                    // Merchant status + merchant account profile status
-                    operationStatusGuards.requireActiveMerchant(merchant);
-
-                    var merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
-
+                    // Card
                     Card card = cardRepositoryPort.findByCardUid(command.cardUid())
                             .orElseThrow(() -> new NotFoundException("Card not found"));
-
-                    Client client = clientRepositoryPort.findById(card.clientId())
-                            .orElseThrow(() -> new NotFoundException("Client not found"));
-
-                    // Client status + client account profile status
-                    operationStatusGuards.requireActiveClient(client);
-
                     if (!card.isPayable()) {
                         throw new ForbiddenOperationException("Card not payable");
                     }
+
+                    // Merchant
+                    Merchant merchant = merchantRepositoryPort.findById(terminal.merchantId())
+                            .orElseThrow(() -> new NotFoundException("Merchant not found"));
+                    operationAuthorizationService.authorizeMerchantPayment(merchant);
+
+                    // Client
+                    Client client = clientRepositoryPort.findById(card.clientId())
+                            .orElseThrow(() -> new NotFoundException("Client not found"));
+                    operationAuthorizationService.authorizeClientPayment(client);
 
                     int maxAttempts = cardSecurityPolicyPort.maxFailedPinAttempts();
                     if (maxAttempts <= 0) {
@@ -148,11 +140,12 @@ public final class PayByCardService implements PayByCardUseCase {
                     card.onPinSuccess();
                     cardRepositoryPort.save(card);
 
-                    // accountRef client
+                    // accounts reference
+                    var merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
                     var clientAcc = LedgerAccountRef.client(card.clientId().value().toString());
+                    var feeAcc = LedgerAccountRef.platformFeeRevenue();
 
-                    Instant now = timeProviderPort.now();
-
+                    // Amounts
                     Money amount = Money.positive(command.amount());
                     Money fee = feePolicyPort.cardPaymentFee(amount);
                     Money totalDebited = amount.plus(fee);
@@ -165,11 +158,11 @@ public final class PayByCardService implements PayByCardUseCase {
                         );
                     }
 
+                    Instant now = timeProviderPort.now();
+
                     TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
                     Transaction tx = Transaction.payByCard(txId, amount, now);
                     tx = transactionRepositoryPort.save(tx);
-
-                    var feeAcc = LedgerAccountRef.platformFeeRevenue();
 
                     ledgerAppendPort.append(List.of(
                             LedgerEntry.debit(tx.id(), clientAcc, totalDebited),
@@ -178,9 +171,9 @@ public final class PayByCardService implements PayByCardUseCase {
                     ));
 
                     Map<String, String> metadata = new HashMap<>();
+                    metadata.put("transactionId", tx.id().value().toString());
                     metadata.put("terminalUid", command.terminalUid());
                     metadata.put("merchantCode", merchant.code().value());
-                    metadata.put("transactionId", tx.id().value().toString());
                     metadata.put("cardUid", command.cardUid());
 
                     auditPort.publish(AuditBuilder.buildBasicAudit(

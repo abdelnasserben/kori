@@ -76,7 +76,7 @@ class ClientRefundControllerWebMvcTest extends BaseWebMvcTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.transactionId").value("tx-1"))
                 .andExpect(jsonPath("$.refundId").value("refund-1"))
-                .andExpect(jsonPath("$.clientId").value("client-1"))
+                .andExpect(jsonPath("$.clientCode").value("client-1"))
                 .andExpect(jsonPath("$.amount").value(100))
                 .andExpect(jsonPath("$.status").value("REQUESTED"));
     }

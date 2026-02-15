@@ -37,7 +37,7 @@ class MerchantWithdrawAtAgentServiceIT extends IntegrationTestBase {
         MerchantWithdrawAtAgentResult result = merchantWithdrawAtAgentUseCase.execute(new MerchantWithdrawAtAgentCommand(
                 "idem-withdraw-1",
                 "request-hash",
-                agentActor("agent-actor"),
+                agentActor("A-000001"),
                 MERCHANT_CODE,
                 AGENT_CODE,
                 new BigDecimal("100.00")

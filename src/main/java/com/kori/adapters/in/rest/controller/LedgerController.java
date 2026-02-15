@@ -68,7 +68,7 @@ public class LedgerController {
                               "transactionId": "trx_2001",
                               "transactionType": "CARD_PAYMENT",
                               "createdAt": "2024-08-10T14:22:10Z",
-                              "clientId": "client-55",
+                              "clientCode": "client-55",
                               "merchantId": "merchant-33",
                               "agentId": null,
                               "selfTotalDebits": 0,

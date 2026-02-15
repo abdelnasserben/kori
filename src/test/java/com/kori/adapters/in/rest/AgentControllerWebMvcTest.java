@@ -70,7 +70,7 @@ class AgentControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subjectId").value("agent-123"))
+                .andExpect(jsonPath("$.subjectRef").value("agent-123"))
                 .andExpect(jsonPath("$.previousStatus").value("INACTIVE"))
                 .andExpect(jsonPath("$.newStatus").value("ACTIVE"));
     }

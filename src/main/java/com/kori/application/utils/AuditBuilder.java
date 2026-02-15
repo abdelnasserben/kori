@@ -18,7 +18,7 @@ public final class AuditBuilder {
      * @param actionPrefix e.g. "ADMIN_UPDATE_CLIENT_STATUS"
      * @param actorContext actor performing the action (ADMIN)
      * @param occurredAt timestamp (usually TimeProviderPort.now())
-     * @param subjectKey key used in metadata, e.g. "clientId", "merchantCode", "agentCode"
+     * @param subjectKey key used in metadata, e.g. "clientCode", "merchantCode", "agentCode"
      * @param subjectValue id/code value
      * @param before before status name
      * @param after after status name
@@ -49,7 +49,7 @@ public final class AuditBuilder {
         return new AuditEvent(
                 actionPrefix + "_" + after,
                 actorContext.actorType().name(),
-                actorContext.actorId(),
+                actorContext.actorRef(),
                 occurredAt,
                 metadata
         );
@@ -87,7 +87,7 @@ public final class AuditBuilder {
         return new AuditEvent(
                 action,
                 actor.actorType().name(),
-                actor.actorId(),
+                actor.actorRef(),
                 occurredAt,
                 metadata);
     }

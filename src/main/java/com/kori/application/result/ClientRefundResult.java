@@ -6,14 +6,14 @@ import java.util.Objects;
 public record ClientRefundResult(
         String transactionId,
         String refundId,
-        String clientId,
+        String clientCode,
         BigDecimal amount,
         String refundStatus
 ) {
     public ClientRefundResult {
         Objects.requireNonNull(transactionId);
         Objects.requireNonNull(refundId);
-        Objects.requireNonNull(clientId);
+        Objects.requireNonNull(clientCode);
         Objects.requireNonNull(amount);
         Objects.requireNonNull(refundStatus);
     }

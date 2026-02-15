@@ -28,7 +28,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({JacksonConfig.class, RestExceptionHandler.class})
 class ClientControllerWebMvcTest extends BaseWebMvcTest {
 
-    private static final String URL_PATH_VARIABLE_STATUS = ApiPaths.CLIENTS + "/{clientId}/status";
+    private static final String URL_PATH_VARIABLE_STATUS = ApiPaths.CLIENTS + "/{clientCode}/status";
 
     @MockitoBean
     private UpdateClientStatusUseCase updateClientStatusUseCase;
@@ -47,7 +47,7 @@ class ClientControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subjectId").value("client-123"))
+                .andExpect(jsonPath("$.subjectRef").value("client-123"))
                 .andExpect(jsonPath("$.previousStatus").value("INACTIVE"))
                 .andExpect(jsonPath("$.newStatus").value("ACTIVE"));
     }

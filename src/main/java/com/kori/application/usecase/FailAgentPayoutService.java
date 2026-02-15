@@ -3,7 +3,6 @@ package com.kori.application.usecase;
 import com.kori.application.command.FailAgentPayoutCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.FailAgentPayoutUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.LedgerAppendPort;
@@ -23,14 +22,19 @@ import java.util.Map;
 
 public final class FailAgentPayoutService implements FailAgentPayoutUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final TimeProviderPort timeProviderPort;
     private final PayoutRepositoryPort payoutRepositoryPort;
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
 
-    public FailAgentPayoutService(TimeProviderPort timeProviderPort,
-                                  PayoutRepositoryPort payoutRepositoryPort, LedgerAppendPort ledgerAppendPort,
-                                  AuditPort auditPort) {
+    public FailAgentPayoutService(
+            AdminAccessService adminAccessService,
+            TimeProviderPort timeProviderPort,
+            PayoutRepositoryPort payoutRepositoryPort,
+            LedgerAppendPort ledgerAppendPort,
+            AuditPort auditPort) {
+        this.adminAccessService = adminAccessService;
         this.timeProviderPort = timeProviderPort;
         this.payoutRepositoryPort = payoutRepositoryPort;
         this.ledgerAppendPort = ledgerAppendPort;
@@ -39,7 +43,7 @@ public final class FailAgentPayoutService implements FailAgentPayoutUseCase {
 
     @Override
     public FinalizationResult execute(FailAgentPayoutCommand command) {
-        ActorGuards.requireAdmin(command.actorContext(), "fail payouts");
+        adminAccessService.requireActiveAdmin(command.actorContext(), "fail payouts");
 
         Payout payout = payoutRepositoryPort.findById(PayoutId.of(command.payoutId()))
                 .orElseThrow(() -> new NotFoundException("Payout not found"));

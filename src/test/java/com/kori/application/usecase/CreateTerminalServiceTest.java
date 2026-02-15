@@ -48,7 +48,7 @@ final class CreateTerminalServiceTest {
     // ======= constants =======
     private static final String IDEM_KEY = "idem-1";
     private static final String REQUEST_HASH = "request-hash";
-    private static final String ADMIN_ID = "admin-actor";
+    private static final String ADMIN_ID = "admin.user";
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
     private static final UUID MERCHANT_UUID = UUID.fromString("11111111-1111-1111-1111-111111111111");
@@ -66,7 +66,7 @@ final class CreateTerminalServiceTest {
     }
 
     private static ActorContext nonAdminActor() {
-        return new ActorContext(ActorType.AGENT, "agent-actor", Map.of());
+        return new ActorContext(ActorType.AGENT, "A-000001", Map.of());
     }
 
     private static CreateTerminalCommand cmd(ActorContext actor) {
@@ -143,7 +143,7 @@ final class CreateTerminalServiceTest {
 
         CreateTerminalResult out = service.execute(cmd(adminActor()));
 
-        assertEquals(TERMINAL_UUID.toString(), out.terminalId());
+        assertEquals(TERMINAL_UUID.toString(), out.terminalUid());
         // result uses command.merchantCode (string)
         assertEquals(MERCHANT_CODE_RAW, out.merchantCode());
 
@@ -164,11 +164,11 @@ final class CreateTerminalServiceTest {
 
         assertEquals("TERMINAL_CREATED", event.action());
         assertEquals("ADMIN", event.actorType());
-        assertEquals(ADMIN_ID, event.actorId());
+        assertEquals(ADMIN_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
 
-        assertEquals(ADMIN_ID, event.metadata().get("adminId"));
-        assertEquals(TERMINAL_UUID.toString(), event.metadata().get("terminalId"));
+        assertEquals(ADMIN_ID, event.metadata().get("adminUsername"));
+        assertEquals(TERMINAL_UUID.toString(), event.metadata().get("terminalUid"));
         assertEquals(MERCHANT_CODE_RAW, event.metadata().get("merchantCode"));
 
         verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(CreateTerminalResult.class));

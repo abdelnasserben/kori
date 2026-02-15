@@ -3,7 +3,6 @@ package com.kori.application.usecase;
 import com.kori.application.command.CompleteAgentPayoutCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.CompleteAgentPayoutUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.LedgerAppendPort;
@@ -23,16 +22,19 @@ import java.util.Map;
 
 public final class CompleteAgentPayoutService implements CompleteAgentPayoutUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final TimeProviderPort timeProviderPort;
     private final PayoutRepositoryPort payoutRepositoryPort;
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
 
     public CompleteAgentPayoutService(
+            AdminAccessService adminAccessService,
             TimeProviderPort timeProviderPort,
             PayoutRepositoryPort payoutRepositoryPort,
             LedgerAppendPort ledgerAppendPort,
             AuditPort auditPort) {
+        this.adminAccessService = adminAccessService;
         this.timeProviderPort = timeProviderPort;
         this.payoutRepositoryPort = payoutRepositoryPort;
         this.ledgerAppendPort = ledgerAppendPort;
@@ -41,7 +43,7 @@ public final class CompleteAgentPayoutService implements CompleteAgentPayoutUseC
 
     @Override
     public FinalizationResult execute(CompleteAgentPayoutCommand command) {
-        ActorGuards.requireAdmin(command.actorContext(), "complete agent payout");
+        adminAccessService.requireActiveAdmin(command.actorContext(), "complete agent payout");
 
         Payout payout = payoutRepositoryPort.findById(PayoutId.of(command.payoutId()))
                 .orElseThrow(() -> new NotFoundException("Payout not found"));

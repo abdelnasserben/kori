@@ -54,14 +54,14 @@ public class ClientRefundController {
                         idempotencyKey,
                         idempotencyRequestHasher.hashPayload(request),
                         actorContext,
-                        request.clientId()
+                        request.clientCode()
                 )
         );
 
         return new ClientRefundResponse(
                 result.transactionId(),
                 result.refundId(),
-                result.clientId(),
+                result.clientCode(),
                 result.amount(),
                 result.refundStatus()
         );

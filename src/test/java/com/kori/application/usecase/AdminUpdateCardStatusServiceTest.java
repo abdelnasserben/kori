@@ -46,8 +46,8 @@ final class AdminUpdateCardStatusServiceTest {
     // ======= constants =======
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
-    private static final String ADMIN_ID = "admin-actor";
-    private static final String AGENT_ID = "agent-actor";
+    private static final String ADMIN_ID = "admin.user";
+    private static final String AGENT_ID = "A-000001";
 
     private static final String CARD_UID = "04A1B2C3D4E5F6A7B8C9D";
     private static final UUID CARD_ID_UUID = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -137,7 +137,7 @@ final class AdminUpdateCardStatusServiceTest {
 
         assertEquals("ADMIN_CARD_STATUS_UPDATED_" + CardStatus.SUSPENDED.name(), event.action());
         assertEquals("ADMIN", event.actorType());
-        assertEquals(ADMIN_ID, event.actorId());
+        assertEquals(ADMIN_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
 
         assertEquals(CARD_ID_UUID.toString(), event.metadata().get("cardId"));

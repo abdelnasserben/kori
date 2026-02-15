@@ -21,7 +21,7 @@ public record ClientStatusChangedEvent(
     public ClientStatusChangedEvent {
         Objects.requireNonNull(eventId, "eventId");
         Objects.requireNonNull(occurredAt, "occurredAt");
-        Objects.requireNonNull(clientId, "clientId");
+        Objects.requireNonNull(clientId, "clientCode");
         Objects.requireNonNull(before, "before");
         Objects.requireNonNull(after, "after");
         // reason peut être null

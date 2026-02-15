@@ -50,8 +50,8 @@ final class CompleteAgentPayoutServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
-    private static final String ADMIN_ACTOR_ID = "admin-actor";
-    private static final String NON_ADMIN_ACTOR_ID = "agent-actor";
+    private static final String ADMIN_ACTOR_ID = "admin.user";
+    private static final String NON_ADMIN_ACTOR_ID = "A-000001";
 
     private static final UUID PAYOUT_UUID = UUID.fromString("11111111-1111-1111-1111-111111111111");
     private static final PayoutId PAYOUT_ID = new PayoutId(PAYOUT_UUID);
@@ -171,7 +171,7 @@ final class CompleteAgentPayoutServiceTest {
 
         assertEquals("AGENT_PAYOUT_COMPLETED", event.action());
         assertEquals("ADMIN", event.actorType());
-        assertEquals(ADMIN_ACTOR_ID, event.actorId());
+        assertEquals(ADMIN_ACTOR_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
         assertEquals(PAYOUT_UUID.toString(), event.metadata().get("payoutId"));
     }

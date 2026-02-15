@@ -109,7 +109,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.transactionId").value("tx-2"))
-                .andExpect(jsonPath("$.clientId").value("11111111-1111-1111-1111-111111111111"))
+                .andExpect(jsonPath("$.clientCode").value("11111111-1111-1111-1111-111111111111"))
                 .andExpect(jsonPath("$.cardUid").value("card-456"))
                 .andExpect(jsonPath("$.cardPrice").value(500))
                 .andExpect(jsonPath("$.agentCommission").value(50));
@@ -130,7 +130,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subjectId").value(cardUid))
+                .andExpect(jsonPath("$.subjectRef").value(cardUid))
                 .andExpect(jsonPath("$.previousStatus").value("ACTIVE"))
                 .andExpect(jsonPath("$.newStatus").value("BLOCKED"));
     }
@@ -147,7 +147,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
                         .claim(ACTOR_ID_KEY, ACTOR_ID)
                         )))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subjectId").value(cardUid))
+                .andExpect(jsonPath("$.subjectRef").value(cardUid))
                 .andExpect(jsonPath("$.previousStatus").value("BLOCKED"))
                 .andExpect(jsonPath("$.newStatus").value("ACTIVE"));
     }
@@ -167,7 +167,7 @@ class CardControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.subjectId").value(cardUid))
+                .andExpect(jsonPath("$.subjectRef").value(cardUid))
                 .andExpect(jsonPath("$.previousStatus").value("ACTIVE"))
                 .andExpect(jsonPath("$.newStatus").value("BLOCKED"));
     }

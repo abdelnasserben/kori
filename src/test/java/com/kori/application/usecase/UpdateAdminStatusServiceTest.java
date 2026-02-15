@@ -41,7 +41,7 @@ final class UpdateAdminStatusServiceTest {
 
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
-    private static final String ADMIN_ID = "admin-actor";
+    private static final String ADMIN_ID = "admin.user";
     private static final String ADMIN_TARGET_ID = "55555555-5555-5555-5555-555555555555";
 
     private static final String REASON = "Ops action";
@@ -51,7 +51,7 @@ final class UpdateAdminStatusServiceTest {
     }
 
     private static ActorContext nonAdminActor() {
-        return new ActorContext(ActorType.AGENT, "agent-actor", Map.of());
+        return new ActorContext(ActorType.AGENT, "A-000001", Map.of());
     }
 
     private static UpdateAdminStatusCommand cmd(ActorContext actor, String targetStatus, String reason) {
@@ -93,7 +93,7 @@ final class UpdateAdminStatusServiceTest {
 
         UpdateAdminStatusResult out = service.execute(cmd(adminActor(), Status.SUSPENDED.name(), REASON));
 
-        assertEquals(ADMIN_TARGET_ID, out.adminId());
+        assertEquals(ADMIN_TARGET_ID, out.adminUsername());
         assertEquals(Status.ACTIVE.name(), out.previousStatus());
         assertEquals(Status.SUSPENDED.name(), out.newStatus());
 
@@ -106,9 +106,9 @@ final class UpdateAdminStatusServiceTest {
 
         assertEquals("ADMIN_UPDATE_ADMIN_STATUS_" + Status.SUSPENDED.name(), event.action());
         assertEquals(ActorType.ADMIN.name(), event.actorType());
-        assertEquals(ADMIN_ID, event.actorId());
+        assertEquals(ADMIN_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
-        assertEquals(ADMIN_TARGET_ID, event.metadata().get("adminId"));
+        assertEquals(ADMIN_TARGET_ID, event.metadata().get("adminUsername"));
         assertEquals(Status.ACTIVE.name(), event.metadata().get("before"));
         assertEquals(Status.SUSPENDED.name(), event.metadata().get("after"));
         assertEquals(REASON, event.metadata().get("reason"));

@@ -40,7 +40,7 @@ public class JpaAuditAdapter implements AuditPort {
                     UUID.randomUUID(),
                     event.action(),
                     event.actorType(),
-                    event.actorId(),
+                    event.actorRef(),
                     event.occurredAt().atOffset(java.time.ZoneOffset.UTC),
                     metadataJson
             );

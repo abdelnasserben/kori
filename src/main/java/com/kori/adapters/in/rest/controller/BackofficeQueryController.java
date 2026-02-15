@@ -110,6 +110,7 @@ public class BackofficeQueryController {
     public BackofficeResponses.ListResponse<BackofficeResponses.AuditEventItem> listAuditEvents(
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String actorType,
+            @RequestParam(required = false) String actorRef,
             @RequestParam(required = false) String actorId,
             @RequestParam(required = false) String resourceType,
             @RequestParam(required = false) String resourceId,
@@ -119,9 +120,31 @@ public class BackofficeQueryController {
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) String sort
     ) {
-        var result = auditEventQueryUseCase.list(new BackofficeAuditEventQuery(action, actorType, actorId, resourceType, resourceId, from, to, limit, cursor, sort));
+        var resolvedActorRef = firstNonBlank(actorRef, actorId);
+        var result = auditEventQueryUseCase.list(
+                new BackofficeAuditEventQuery(
+                        action,
+                        actorType,
+                        resolvedActorRef,
+                        resourceType,
+                        resourceId,
+                        from,
+                        to,
+                        limit,
+                        cursor,
+                        sort));
+
         return new BackofficeResponses.ListResponse<>(
-                result.items().stream().map(i -> new BackofficeResponses.AuditEventItem(i.eventId(), i.occurredAt(), i.actorType(), i.actorId(), i.action(), i.resourceType(), i.resourceId(), i.metadata())).toList(),
+                result.items().stream().map(i ->
+                        new BackofficeResponses.AuditEventItem(
+                                i.eventId(),
+                                i.occurredAt(),
+                                i.actorType(),
+                                i.actorRef(),
+                                i.action(),
+                                i.resourceType(),
+                                i.resourceId(),
+                                i.metadata())).toList(),
                 new BackofficeResponses.CursorPage(result.nextCursor(), result.hasMore())
         );
     }
@@ -168,19 +191,37 @@ public class BackofficeQueryController {
     @GetMapping("/agents/{agentId}")
     public BackofficeResponses.ActorDetails getAgent(@PathVariable String agentId) {
         var d = actorDetailQueryUseCase.getAgentById(agentId);
-        return new BackofficeResponses.ActorDetails(d.actorId(), d.display(), d.status(), d.createdAt(), d.lastActivityAt());
+        return new BackofficeResponses.ActorDetails(
+                d.actorRef(),
+                d.display(),
+                d.status(),
+                d.createdAt(),
+                d.lastActivityAt()
+        );
     }
 
-    @GetMapping("/clients/{clientId}")
+    @GetMapping("/clients/{clientCode}")
     public BackofficeResponses.ActorDetails getClient(@PathVariable String clientId) {
         var d = actorDetailQueryUseCase.getClientById(clientId);
-        return new BackofficeResponses.ActorDetails(d.actorId(), d.display(), d.status(), d.createdAt(), d.lastActivityAt());
+        return new BackofficeResponses.ActorDetails(
+                d.actorRef(),
+                d.display(),
+                d.status(),
+                d.createdAt(),
+                d.lastActivityAt()
+        );
     }
 
     @GetMapping("/merchants/{merchantId}")
     public BackofficeResponses.ActorDetails getMerchant(@PathVariable String merchantId) {
         var d = actorDetailQueryUseCase.getMerchantById(merchantId);
-        return new BackofficeResponses.ActorDetails(d.actorId(), d.display(), d.status(), d.createdAt(), d.lastActivityAt());
+        return new BackofficeResponses.ActorDetails(
+                d.actorRef(),
+                d.display(),
+                d.status(),
+                d.createdAt(),
+                d.lastActivityAt()
+        );
     }
 
     @GetMapping("/lookups")
@@ -214,7 +255,8 @@ public class BackofficeQueryController {
 
     private BackofficeResponses.ListResponse<BackofficeResponses.ActorItem> toActorResponse(QueryPage<BackofficeActorItem> result) {
         return new BackofficeResponses.ListResponse<>(
-                result.items().stream().map(i -> new BackofficeResponses.ActorItem(i.actorId(), i.code(), i.status(), i.createdAt())).toList(),
+                result.items().stream().map(i ->
+                        new BackofficeResponses.ActorItem(i.actorRef(), i.code(), i.status(), i.createdAt())).toList(),
                 new BackofficeResponses.CursorPage(result.nextCursor(), result.hasMore())
         );
     }

@@ -5,7 +5,7 @@ import com.kori.application.security.ActorContext;
 import java.math.BigDecimal;
 import java.util.Objects;
 
-public record AgentBankDepositReceiptCommand(
+public record AdminReceiptAgentBankDepositCommand(
         String idempotencyKey,
         String idempotencyRequestHash,
         ActorContext actorContext,
@@ -13,7 +13,7 @@ public record AgentBankDepositReceiptCommand(
         BigDecimal amount
 ) {
 
-    public AgentBankDepositReceiptCommand(
+    public AdminReceiptAgentBankDepositCommand(
             String idempotencyKey,
             String idempotencyRequestHash,
             ActorContext actorContext,

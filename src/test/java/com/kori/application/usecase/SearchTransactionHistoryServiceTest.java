@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.SearchTransactionHistoryCommand;
 import com.kori.application.command.TransactionHistoryView;
+import com.kori.application.port.out.ClientRepositoryPort;
 import com.kori.application.port.out.LedgerQueryPort;
 import com.kori.application.port.out.TransactionRepositoryPort;
 import com.kori.application.result.TransactionHistoryItem;
@@ -11,7 +12,11 @@ import com.kori.application.security.ActorType;
 import com.kori.application.security.LedgerAccessPolicy;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
+import com.kori.domain.model.client.Client;
+import com.kori.domain.model.client.ClientCode;
+import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.common.Money;
+import com.kori.domain.model.common.Status;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
 import org.junit.jupiter.api.Test;
@@ -35,12 +40,13 @@ final class SearchTransactionHistoryServiceTest {
 
     @Mock LedgerQueryPort ledgerQueryPort;
     @Mock TransactionRepositoryPort transactionRepositoryPort;
+    @Mock ClientRepositoryPort clientRepositoryPort;
 
     private static final LedgerAccessPolicy POLICY = new LedgerAccessPolicy();
 
-    private static final ActorContext CLIENT_ACTOR = new ActorContext(ActorType.CLIENT, "C-123", Map.of());
+    private static final ActorContext CLIENT_ACTOR = new ActorContext(ActorType.CLIENT, "C-000123", Map.of());
 
-    private static final LedgerAccountRef CLIENT_SCOPE = LedgerAccountRef.client("C-123");
+    private static final LedgerAccountRef CLIENT_SCOPE = LedgerAccountRef.client("11111111-1111-1111-1111-111111111111");
     private static final LedgerAccountRef MERCHANT_SCOPE = LedgerAccountRef.merchant("M-456");
     private static final LedgerAccountRef AGENT_SCOPE = LedgerAccountRef.agentWallet("A-789");
     private static final LedgerAccountRef PLATFORM_FEE = LedgerAccountRef.platformFeeRevenue();
@@ -53,8 +59,12 @@ final class SearchTransactionHistoryServiceTest {
         SearchTransactionHistoryService service = new SearchTransactionHistoryService(
                 ledgerQueryPort,
                 transactionRepositoryPort,
-                POLICY
+                POLICY,
+                clientRepositoryPort
         );
+
+        when(clientRepositoryPort.findByCode(ClientCode.of("C-000123")))
+                .thenReturn(Optional.of(new Client(new ClientId(UUID.fromString("11111111-1111-1111-1111-111111111111")), "+221770000001", Status.ACTIVE, CREATED_AT)));
 
         SearchTransactionHistoryCommand command = new SearchTransactionHistoryCommand(
                 CLIENT_ACTOR,
@@ -69,6 +79,9 @@ final class SearchTransactionHistoryServiceTest {
                 TransactionHistoryView.PAY_BY_CARD_VIEW,
                 50
         );
+
+        when(clientRepositoryPort.findByCode(ClientCode.of("C-000123")))
+                .thenReturn(Optional.of(new Client(new ClientId(UUID.fromString("11111111-1111-1111-1111-111111111111")), "+221770000001", Status.ACTIVE, CREATED_AT)));
 
         LedgerEntry clientDebit = LedgerEntry.debit(TX_ID, CLIENT_SCOPE, Money.of(new BigDecimal("52.00")));
         LedgerEntry merchantCredit = LedgerEntry.credit(TX_ID, MERCHANT_SCOPE, Money.of(new BigDecimal("50.00")));
@@ -96,7 +109,7 @@ final class SearchTransactionHistoryServiceTest {
         TransactionHistoryItem item = out.items().get(0);
         assertEquals(TX_ID.value().toString(), item.transactionId());
         assertEquals(CREATED_AT, item.createdAt());
-        assertEquals("C-123", item.clientId());
+        assertEquals("11111111-1111-1111-1111-111111111111", item.clientId());
         assertEquals("M-456", item.merchantId());
         assertEquals("A-789", item.agentId());
         assertEquals(new BigDecimal("52.00"), item.selfTotalDebits());
@@ -117,7 +130,8 @@ final class SearchTransactionHistoryServiceTest {
         SearchTransactionHistoryService service = new SearchTransactionHistoryService(
                 ledgerQueryPort,
                 transactionRepositoryPort,
-                POLICY
+                POLICY,
+                clientRepositoryPort
         );
 
         SearchTransactionHistoryCommand command = new SearchTransactionHistoryCommand(
@@ -133,6 +147,9 @@ final class SearchTransactionHistoryServiceTest {
                 TransactionHistoryView.COMMISSION_VIEW,
                 50
         );
+
+        when(clientRepositoryPort.findByCode(ClientCode.of("C-000123")))
+                .thenReturn(Optional.of(new Client(new ClientId(UUID.fromString("11111111-1111-1111-1111-111111111111")), "+221770000001", Status.ACTIVE, CREATED_AT)));
 
         LedgerEntry clientDebit = LedgerEntry.debit(TX_ID, CLIENT_SCOPE, Money.of(new BigDecimal("52.00")));
         LedgerEntry merchantCredit = LedgerEntry.credit(TX_ID, MERCHANT_SCOPE, Money.of(new BigDecimal("50.00")));

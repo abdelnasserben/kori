@@ -27,7 +27,7 @@ public class ClientMeQueryController {
     @GetMapping("/profile")
     public MeResponses.ProfileResponse profile(ActorContext actorContext) {
         var item = clientMeQueryUseCase.getProfile(actorContext);
-        return new MeResponses.ProfileResponse(item.actorId(), item.code(), item.status(), item.createdAt());
+        return new MeResponses.ProfileResponse(item.actorRef(), item.code(), item.status(), item.createdAt());
     }
 
     @GetMapping("/balance")

@@ -23,33 +23,33 @@ public class MerchantMeQueryService implements MerchantMeQueryUseCase {
     @Override
     public MeQueryModels.MeProfile getProfile(ActorContext actorContext) {
         requireMerchant(actorContext);
-        return readPort.findProfile(actorContext.actorId())
+        return readPort.findProfile(actorContext.actorRef())
                 .orElseThrow(() -> new NotFoundException("Merchant not found"));
     }
 
     @Override
     public MeQueryModels.MeBalance getBalance(ActorContext actorContext) {
         requireMerchant(actorContext);
-        return readPort.getBalance(actorContext.actorId());
+        return readPort.getBalance(actorContext.actorRef());
     }
 
     @Override
     public QueryPage<MeQueryModels.MeTransactionItem> listTransactions(ActorContext actorContext, MeQueryModels.MeTransactionsFilter filter) {
         requireMerchant(actorContext);
-        return readPort.listTransactions(actorContext.actorId(), filter);
+        return readPort.listTransactions(actorContext.actorRef(), filter);
     }
 
     @Override
     public QueryPage<MeQueryModels.MeTerminalItem> listTerminals(ActorContext actorContext, MeQueryModels.MeTerminalsFilter filter) {
         requireMerchant(actorContext);
-        return readPort.listTerminals(actorContext.actorId(), filter);
+        return readPort.listTerminals(actorContext.actorRef(), filter);
     }
 
     @Override
     public MeQueryModels.MeTerminalItem getTerminalDetails(ActorContext actorContext, String terminalUid) {
         requireMerchant(actorContext);
         validateTerminalUid(terminalUid);
-        return readPort.findTerminalForMerchant(actorContext.actorId(), terminalUid)
+        return readPort.findTerminalForMerchant(actorContext.actorRef(), terminalUid)
                 .orElseGet(() -> {
                     if (readPort.existsTerminal(terminalUid)) {
                         throw new ForbiddenOperationException("Forbidden operation");

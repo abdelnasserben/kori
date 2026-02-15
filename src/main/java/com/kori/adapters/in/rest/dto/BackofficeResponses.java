@@ -77,7 +77,7 @@ public final class BackofficeResponses {
             String eventId,
             Instant occurredAt,
             String actorType,
-            String actorId,
+            String actorRef,
             String action,
             String resourceType,
             String resourceId,
@@ -85,14 +85,14 @@ public final class BackofficeResponses {
     ) {}
 
     public record ActorItem(
-            String actorId,
+            String actorRef,
             String code,
             String status,
             Instant createdAt
     ) {}
 
     public record ActorDetails(
-            String actorId,
+            String actorRef,
             String display,
             String status,
             Instant createdAt,

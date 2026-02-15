@@ -3,7 +3,6 @@ package com.kori.application.usecase;
 import com.kori.application.command.FailClientRefundCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.FailClientRefundUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.ClientRefundRepositoryPort;
@@ -23,15 +22,18 @@ import java.util.Map;
 
 public class FailClientRefundService implements FailClientRefundUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final TimeProviderPort timeProviderPort;
     private final ClientRefundRepositoryPort clientRefundRepositoryPort;
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
 
-    public FailClientRefundService(TimeProviderPort timeProviderPort,
+    public FailClientRefundService(AdminAccessService adminAccessService,
+                                   TimeProviderPort timeProviderPort,
                                    ClientRefundRepositoryPort clientRefundRepositoryPort,
                                    LedgerAppendPort ledgerAppendPort,
                                    AuditPort auditPort) {
+        this.adminAccessService = adminAccessService;
         this.timeProviderPort = timeProviderPort;
         this.clientRefundRepositoryPort = clientRefundRepositoryPort;
         this.ledgerAppendPort = ledgerAppendPort;
@@ -40,7 +42,7 @@ public class FailClientRefundService implements FailClientRefundUseCase {
 
     @Override
     public FinalizationResult execute(FailClientRefundCommand cmd) {
-        ActorGuards.requireAdmin(cmd.actorContext(), "fail client refund");
+        adminAccessService.requireActiveAdmin(cmd.actorContext(), "fail client refund");
 
         ClientRefund refund = clientRefundRepositoryPort.findById(ClientRefundId.of(cmd.refundId()))
                 .orElseThrow(() -> new NotFoundException("Client refund not found"));

@@ -2,7 +2,6 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateFeeConfigCommand;
 import com.kori.application.exception.ValidationException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateFeeConfigUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.FeeConfigPort;
@@ -20,15 +19,18 @@ import java.util.Optional;
 
 public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final FeeConfigPort feeConfigPort;
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
 
     public UpdateFeeConfigService(
+            AdminAccessService adminAccessService,
             FeeConfigPort feeConfigPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort
     ) {
+        this.adminAccessService = adminAccessService;
         this.feeConfigPort = feeConfigPort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
@@ -36,7 +38,7 @@ public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
 
     @Override
     public UpdateFeeConfigResult execute(UpdateFeeConfigCommand cmd) {
-        ActorGuards.requireAdmin(cmd.actorContext(), "update fee config");
+        adminAccessService.requireActiveAdmin(cmd.actorContext(), "update fee config");
 
         validate(cmd);
 

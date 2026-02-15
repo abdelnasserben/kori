@@ -6,13 +6,13 @@ import java.util.Objects;
 
 public record UpdateClientStatusCommand(
         ActorContext actorContext,
-        String clientId,
+        String clientCode,
         String targetStatus,
         String reason) {
 
-    public UpdateClientStatusCommand(ActorContext actorContext, String clientId, String targetStatus, String reason) {
+    public UpdateClientStatusCommand(ActorContext actorContext, String clientCode, String targetStatus, String reason) {
         this.actorContext = Objects.requireNonNull(actorContext);
-        this.clientId = Objects.requireNonNull(clientId);
+        this.clientCode = Objects.requireNonNull(clientCode);
         this.targetStatus = Objects.requireNonNull(targetStatus);
         this.reason = (reason == null || reason.isBlank()) ? "N/A" : reason;
     }

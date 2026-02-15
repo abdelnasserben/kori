@@ -48,8 +48,8 @@ final class UpdateAgentStatusServiceTest {
     // ======= constants =======
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
-    private static final String ADMIN_ID = "admin-actor";
-    private static final String AGENT_ID = "agent-actor";
+    private static final String ADMIN_ID = "admin.user";
+    private static final String AGENT_ID = "A-000001";
 
     private static final AgentCode AGENT_CODE = AgentCode.of("A-123456");
 
@@ -118,7 +118,7 @@ final class UpdateAgentStatusServiceTest {
 
         assertEquals("ADMIN_UPDATE_AGENT_STATUS_" + Status.SUSPENDED.name(), event.action());
         assertEquals(ActorType.ADMIN.name(), event.actorType());
-        assertEquals(ADMIN_ID, event.actorId());
+        assertEquals(ADMIN_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
 
         assertEquals(AGENT_CODE.value(), event.metadata().get("agentCode"));

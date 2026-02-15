@@ -4,7 +4,6 @@ import com.kori.application.command.UpdateClientStatusCommand;
 import com.kori.application.events.ClientStatusChangedEvent;
 import com.kori.application.exception.BalanceMustBeZeroException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateClientStatusUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.UpdateClientStatusResult;
@@ -12,6 +11,7 @@ import com.kori.application.utils.AuditBuilder;
 import com.kori.application.utils.ReasonNormalizer;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.client.Client;
+import com.kori.domain.model.client.ClientCode;
 import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.common.Status;
 
@@ -20,6 +20,7 @@ import java.util.UUID;
 
 public class UpdateClientStatusService implements UpdateClientStatusUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final ClientRepositoryPort clientRepositoryPort;
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
@@ -27,12 +28,14 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
     private final LedgerQueryPort ledgerQueryPort;
 
     public UpdateClientStatusService(
+            AdminAccessService adminAccessService,
             ClientRepositoryPort clientRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort,
             DomainEventPublisherPort domainEventPublisherPort,
             LedgerQueryPort ledgerQueryPort
     ) {
+        this.adminAccessService = adminAccessService;
         this.clientRepositoryPort = clientRepositoryPort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
@@ -42,10 +45,10 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
 
     @Override
     public UpdateClientStatusResult execute(UpdateClientStatusCommand cmd) {
-        ActorGuards.requireAdmin(cmd.actorContext(), "update client status");
+        adminAccessService.requireActiveAdmin(cmd.actorContext(), "update client status");
 
-        ClientId clientId = ClientId.of(cmd.clientId());
-        Client client = clientRepositoryPort.findById(clientId)
+        ClientCode clientCode = ClientCode.of(cmd.clientCode());
+        Client client = clientRepositoryPort.findByCode(clientCode)
                 .orElseThrow(() -> new NotFoundException("Client not found"));
 
         Status beforeStatus = client.status();
@@ -54,7 +57,7 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
         Status afterStatus = Status.parseStatus(cmd.targetStatus());
 
         if (afterStatus == Status.CLOSED && beforeStatus != Status.CLOSED) {
-            ensureClientWalletIsZero(clientId);
+            ensureClientWalletIsZero(client.id());
         }
 
         // Apply updating (domain validates transitions)
@@ -76,8 +79,8 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
                 "ADMIN_UPDATE_CLIENT_STATUS",
                 cmd.actorContext(),
                 now,
-                "clientId",
-                cmd.clientId(),
+                "clientCode",
+                cmd.clientCode(),
                 before,
                 cmd.targetStatus(),
                 reason
@@ -95,7 +98,7 @@ public class UpdateClientStatusService implements UpdateClientStatusUseCase {
             ));
         }
 
-        return new UpdateClientStatusResult(cmd.clientId(), before, cmd.targetStatus());
+        return new UpdateClientStatusResult(cmd.clientCode(), before, cmd.targetStatus());
     }
 
     private void ensureClientWalletIsZero(ClientId clientId) {

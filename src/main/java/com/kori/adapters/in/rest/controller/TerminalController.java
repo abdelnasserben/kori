@@ -52,19 +52,19 @@ public class TerminalController {
                         request.merchantCode()
                 )
         );
-        return new CreateTerminalResponse(result.terminalId(), result.merchantCode());
+        return new CreateTerminalResponse(result.terminalUid(), result.merchantCode());
     }
 
-    @PatchMapping("/{terminalId}/status")
+    @PatchMapping("/{terminalUid}/status")
     @Operation(summary = "Update terminal status")
     public UpdateStatusResponse updateTerminalStatus(
-            @PathVariable String terminalId,
+            @PathVariable String terminalUid,
             ActorContext actorContext,
             @Valid @RequestBody UpdateStatusRequest request
     ) {
         var result = updateTerminalStatusUseCase.execute(
-                new UpdateTerminalStatusCommand(actorContext, terminalId, request.targetStatus(), request.reason())
+                new UpdateTerminalStatusCommand(actorContext, terminalUid, request.targetStatus(), request.reason())
         );
-        return new UpdateStatusResponse(result.terminalId(), result.previousStatus(), result.newStatus());
+        return new UpdateStatusResponse(result.terminalUid(), result.previousStatus(), result.newStatus());
     }
 }

@@ -24,7 +24,7 @@ public class BackofficeActorDetailQueryService implements BackofficeActorDetailQ
 
     @Override
     public BackofficeActorDetails getClientById(String clientId) {
-        UuidParser.parse(clientId, "clientId");
+        UuidParser.parse(clientId, "clientCode");
         return readPort.findClientById(clientId).orElseThrow(() -> new NotFoundException("Client not found"));
     }
 

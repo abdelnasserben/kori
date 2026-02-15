@@ -3,9 +3,8 @@ package com.kori.application.usecase;
 import com.kori.application.command.MerchantWithdrawAtAgentCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.InsufficientFundsException;
-import com.kori.application.guard.ActorGuards;
+import com.kori.application.guard.ActorTypeGuards;
 import com.kori.application.guard.AgentCashLimitGuard;
-import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.guard.PricingGuards;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
@@ -45,7 +44,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
     private final LedgerAppendPort ledgerAppendPort;
     private final AuditPort auditPort;
 
-    private final OperationStatusGuards operationStatusGuards;
+    private final OperationAuthorizationService operationAuthorizationService;
     private final AgentCashLimitGuard agentCashLimitGuard;
     private final IdempotencyExecutor idempotencyExecutor;
 
@@ -61,7 +60,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
                                           TransactionRepositoryPort transactionRepositoryPort,
                                           LedgerAppendPort ledgerAppendPort,
                                           AuditPort auditPort,
-                                          OperationStatusGuards operationStatusGuards) {
+                                          OperationAuthorizationService operationAuthorizationService) {
         this.timeProviderPort = timeProviderPort;
         this.idGeneratorPort = idGeneratorPort;
         this.merchantRepositoryPort = merchantRepositoryPort;
@@ -73,7 +72,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.ledgerAppendPort = ledgerAppendPort;
         this.auditPort = auditPort;
-        this.operationStatusGuards = operationStatusGuards;
+        this.operationAuthorizationService = operationAuthorizationService;
         this.agentCashLimitGuard = new AgentCashLimitGuard(ledgerQueryPort, platformConfigPort);
         this.idempotencyExecutor = new IdempotencyExecutor(idempotencyPort);
     }
@@ -85,22 +84,20 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
                 command.idempotencyRequestHash(),
                 MerchantWithdrawAtAgentResult.class,
                 () -> {
-                    // business logic
 
-                    // Initié par AGENT uniquement
-                    ActorGuards.requireAgent(command.actorContext(), "initiate MerchantWithdrawAtAgent");
+                    ActorTypeGuards.onlyAgentCan(command.actorContext(), "initiate merchant withdraw");
 
-                    // Resolve AGENT by code
-                    Agent agent = agentRepositoryPort.findByCode(AgentCode.of(command.agentCode()))
+                    String agentCode = command.actorContext().actorRef();
+                    Agent agent = agentRepositoryPort.findByCode(AgentCode.of(agentCode))
                             .orElseThrow(() -> new ForbiddenOperationException("Agent not found"));
 
-                    operationStatusGuards.requireActiveAgent(agent);
+                    operationAuthorizationService.authorizeAgentOperation(agent);
 
                     // Resolve MERCHANT by code
                     Merchant merchant = merchantRepositoryPort.findByCode(MerchantCode.of(command.merchantCode()))
                             .orElseThrow(() -> new ForbiddenOperationException("Merchant not found"));
 
-                    operationStatusGuards.requireActiveMerchant(merchant);
+                    operationAuthorizationService.authorizeMerchantPayment(merchant);
 
                     var agentWalletAcc = LedgerAccountRef.agentWallet(agent.id().value().toString());
                     var merchantAcc = LedgerAccountRef.merchant(merchant.id().value().toString());
@@ -115,7 +112,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
                     Money platformRevenue = breakdown.platformRevenue();
                     Money totalDebitedMerchant = amount.plus(fee);
 
-                    // --- Sufficient funds check (merchant)
+                    // Sufficient funds check (merchant)
                     ledgerAccountLockPort.lock(merchantAcc);
                     Money available = ledgerQueryPort.netBalance(merchantAcc);
                     if (totalDebitedMerchant.isGreaterThan(available)) {
@@ -143,8 +140,8 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
 
                     Map<String, String> metadata = new HashMap<>();
                     metadata.put("transactionId", tx.id().value().toString());
+                    metadata.put("agentCode", agentCode);
                     metadata.put("merchantCode", command.merchantCode());
-                    metadata.put("agentCode", command.agentCode());
 
                     auditPort.publish(AuditBuilder.buildBasicAudit(
                             "MERCHANT_WITHDRAW_AT_AGENT",

@@ -8,12 +8,12 @@ public record RequestClientRefundCommand(
         String idempotencyKey,
         String idempotencyRequestHash,
         ActorContext actorContext,
-        String clientId
+        String clientCode
 ) {
     public RequestClientRefundCommand {
         Objects.requireNonNull(idempotencyKey);
         Objects.requireNonNull(idempotencyRequestHash);
         Objects.requireNonNull(actorContext);
-        Objects.requireNonNull(clientId);
+        Objects.requireNonNull(clientCode);
     }
 }

@@ -22,20 +22,20 @@ public class AgentMeQueryService implements AgentMeQueryUseCase {
     @Override
     public AgentQueryModels.AgentSummary getSummary(ActorContext actorContext) {
         requireAgent(actorContext);
-        return readPort.findSummary(actorContext.actorId())
+        return readPort.findSummary(actorContext.actorRef())
                 .orElseThrow(() -> new NotFoundException("Agent not found"));
     }
 
     @Override
     public QueryPage<AgentQueryModels.AgentTransactionItem> listTransactions(ActorContext actorContext, AgentQueryModels.AgentTransactionFilter filter) {
         requireAgent(actorContext);
-        return readPort.listTransactions(actorContext.actorId(), filter);
+        return readPort.listTransactions(actorContext.actorRef(), filter);
     }
 
     @Override
     public QueryPage<AgentQueryModels.AgentActivityItem> listActivities(ActorContext actorContext, AgentQueryModels.AgentActivityFilter filter) {
         requireAgent(actorContext);
-        return readPort.listActivities(actorContext.actorId(), filter);
+        return readPort.listActivities(actorContext.actorRef(), filter);
     }
 
     private void requireAgent(ActorContext actorContext) {

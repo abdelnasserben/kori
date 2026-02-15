@@ -54,7 +54,7 @@ class BackofficeReadQueryIT extends IntegrationTestBase {
         assertEquals(3, detail.ledgerLines().size());
         assertEquals("CARD-001", detail.cardUid());
         assertEquals(terminal.id().value().toString(), detail.terminalUid());
-        assertEquals(client.phoneNumber(), detail.clientPhone());
+        assertEquals(client.phoneNumber().value(), detail.clientPhone());
         assertTrue(detail.ledgerLines().stream().anyMatch(l -> l.accountType().equals("CLIENT") && l.entryType().equals("DEBIT")));
         assertTrue(detail.ledgerLines().stream().anyMatch(l -> l.accountType().equals("MERCHANT") && l.entryType().equals("CREDIT")));
     }

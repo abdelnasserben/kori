@@ -1,7 +1,7 @@
 package com.kori.application.result;
 
 public record UpdateClientStatusResult(
-        String clientId,
+        String clientCode,
         String previousStatus,
         String newStatus
 ) {}

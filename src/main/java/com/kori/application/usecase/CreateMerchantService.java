@@ -5,7 +5,6 @@ import com.kori.application.exception.ApplicationErrorCategory;
 import com.kori.application.exception.ApplicationErrorCode;
 import com.kori.application.exception.ApplicationException;
 import com.kori.application.exception.ForbiddenOperationException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.CreateMerchantUseCase;
 import com.kori.application.port.out.*;
@@ -26,6 +25,7 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
 
     private static final int MAX_CODE_GENERATION_ATTEMPTS = 20;
 
+    private final AdminAccessService adminAccessService;
     private final MerchantRepositoryPort merchantRepository;
     private final AccountProfilePort accountProfilePort;
     private final AuditPort auditPort;
@@ -34,7 +34,8 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
     private final IdGeneratorPort idGeneratorPort;
     private final IdempotencyExecutor idempotencyExecutor;
 
-    public CreateMerchantService(MerchantRepositoryPort merchantRepository, AccountProfilePort accountProfilePort, AuditPort auditPort, TimeProviderPort timeProviderPort, IdempotencyPort idempotencyPort, CodeGeneratorPort codeGeneratorPort, IdGeneratorPort idGeneratorPort) {
+    public CreateMerchantService(AdminAccessService adminAccessService, MerchantRepositoryPort merchantRepository, AccountProfilePort accountProfilePort, AuditPort auditPort, TimeProviderPort timeProviderPort, IdempotencyPort idempotencyPort, CodeGeneratorPort codeGeneratorPort, IdGeneratorPort idGeneratorPort) {
+        this.adminAccessService = adminAccessService;
         this.merchantRepository = merchantRepository;
         this.accountProfilePort = accountProfilePort;
         this.auditPort = auditPort;
@@ -51,11 +52,9 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
                 command.idempotencyRequestHash(),
                 CreateMerchantResult.class,
                 () -> {
-                    // business logic
 
                     var actorContext = command.actorContext();
-
-                    ActorGuards.requireAdmin(actorContext, "create a merchant.");
+                    adminAccessService.requireActiveAdmin(actorContext, "create a merchant.");
 
                     MerchantCode code = generateUniqueMerchantCode();
                     MerchantId id = new MerchantId(idGeneratorPort.newUuid());
@@ -75,7 +74,6 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
                     accountProfilePort.save(profile);
 
                     Map<String, String> metadata = new HashMap<>();
-                    metadata.put("adminId", actorContext.actorId());
                     metadata.put("merchantCode", merchant.code().value());
 
                     auditPort.publish(AuditBuilder.buildBasicAudit(

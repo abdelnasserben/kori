@@ -20,6 +20,9 @@ public class ClientEntity {
     @Column(name = "phone_number", nullable = false, unique = true, length = 32)
     private String phoneNumber;
 
+    @Column(name = "code", nullable = false, unique = true, length = 16)
+    private String code;
+
     @Setter
     @Column(name = "status", nullable = false, length = 16)
     private String status;
@@ -29,9 +32,10 @@ public class ClientEntity {
 
     protected ClientEntity() { }
 
-    public ClientEntity(UUID id, String phoneNumber, String status, OffsetDateTime createdAt) {
+    public ClientEntity(UUID id, String phoneNumber, String code, String status, OffsetDateTime createdAt) {
         this.id = id;
         this.phoneNumber = phoneNumber;
+        this.code = code;
         this.status = status;
         this.createdAt = createdAt;
     }

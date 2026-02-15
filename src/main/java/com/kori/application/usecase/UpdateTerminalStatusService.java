@@ -2,18 +2,16 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.UpdateTerminalStatusCommand;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.UpdateTerminalStatusUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.TerminalRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateTerminalStatusResult;
 import com.kori.application.utils.ReasonNormalizer;
-import com.kori.application.utils.UuidParser;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.terminal.Terminal;
-import com.kori.domain.model.terminal.TerminalId;
+import com.kori.domain.model.terminal.TerminalUid;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -21,14 +19,17 @@ import java.util.Map;
 
 public class UpdateTerminalStatusService implements UpdateTerminalStatusUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final TerminalRepositoryPort terminalRepositoryPort;
     private final AuditPort auditPort;
     private final TimeProviderPort timeProviderPort;
 
     public UpdateTerminalStatusService(
+            AdminAccessService adminAccessService,
             TerminalRepositoryPort terminalRepositoryPort,
             AuditPort auditPort,
             TimeProviderPort timeProviderPort) {
+        this.adminAccessService = adminAccessService;
         this.terminalRepositoryPort = terminalRepositoryPort;
         this.auditPort = auditPort;
         this.timeProviderPort = timeProviderPort;
@@ -36,9 +37,9 @@ public class UpdateTerminalStatusService implements UpdateTerminalStatusUseCase 
 
     @Override
     public UpdateTerminalStatusResult execute(UpdateTerminalStatusCommand cmd) {
-        ActorGuards.requireAdmin(cmd.actorContext(), "update terminal status");
+        adminAccessService.requireActiveAdmin(cmd.actorContext(), "update terminal status");
 
-        Terminal terminal = terminalRepositoryPort.findById(new TerminalId(UuidParser.parse(cmd.terminalId(), "terminalId")))
+        Terminal terminal = terminalRepositoryPort.findByUid(TerminalUid.of(cmd.terminalUid()))
                 .orElseThrow(() -> new NotFoundException("Terminal not found"));
 
         // For audit
@@ -58,7 +59,7 @@ public class UpdateTerminalStatusService implements UpdateTerminalStatusUseCase 
         String reason = ReasonNormalizer.normalize(cmd.reason());
 
         Map<String, String> metadata = new HashMap<>();
-        metadata.put("terminalId", cmd.terminalId());
+        metadata.put("terminalUid", cmd.terminalUid());
         metadata.put("before", before);
         metadata.put("after", afterStatus.name());
         metadata.put("reason", reason);
@@ -66,10 +67,10 @@ public class UpdateTerminalStatusService implements UpdateTerminalStatusUseCase 
         auditPort.publish(new AuditEvent(
                 "ADMIN_UPDATE_TERMINAL_STATUS",
                 cmd.actorContext().actorType().name(),
-                cmd.actorContext().actorId(),
+                cmd.actorContext().actorRef(),
                 now,
                 metadata
         ));
-        return new UpdateTerminalStatusResult(cmd.terminalId(), before, cmd.targetStatus());
+        return new UpdateTerminalStatusResult(cmd.terminalUid(), before, cmd.targetStatus());
     }
 }

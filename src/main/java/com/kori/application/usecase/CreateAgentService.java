@@ -5,7 +5,6 @@ import com.kori.application.exception.ApplicationErrorCategory;
 import com.kori.application.exception.ApplicationErrorCode;
 import com.kori.application.exception.ApplicationException;
 import com.kori.application.exception.ForbiddenOperationException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.CreateAgentUseCase;
 import com.kori.application.port.out.*;
@@ -20,12 +19,12 @@ import com.kori.domain.model.agent.AgentId;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
 
 public final class CreateAgentService implements CreateAgentUseCase {
 
     private static final int MAX_CODE_GENERATION_ATTEMPTS = 20;
 
+    private final AdminAccessService adminAccessService;
     private final AgentRepositoryPort agentRepositoryPort;
     private final AccountProfilePort accountProfilePort;
     private final AuditPort auditPort;
@@ -34,7 +33,8 @@ public final class CreateAgentService implements CreateAgentUseCase {
     private final IdGeneratorPort idGeneratorPort;
     private final IdempotencyExecutor idempotencyExecutor;
 
-    public CreateAgentService(AgentRepositoryPort agentRepositoryPort, AccountProfilePort accountProfilePort, IdempotencyPort idempotencyPort, AuditPort auditPort, TimeProviderPort timeProviderPort, CodeGeneratorPort codeGeneratorPort, IdGeneratorPort idGeneratorPort) {
+    public CreateAgentService(AdminAccessService adminAccessService, AgentRepositoryPort agentRepositoryPort, AccountProfilePort accountProfilePort, IdempotencyPort idempotencyPort, AuditPort auditPort, TimeProviderPort timeProviderPort, CodeGeneratorPort codeGeneratorPort, IdGeneratorPort idGeneratorPort) {
+        this.adminAccessService = adminAccessService;
         this.agentRepositoryPort = agentRepositoryPort;
         this.accountProfilePort = accountProfilePort;
         this.auditPort = auditPort;
@@ -51,12 +51,9 @@ public final class CreateAgentService implements CreateAgentUseCase {
                 command.idempotencyRequestHash(),
                 CreateAgentResult.class,
                 () -> {
-                    // business logic
 
-                    Objects.requireNonNull(command, "command");
                     var actorContext = command.actorContext();
-
-                    ActorGuards.requireAdmin(actorContext, "create agent");
+                    adminAccessService.requireActiveAdmin(actorContext, "create agent");
 
                     AgentCode code = generateUniqueAgentCode();
                     AgentId id = new AgentId(idGeneratorPort.newUuid());
@@ -76,7 +73,6 @@ public final class CreateAgentService implements CreateAgentUseCase {
                     accountProfilePort.save(AccountProfile.activeNew(clearingAccount, now));
 
                     Map<String, String> metadata = new HashMap<>();
-                    metadata.put("adminId", actorContext.actorId());
                     metadata.put("agentCode", code.value());
 
                     auditPort.publish(AuditBuilder.buildBasicAudit(

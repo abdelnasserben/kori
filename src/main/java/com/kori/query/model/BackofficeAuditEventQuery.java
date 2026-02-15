@@ -5,7 +5,7 @@ import java.time.Instant;
 public record BackofficeAuditEventQuery(
         String action,
         String actorType,
-        String actorId,
+        String actorRef,
         String resourceType,
         String resourceId,
         Instant from,

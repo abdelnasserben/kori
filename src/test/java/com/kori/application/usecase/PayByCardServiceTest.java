@@ -2,7 +2,6 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.PayByCardCommand;
 import com.kori.application.exception.*;
-import com.kori.application.guard.OperationStatusGuards;
 import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
 import com.kori.application.result.PayByCardResult;
@@ -72,7 +71,8 @@ final class PayByCardServiceTest {
     @Mock AuditPort auditPort;
     @Mock PinHasherPort pinHasherPort;
 
-    @Mock OperationStatusGuards operationStatusGuards;
+    @Mock
+    OperationAuthorizationService operationAuthorizationService;
 
     @InjectMocks PayByCardService payByCardService;
 
@@ -113,7 +113,7 @@ final class PayByCardServiceTest {
     }
 
     private static ActorContext adminActor() {
-        return new ActorContext(ActorType.ADMIN, "admin-actor", Map.of());
+        return new ActorContext(ActorType.ADMIN, "admin.user", Map.of());
     }
 
     private static PayByCardCommand cmd(String pin, BigDecimal amount) {
@@ -184,7 +184,7 @@ final class PayByCardServiceTest {
                 ledgerQueryPort,
                 auditPort,
                 pinHasherPort,
-                operationStatusGuards,
+                operationAuthorizationService,
                 idempotencyPort
         );
     }
@@ -223,7 +223,7 @@ final class PayByCardServiceTest {
                 ledgerQueryPort,
                 auditPort,
                 pinHasherPort,
-                operationStatusGuards
+                operationAuthorizationService
         );
     }
 
@@ -263,7 +263,7 @@ final class PayByCardServiceTest {
         when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
 
         doThrow(new ForbiddenOperationException("MERCHANT_ACCOUNT_NOT_ACTIVE"))
-                .when(operationStatusGuards).requireActiveMerchant(merchant);
+                .when(operationAuthorizationService).authorizeMerchantPayment(merchant);
 
         assertThrows(ForbiddenOperationException.class, () -> payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal())));
     }
@@ -275,7 +275,7 @@ final class PayByCardServiceTest {
 
         Merchant merchant = activeMerchant();
         when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
-        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
+        doNothing().when(operationAuthorizationService).authorizeMerchantPayment(merchant);
 
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.empty());
 
@@ -289,7 +289,7 @@ final class PayByCardServiceTest {
 
         Merchant merchant = activeMerchant();
         when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
-        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
+        doNothing().when(operationAuthorizationService).authorizeMerchantPayment(merchant);
 
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(activeCardWithAttempts(0)));
 
@@ -297,7 +297,7 @@ final class PayByCardServiceTest {
         when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
 
         doThrow(new ForbiddenOperationException("CLIENT_ACCOUNT_NOT_ACTIVE"))
-                .when(operationStatusGuards).requireActiveClient(client);
+                .when(operationAuthorizationService).authorizeClientPayment(client);
 
         assertThrows(ForbiddenOperationException.class, () -> payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal())));
     }
@@ -309,7 +309,7 @@ final class PayByCardServiceTest {
 
         Merchant merchant = activeMerchant();
         when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
-        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
+        doNothing().when(operationAuthorizationService).authorizeMerchantPayment(merchant);
 
         Card blocked = new Card(
                 new CardId(UUID.fromString("eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")),
@@ -324,7 +324,7 @@ final class PayByCardServiceTest {
 
         Client client = activeClient();
         when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
-        doNothing().when(operationStatusGuards).requireActiveClient(client);
+        doNothing().when(operationAuthorizationService).authorizeClientPayment(client);
 
         assertThrows(ForbiddenOperationException.class, () -> payByCardService.execute(cmd(GOOD_PIN, AMOUNT.asBigDecimal())));
     }
@@ -336,13 +336,13 @@ final class PayByCardServiceTest {
 
         Merchant merchant = activeMerchant();
         when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
-        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
+        doNothing().when(operationAuthorizationService).authorizeMerchantPayment(merchant);
 
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(activeCardWithAttempts(0)));
 
         Client client = activeClient();
         when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
-        doNothing().when(operationStatusGuards).requireActiveClient(client);
+        doNothing().when(operationAuthorizationService).authorizeClientPayment(client);
 
         when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(0);
 
@@ -356,13 +356,13 @@ final class PayByCardServiceTest {
 
         Merchant merchant = activeMerchant();
         when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
-        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
+        doNothing().when(operationAuthorizationService).authorizeMerchantPayment(merchant);
 
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(activeCardWithAttempts(0)));
 
         Client client = activeClient();
         when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
-        doNothing().when(operationStatusGuards).requireActiveClient(client);
+        doNothing().when(operationAuthorizationService).authorizeClientPayment(client);
 
         when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(3);
 
@@ -379,14 +379,14 @@ final class PayByCardServiceTest {
 
         Merchant merchant = activeMerchant();
         when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
-        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
+        doNothing().when(operationAuthorizationService).authorizeMerchantPayment(merchant);
 
         Card card = activeCardWithAttempts(0);
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(card));
 
         Client client = activeClient();
         when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
-        doNothing().when(operationStatusGuards).requireActiveClient(client);
+        doNothing().when(operationAuthorizationService).authorizeClientPayment(client);
 
         when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(3);
         when(pinHasherPort.matches(GOOD_PIN, HASHED_PIN)).thenReturn(false);
@@ -408,14 +408,14 @@ final class PayByCardServiceTest {
 
         Merchant merchant = activeMerchant();
         when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
-        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
+        doNothing().when(operationAuthorizationService).authorizeMerchantPayment(merchant);
 
         Card card = activeCardWithAttempts(0);
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(card));
 
         Client client = activeClient();
         when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
-        doNothing().when(operationStatusGuards).requireActiveClient(client);
+        doNothing().when(operationAuthorizationService).authorizeClientPayment(client);
 
         when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(3);
         when(pinHasherPort.matches(GOOD_PIN, HASHED_PIN)).thenReturn(true);
@@ -440,14 +440,14 @@ final class PayByCardServiceTest {
 
         Merchant merchant = activeMerchant();
         when(merchantRepositoryPort.findById(MERCHANT_ID)).thenReturn(Optional.of(merchant));
-        doNothing().when(operationStatusGuards).requireActiveMerchant(merchant);
+        doNothing().when(operationAuthorizationService).authorizeMerchantPayment(merchant);
 
         Card card = activeCardWithAttempts(2);
         when(cardRepositoryPort.findByCardUid(CARD_UID)).thenReturn(Optional.of(card));
 
         Client client = activeClient();
         when(clientRepositoryPort.findById(CLIENT_ID)).thenReturn(Optional.of(client));
-        doNothing().when(operationStatusGuards).requireActiveClient(client);
+        doNothing().when(operationAuthorizationService).authorizeClientPayment(client);
 
         when(cardSecurityPolicyPort.maxFailedPinAttempts()).thenReturn(3);
         when(pinHasherPort.matches(GOOD_PIN, HASHED_PIN)).thenReturn(true);
@@ -511,7 +511,7 @@ final class PayByCardServiceTest {
         AuditEvent event = auditCaptor.getValue();
         assertEquals("PAY_BY_CARD", event.action());
         assertEquals("TERMINAL", event.actorType());
-        assertEquals(TERMINAL_ACTOR_ID, event.actorId());
+        assertEquals(TERMINAL_ACTOR_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
         assertEquals(TERMINAL_UID, event.metadata().get("terminalUid"));
         assertEquals(MERCHANT_CODE.toString(), event.metadata().get("merchantCode"));

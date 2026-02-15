@@ -1,11 +1,11 @@
 package com.kori.application.usecase;
 
-import com.kori.application.command.AgentBankDepositReceiptCommand;
+import com.kori.application.command.AdminReceiptAgentBankDepositCommand;
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.idempotency.IdempotencyClaim;
 import com.kori.application.port.out.*;
-import com.kori.application.result.AgentBankDepositReceiptResult;
+import com.kori.application.result.AdminReceiptAgentBankDepositResult;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.domain.ledger.LedgerAccountRef;
@@ -33,7 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class AgentBankDepositReceiptServiceTest {
+class AdminReceiptAgentBankDepositServiceTest {
 
     @Mock TimeProviderPort timeProviderPort;
     @Mock
@@ -44,7 +44,8 @@ class AgentBankDepositReceiptServiceTest {
     @Mock LedgerAppendPort ledgerAppendPort;
     @Mock AuditPort auditPort;
 
-    @InjectMocks AgentBankDepositReceiptService service;
+    @InjectMocks
+    AdminReceiptAdminServiceAgentBankDeposit service;
 
     private static final String IDEM_KEY = "idem-1";
     private static final String REQUEST_HASH = "request-hash";
@@ -55,8 +56,8 @@ class AgentBankDepositReceiptServiceTest {
 
     @Test
     void returnsCachedResult_whenIdempotencyKeyAlreadyProcessed() {
-        var cached = new AgentBankDepositReceiptResult("tx-1", AGENT_CODE_RAW, new BigDecimal("10.00"));
-        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AgentBankDepositReceiptResult.class)).thenReturn(IdempotencyClaim.completed(cached));
+        var cached = new AdminReceiptAgentBankDepositResult("tx-1", AGENT_CODE_RAW, new BigDecimal("10.00"));
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AdminReceiptAgentBankDepositResult.class)).thenReturn(IdempotencyClaim.completed(cached));
 
         var out = service.execute(command(adminActor(), new BigDecimal("10.00")));
 
@@ -66,17 +67,17 @@ class AgentBankDepositReceiptServiceTest {
 
     @Test
     void forbidden_whenActorIsNotAdmin() {
-        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AgentBankDepositReceiptResult.class)).thenReturn(IdempotencyClaim.claimed());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AdminReceiptAgentBankDepositResult.class)).thenReturn(IdempotencyClaim.claimed());
 
         assertThrows(ForbiddenOperationException.class,
-                () -> service.execute(command(new ActorContext(ActorType.AGENT, "agent-1", Map.of()), new BigDecimal("10.00"))));
+                () -> service.execute(command(new ActorContext(ActorType.AGENT, "A-000001", Map.of()), new BigDecimal("10.00"))));
 
         verifyNoInteractions(timeProviderPort, idGeneratorPort, agentRepositoryPort, transactionRepositoryPort, ledgerAppendPort, auditPort);
     }
 
     @Test
     void notFound_whenAgentDoesNotExist() {
-        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AgentBankDepositReceiptResult.class)).thenReturn(IdempotencyClaim.claimed());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AdminReceiptAgentBankDepositResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(agentRepositoryPort.findByCode(AgentCode.of(AGENT_CODE_RAW))).thenReturn(Optional.empty());
 
         assertThrows(NotFoundException.class, () -> service.execute(command(adminActor(), new BigDecimal("10.00"))));
@@ -86,7 +87,7 @@ class AgentBankDepositReceiptServiceTest {
 
     @Test
     void happyPath_recordsLedgerAuditAndIdempotency() {
-        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AgentBankDepositReceiptResult.class)).thenReturn(IdempotencyClaim.claimed());
+        when(idempotencyPort.claimOrLoad(IDEM_KEY, REQUEST_HASH, AdminReceiptAgentBankDepositResult.class)).thenReturn(IdempotencyClaim.claimed());
         when(agentRepositoryPort.findByCode(AgentCode.of(AGENT_CODE_RAW))).thenReturn(Optional.of(activeAgent()));
         when(idGeneratorPort.newUuid()).thenReturn(TX_UUID);
         when(timeProviderPort.now()).thenReturn(NOW);
@@ -109,11 +110,11 @@ class AgentBankDepositReceiptServiceTest {
                 && entries.stream().anyMatch(e -> e.accountRef().equals(clearingAcc) && e.type().name().equals("CREDIT"))));
 
         verify(auditPort).publish(any());
-        verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(AgentBankDepositReceiptResult.class));
+        verify(idempotencyPort).complete(eq(IDEM_KEY), eq(REQUEST_HASH), any(AdminReceiptAgentBankDepositResult.class));
     }
 
-    private AgentBankDepositReceiptCommand command(ActorContext actor, BigDecimal amount) {
-        return new AgentBankDepositReceiptCommand(IDEM_KEY, REQUEST_HASH, actor, AGENT_CODE_RAW, amount);
+    private AdminReceiptAgentBankDepositCommand command(ActorContext actor, BigDecimal amount) {
+        return new AdminReceiptAgentBankDepositCommand(IDEM_KEY, REQUEST_HASH, actor, AGENT_CODE_RAW, amount);
     }
 
     private ActorContext adminActor() {

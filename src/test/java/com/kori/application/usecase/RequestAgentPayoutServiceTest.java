@@ -60,8 +60,8 @@ final class RequestAgentPayoutServiceTest {
     // ======= constants =======
     private static final String IDEM_KEY = "idem-1";
     private static final String REQUEST_HASH = "request-hash";
-    private static final String ADMIN_ACTOR_ID = "admin-actor";
-    private static final String NON_ADMIN_ACTOR_ID = "agent-actor";
+    private static final String ADMIN_ACTOR_ID = "admin.user";
+    private static final String NON_ADMIN_ACTOR_ID = "A-000001";
 
     private static final String AGENT_CODE_RAW = "A-123456";
     private static final AgentCode AGENT_CODE = AgentCode.of(AGENT_CODE_RAW);
@@ -254,7 +254,7 @@ final class RequestAgentPayoutServiceTest {
 
         assertEquals("AGENT_PAYOUT_REQUESTED", event.action());
         assertEquals("ADMIN", event.actorType());
-        assertEquals(ADMIN_ACTOR_ID, event.actorId());
+        assertEquals(ADMIN_ACTOR_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
         assertEquals(TX_UUID.toString(), event.metadata().get("transactionId"));
         assertEquals(AGENT_CODE_RAW, event.metadata().get("agentCode"));

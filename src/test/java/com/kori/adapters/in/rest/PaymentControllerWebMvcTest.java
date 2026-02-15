@@ -45,7 +45,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
     private ReversalUseCase reversalUseCase;
 
     @MockitoBean
-    private AgentBankDepositReceiptUseCase agentBankDepositReceiptUseCase;
+    private AdminReceiptAgentBankDepositUseCase adminReceiptAgentBankDepositUseCase;
 
     @Test
     void should_pay_by_card() throws Exception {
@@ -132,7 +132,7 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.transactionId").value("tx-1"))
                 .andExpect(jsonPath("$.agentId").value("agent-1"))
-                .andExpect(jsonPath("$.clientId").value("client-1"))
+                .andExpect(jsonPath("$.clientCode").value("client-1"))
                 .andExpect(jsonPath("$.clientPhoneNumber").value("+2690000000"))
                 .andExpect(jsonPath("$.amount").value(120));
     }
@@ -140,8 +140,8 @@ class PaymentControllerWebMvcTest extends BaseWebMvcTest {
     @Test
     void should_record_agent_bank_deposit_receipt() throws Exception {
         var request = new AgentBankDepositReceiptRequest("A-123456", new BigDecimal("200"));
-        var result = new AgentBankDepositReceiptResult("tx-1", "A-123456", new BigDecimal("200"));
-        when(agentBankDepositReceiptUseCase.execute(any())).thenReturn(result);
+        var result = new AdminReceiptAgentBankDepositResult("tx-1", "A-123456", new BigDecimal("200"));
+        when(adminReceiptAgentBankDepositUseCase.execute(any())).thenReturn(result);
 
         mockMvc.perform(post(URL + "/agent-bank-deposits")
                         .with(jwt().jwt(jwt -> jwt

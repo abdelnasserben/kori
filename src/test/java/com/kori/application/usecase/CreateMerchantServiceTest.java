@@ -49,7 +49,7 @@ final class CreateMerchantServiceTest {
     // ======= constants =======
     private static final String IDEM_KEY = "idem-1";
     private static final String REQUEST_HASH = "request-hash";
-    private static final String ADMIN_ID = "admin-actor";
+    private static final String ADMIN_ID = "admin.user";
     private static final Instant NOW = Instant.parse("2026-01-28T10:15:30Z");
 
     private static final UUID MERCHANT_UUID = UUID.fromString("22222222-2222-2222-2222-222222222222");
@@ -68,7 +68,7 @@ final class CreateMerchantServiceTest {
     }
 
     private static ActorContext nonAdminActor() {
-        return new ActorContext(ActorType.AGENT, "agent-actor", Map.of());
+        return new ActorContext(ActorType.AGENT, "A-000001", Map.of());
     }
 
     private static CreateMerchantCommand cmd(ActorContext actor) {
@@ -159,9 +159,9 @@ final class CreateMerchantServiceTest {
 
         assertEquals("MERCHANT_CREATED", event.action());
         assertEquals("ADMIN", event.actorType());
-        assertEquals(ADMIN_ID, event.actorId());
+        assertEquals(ADMIN_ID, event.actorRef());
         assertEquals(NOW, event.occurredAt());
-        assertEquals(ADMIN_ID, event.metadata().get("adminId"));
+        assertEquals(ADMIN_ID, event.metadata().get("adminUsername"));
         assertEquals(MERCHANT_CODE_1_RAW, event.metadata().get("merchantCode"));
 
         // idempotency saved

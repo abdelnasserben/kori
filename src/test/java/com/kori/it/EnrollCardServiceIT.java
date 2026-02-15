@@ -8,6 +8,7 @@ import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.ledger.LedgerEntryType;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.client.Client;
+import com.kori.domain.model.client.PhoneNumber;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.transaction.TransactionId;
 import org.junit.jupiter.api.Test;
@@ -34,7 +35,7 @@ class EnrollCardServiceIT extends IntegrationTestBase {
         EnrollCardResult result = enrollCardUseCase.execute(new EnrollCardCommand(
                 "idem-enroll-1",
                 "request-hash",
-                agentActor("agent-actor"),
+                agentActor("A-000001"),
                 CLIENT_PHONE,
                 CARD_UID,
                 PIN,
@@ -45,8 +46,8 @@ class EnrollCardServiceIT extends IntegrationTestBase {
         assertTrue(result.accountCreated());
         assertNotNull(result.transactionId());
 
-        Client client = clientRepositoryPort.findByPhoneNumber(CLIENT_PHONE).orElseThrow();
-        assertEquals(CLIENT_PHONE, client.phoneNumber());
+        Client client = clientRepositoryPort.findByPhoneNumber(PhoneNumber.of(CLIENT_PHONE)).orElseThrow();
+        assertEquals(CLIENT_PHONE, client.phoneNumber().value());
 
         assertTrue(cardRepositoryPort.findByCardUid(CARD_UID).isPresent());
 

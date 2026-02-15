@@ -6,13 +6,13 @@ import java.util.Objects;
 
 public record UpdateTerminalStatusCommand(
         ActorContext actorContext,
-        String terminalId,
+        String terminalUid,
         String targetStatus,
         String reason) {
 
-    public UpdateTerminalStatusCommand(ActorContext actorContext, String terminalId, String targetStatus, String reason) {
+    public UpdateTerminalStatusCommand(ActorContext actorContext, String terminalUid, String targetStatus, String reason) {
         this.actorContext = Objects.requireNonNull(actorContext);
-        this.terminalId = Objects.requireNonNull(terminalId);
+        this.terminalUid = Objects.requireNonNull(terminalUid);
         this.targetStatus = Objects.requireNonNull(targetStatus);
         this.reason = (reason == null || reason.isBlank()) ? "N/A" : reason;
     }

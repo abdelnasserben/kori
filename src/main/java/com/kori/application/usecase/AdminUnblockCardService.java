@@ -2,12 +2,12 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.AdminUnblockCardCommand;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.guard.ActorGuards;
 import com.kori.application.port.in.AdminUnblockCardUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.CardRepositoryPort;
 import com.kori.application.port.out.TimeProviderPort;
 import com.kori.application.result.UpdateCardStatusResult;
+import com.kori.application.security.ActorContext;
 import com.kori.domain.model.audit.AuditEvent;
 import com.kori.domain.model.card.Card;
 
@@ -16,13 +16,16 @@ import java.util.Map;
 
 public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final TimeProviderPort timeProviderPort;
     private final CardRepositoryPort cardRepositoryPort;
     private final AuditPort auditPort;
 
-    public AdminUnblockCardService(TimeProviderPort timeProviderPort,
+    public AdminUnblockCardService(AdminAccessService adminAccessService,
+                                   TimeProviderPort timeProviderPort,
                                    CardRepositoryPort cardRepositoryPort,
                                    AuditPort auditPort) {
+        this.adminAccessService = adminAccessService;
         this.timeProviderPort = timeProviderPort;
         this.cardRepositoryPort = cardRepositoryPort;
         this.auditPort = auditPort;
@@ -31,7 +34,9 @@ public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
     @Override
     public UpdateCardStatusResult execute(AdminUnblockCardCommand cmd) {
 
-        ActorGuards.requireAdmin(cmd.actorContext(), "unblock card");
+        ActorContext actorContext = cmd.actorContext();
+
+        adminAccessService.requireActiveAdmin(actorContext, "unblock card");
 
         Card card = getCard(cmd.cardUid());
         String before = card.status().name(); // for audit
@@ -46,7 +51,7 @@ public final class AdminUnblockCardService implements AdminUnblockCardUseCase {
         auditPort.publish(new AuditEvent(
                 "ADMIN_UNBLOCK_CARD",
                 cmd.actorContext().actorType().name(),
-                cmd.actorContext().actorId(),
+                cmd.actorContext().actorRef(),
                 now,
                 Map.of(
                         "cardId", card.id().value().toString(),

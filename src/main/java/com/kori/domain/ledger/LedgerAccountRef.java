@@ -4,7 +4,7 @@ import java.util.Objects;
 
 /**
  * Référence de compte ledger.
- * - Pour les comptes "par titulaire" : ownerRef = cardUid/merchantCode/agentCode (String)
+ * - Pour les comptes "par titulaire" : ownerRef = publicRef métier (phoneNumber/merchantCode/agentCode/terminalUid)
  * - Pour les comptes système : ownerRef = "SYSTEM"
  */
 public record LedgerAccountRef(LedgerAccountType type, String ownerRef) {
@@ -16,20 +16,20 @@ public record LedgerAccountRef(LedgerAccountType type, String ownerRef) {
         }
     }
 
-    public static LedgerAccountRef client(String clientId) {
-        return new LedgerAccountRef(LedgerAccountType.CLIENT, clientId);
+    public static LedgerAccountRef client(String clientRef) {
+        return new LedgerAccountRef(LedgerAccountType.CLIENT, clientRef);
     }
 
-    public static LedgerAccountRef merchant(String merchantId) {
-        return new LedgerAccountRef(LedgerAccountType.MERCHANT, merchantId);
+    public static LedgerAccountRef merchant(String merchantRef) {
+        return new LedgerAccountRef(LedgerAccountType.MERCHANT, merchantRef);
     }
 
-    public static LedgerAccountRef agentWallet(String agentId) {
-        return new LedgerAccountRef(LedgerAccountType.AGENT_WALLET, agentId);
+    public static LedgerAccountRef agentWallet(String agentRef) {
+        return new LedgerAccountRef(LedgerAccountType.AGENT_WALLET, agentRef);
     }
 
-    public static LedgerAccountRef agentCashClearing(String agentId) {
-        return new LedgerAccountRef(LedgerAccountType.AGENT_CASH_CLEARING, agentId);
+    public static LedgerAccountRef agentCashClearing(String agentRef) {
+        return new LedgerAccountRef(LedgerAccountType.AGENT_CASH_CLEARING, agentRef);
     }
 
     public static LedgerAccountRef platformFeeRevenue() {

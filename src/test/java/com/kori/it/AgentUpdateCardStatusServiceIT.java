@@ -27,7 +27,7 @@ class AgentUpdateCardStatusServiceIT extends IntegrationTestBase {
         createActiveCard(client, cardUid, "1234");
 
         agentUpdateCardStatusUseCase.execute(new AgentUpdateCardStatusCommand(
-                agentActor("agent-actor"),
+                agentActor("A-000001"),
                 cardUid,
                 agent.code().value(),
                 CardStatus.LOST.name(),
