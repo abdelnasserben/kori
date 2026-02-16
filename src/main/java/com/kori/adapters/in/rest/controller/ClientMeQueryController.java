@@ -24,6 +24,15 @@ public class ClientMeQueryController {
         this.clientMeTxDetailQueryUseCase = clientMeTxDetailQueryUseCase;
     }
 
+    @GetMapping("/home")
+    public MeResponses.ListResponse<MeResponses.TransactionItem> home(ActorContext actorContext) {
+        var page = clientMeQueryUseCase.listTransactions(actorContext, new MeQueryModels.MeTransactionsFilter(null, null, null, null, null, null, 10, null, "createdAt:desc"));
+        return new MeResponses.ListResponse<>(
+                page.items().stream().map(i -> new MeResponses.TransactionItem(i.transactionId(), i.type(), i.status(), i.amount(), i.currency(), i.createdAt())).toList(),
+                new MeResponses.CursorPage(page.nextCursor(), page.hasMore())
+        );
+    }
+
     @GetMapping("/profile")
     public MeResponses.ProfileResponse profile(ActorContext actorContext) {
         var item = clientMeQueryUseCase.getProfile(actorContext);
@@ -63,11 +72,11 @@ public class ClientMeQueryController {
         );
     }
 
-    @GetMapping("/transactions/{transactionId}")
+    @GetMapping("/transactions/{transactionRef}")
     public MeResponses.ClientTransactionDetailsResponse transactionDetails(
             ActorContext actorContext,
-            @PathVariable String transactionId) {
-        var d = clientMeTxDetailQueryUseCase.getById(actorContext, transactionId);
+            @PathVariable String transactionRef) {
+        var d = clientMeTxDetailQueryUseCase.getById(actorContext, transactionRef);
         return new MeResponses.ClientTransactionDetailsResponse(
                 d.transactionId(),
                 d.type(),

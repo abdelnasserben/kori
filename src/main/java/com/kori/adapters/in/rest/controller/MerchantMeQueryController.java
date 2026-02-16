@@ -56,10 +56,11 @@ public class MerchantMeQueryController {
         );
     }
 
-    @GetMapping("/transactions/{transactionId}")
-    public MeResponses.MerchantTransactionDetailsResponse transactionDetails(ActorContext actorContext,
-                                                                             @PathVariable String transactionId) {
-        var d = merchantMeTxDetailQueryUseCase.getById(actorContext, transactionId);
+    @GetMapping("/transactions/{transactionRef}")
+    public MeResponses.MerchantTransactionDetailsResponse transactionDetails(
+            ActorContext actorContext,
+            @PathVariable String transactionRef) {
+        var d = merchantMeTxDetailQueryUseCase.getById(actorContext, transactionRef);
         return new MeResponses.MerchantTransactionDetailsResponse(
                 d.transactionId(),
                 d.type(),

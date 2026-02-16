@@ -48,24 +48,18 @@ public class BackofficeQueryController {
             @RequestParam(required = false) BigDecimal max,
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) String cursor,
-            @RequestParam(required = false) String sort,
-            @RequestParam(required = false) String actorId,
-            @RequestParam(required = false) String merchantId,
-            @RequestParam(required = false) String agentId
+            @RequestParam(required = false) String sort
     ) {
-        var resolvedActorRef = firstNonBlank(actorRef, actorId);
-        var resolvedMerchantCode = firstNonBlank(merchantCode, merchantId);
-        var resolvedAgentCode = firstNonBlank(agentCode, agentId);
         var result = transactionQueryUseCase.list(new BackofficeTransactionQuery(
                 query,
                 type,
                 status,
                 actorType,
-                resolvedActorRef,
+                actorRef,
                 terminalUid,
                 cardUid,
-                resolvedMerchantCode,
-                resolvedAgentCode,
+                merchantCode,
+                agentCode,
                 clientPhone,
                 from,
                 to,
@@ -81,9 +75,9 @@ public class BackofficeQueryController {
         );
     }
 
-    @GetMapping("/transactions/{transactionId}")
-    public BackofficeResponses.TransactionDetails getTransaction(@PathVariable String transactionId) {
-        var d = transactionQueryUseCase.getById(transactionId);
+    @GetMapping("/transactions/{transactionRef}")
+    public BackofficeResponses.TransactionDetails getTransaction(@PathVariable String transactionRef) {
+        var d = transactionQueryUseCase.getById(transactionRef);
         return new BackofficeResponses.TransactionDetails(
                 d.transactionId(),
                 d.type(),
@@ -111,28 +105,28 @@ public class BackofficeQueryController {
             @RequestParam(required = false) String action,
             @RequestParam(required = false) String actorType,
             @RequestParam(required = false) String actorRef,
-            @RequestParam(required = false) String actorId,
             @RequestParam(required = false) String resourceType,
-            @RequestParam(required = false) String resourceId,
+            @RequestParam(required = false) String resourceRef,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant to,
             @RequestParam(required = false) Integer limit,
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) String sort
     ) {
-        var resolvedActorRef = firstNonBlank(actorRef, actorId);
         var result = auditEventQueryUseCase.list(
                 new BackofficeAuditEventQuery(
                         action,
                         actorType,
-                        resolvedActorRef,
+                        actorRef,
                         resourceType,
-                        resourceId,
+                        resourceRef,
                         from,
                         to,
                         limit,
                         cursor,
-                        sort));
+                        sort
+                )
+        );
 
         return new BackofficeResponses.ListResponse<>(
                 result.items().stream().map(i ->
@@ -200,21 +194,9 @@ public class BackofficeQueryController {
         );
     }
 
-    @GetMapping("/clients/{clientCode}")
-    public BackofficeResponses.ActorDetails getClient(@PathVariable String clientId) {
-        var d = actorDetailQueryUseCase.getClientById(clientId);
-        return new BackofficeResponses.ActorDetails(
-                d.actorRef(),
-                d.display(),
-                d.status(),
-                d.createdAt(),
-                d.lastActivityAt()
-        );
-    }
-
-    @GetMapping("/merchants/{merchantId}")
-    public BackofficeResponses.ActorDetails getMerchant(@PathVariable String merchantId) {
-        var d = actorDetailQueryUseCase.getMerchantById(merchantId);
+    @GetMapping("/actors/{actorType}/{actorRef}")
+    public BackofficeResponses.ActorDetails getActor(@PathVariable String actorType, @PathVariable String actorRef) {
+        var d = actorDetailQueryUseCase.getAgentById(actorRef);
         return new BackofficeResponses.ActorDetails(
                 d.actorRef(),
                 d.display(),
@@ -237,20 +219,10 @@ public class BackofficeQueryController {
                         i.entityId(),
                         i.display(),
                         i.status(),
-                        toLookupDetailUrl(i.entityType(), i.entityId())
+                        null
                 )).toList(),
                 new BackofficeResponses.CursorPage(null, false)
         );
-    }
-
-    private String toLookupDetailUrl(String entityType, String entityId) {
-        return switch (entityType) {
-            case "AGENT" -> ApiPaths.BACKOFFICE_AGENTS + "/" + entityId;
-            case "CLIENT" -> ApiPaths.BACKOFFICE_CLIENTS + "/" + entityId;
-            case "MERCHANT" -> ApiPaths.BACKOFFICE_MERCHANTS + "/" + entityId;
-            case "TRANSACTION" -> ApiPaths.BACKOFFICE_TRANSACTIONS + "/" + entityId;
-            default -> null;
-        };
     }
 
     private BackofficeResponses.ListResponse<BackofficeResponses.ActorItem> toActorResponse(QueryPage<BackofficeActorItem> result) {
@@ -259,12 +231,5 @@ public class BackofficeQueryController {
                         new BackofficeResponses.ActorItem(i.actorRef(), i.code(), i.status(), i.createdAt())).toList(),
                 new BackofficeResponses.CursorPage(result.nextCursor(), result.hasMore())
         );
-    }
-
-    private String firstNonBlank(String preferred, String fallback) {
-        if (preferred != null && !preferred.isBlank()) {
-            return preferred;
-        }
-        return (fallback != null && !fallback.isBlank()) ? fallback : null;
     }
 }

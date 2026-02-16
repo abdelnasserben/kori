@@ -26,5 +26,6 @@ public final class ApiPaths {
     public static final String BACKOFFICE_AGENTS = BACKOFFICE + "/agents";
     public static final String BACKOFFICE_CLIENTS = BACKOFFICE + "/clients";
     public static final String BACKOFFICE_MERCHANTS = BACKOFFICE + "/merchants";
+    public static final String TERMINAL_ME = API + "/terminal/me";
 }
 
