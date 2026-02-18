@@ -51,7 +51,7 @@ public class MerchantMeQueryController {
     ) {
         var page = merchantMeQueryUseCase.listTransactions(actorContext, new MeQueryModels.MeTransactionsFilter(type, status, from, to, min, max, limit, cursor, sort));
         return new MeResponses.ListResponse<>(
-                page.items().stream().map(i -> new MeResponses.TransactionItem(i.transactionId(), i.type(), i.status(), i.amount(), i.currency(), i.createdAt())).toList(),
+                page.items().stream().map(i -> new MeResponses.TransactionItem(i.transactionRef(), i.type(), i.status(), i.amount(), i.currency(), i.createdAt())).toList(),
                 new MeResponses.CursorPage(page.nextCursor(), page.hasMore())
         );
     }
@@ -60,9 +60,9 @@ public class MerchantMeQueryController {
     public MeResponses.MerchantTransactionDetailsResponse transactionDetails(
             ActorContext actorContext,
             @PathVariable String transactionRef) {
-        var d = merchantMeTxDetailQueryUseCase.getById(actorContext, transactionRef);
+        var d = merchantMeTxDetailQueryUseCase.getByRef(actorContext, transactionRef);
         return new MeResponses.MerchantTransactionDetailsResponse(
-                d.transactionId(),
+                d.transactionRef(),
                 d.type(),
                 d.status(),
                 d.amount(),
@@ -70,8 +70,8 @@ public class MerchantMeQueryController {
                 d.totalDebited(),
                 d.currency(),
                 d.agentCode(),
-                d.clientId(),
-                d.originalTransactionId(),
+                d.clientCode(),
+                d.originalTransactionRef(),
                 d.createdAt()
         );
     }

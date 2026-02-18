@@ -21,7 +21,7 @@ public class JdbcAgentSearchReadAdapter implements AgentSearchReadPort {
     @Override
     public List<AgentQueryModels.AgentSearchItem> searchByPhone(String phone, int limit) {
         String sql = """
-                SELECT c.id::text AS entity_id,
+                SELECT c.code AS entity_ref, 
                        c.phone_number AS display,
                        c.status
                 FROM clients c
@@ -36,17 +36,17 @@ public class JdbcAgentSearchReadAdapter implements AgentSearchReadPort {
 
         return jdbcTemplate.query(sql, params, (rs, n) -> new AgentQueryModels.AgentSearchItem(
                 "CLIENT",
-                rs.getString("entity_id"),
+                rs.getString("entity_ref"),
                 rs.getString("display"),
                 rs.getString("status"),
-                Map.of("client", "/api/v1/clients/" + rs.getString("entity_id"))
+                Map.of("client", "/api/v1/clients/" + rs.getString("entity_ref"))
         ));
     }
 
     @Override
     public List<AgentQueryModels.AgentSearchItem> searchByCardUid(String cardUid, int limit) {
         String sql = """
-                SELECT c.id::text AS entity_id,
+                SELECT c.card_uid AS entity_ref,
                        c.card_uid AS display,
                        c.status
                 FROM cards c
@@ -61,23 +61,24 @@ public class JdbcAgentSearchReadAdapter implements AgentSearchReadPort {
 
         return jdbcTemplate.query(sql, params, (rs, n) -> new AgentQueryModels.AgentSearchItem(
                 "CARD",
-                rs.getString("entity_id"),
+                rs.getString("entity_ref"),
                 rs.getString("display"),
                 rs.getString("status"),
-                Map.of("card", "/api/v1/cards/" + rs.getString("entity_id"))
+                Map.of("card", "/api/v1/cards/" + rs.getString("entity_ref"))
         ));
     }
 
     @Override
     public List<AgentQueryModels.AgentSearchItem> searchByTerminalUid(String terminalUid, int limit) {
         String sql = """
-                SELECT t.id::text AS entity_id,
-                       t.id::text AS display,
+                SELECT t.terminal_uid AS entity_ref,
+                       t.terminal_uid AS display,
                        t.status,
-                       t.merchant_id::text AS merchant_id
+                       m.code AS merchant_code
                 FROM terminals t
-                WHERE t.id::text = :terminalUid OR t.id::text ILIKE :prefix
-                ORDER BY t.id::text ASC
+                JOIN merchants m ON m.id = t.merchant_id
+                WHERE t.terminal_uid = :terminalUid OR t.terminal_uid ILIKE :prefix
+                ORDER BY t.terminal_uid ASC
                 LIMIT :limit
                 """;
         var params = new MapSqlParameterSource()
@@ -87,12 +88,12 @@ public class JdbcAgentSearchReadAdapter implements AgentSearchReadPort {
 
         return jdbcTemplate.query(sql, params, (rs, n) -> new AgentQueryModels.AgentSearchItem(
                 "TERMINAL",
-                rs.getString("entity_id"),
+                rs.getString("entity_ref"),
                 rs.getString("display"),
                 rs.getString("status"),
                 Map.of(
-                        "terminal", "/api/v1/terminals/" + rs.getString("entity_id"),
-                        "merchant", "/api/v1/merchants/" + rs.getString("merchant_id")
+                        "terminal", "/api/v1/terminals/" + rs.getString("entity_ref"),
+                        "merchant", "/api/v1/merchants/" + rs.getString("merchant_ref")
                 )
         ));
     }

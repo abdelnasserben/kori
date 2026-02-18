@@ -13,7 +13,6 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.UUID;
 
 @Component
 public class JdbcClientMeReadAdapter implements ClientMeReadPort {
@@ -30,7 +29,7 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
 
     @Override
     public Optional<MeQueryModels.MeProfile> findProfile(String clientCode) {
-        String sql = "SELECT client_code AS actor_ref, phone_number AS code, status, created_at FROM clients WHERE client_code = :clientCode LIMIT 1";
+        String sql = "SELECT c.code AS actor_ref, c.phone_number AS code, c.status, c.created_at FROM clients c WHERE c.code = :clientCode LIMIT 1";
         var rows = jdbcTemplate.query(sql, new MapSqlParameterSource("clientCode", clientCode), (rs, n) ->
                 new MeQueryModels.MeProfile(rs.getString("actor_ref"), rs.getString("code"), rs.getString("status"), rs.getTimestamp("created_at").toInstant()));
         return rows.stream().findFirst();
@@ -41,7 +40,7 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
         String sql = """
                 SELECT COALESCE(SUM(CASE WHEN entry_type = 'CREDIT' THEN amount ELSE -amount END), 0) AS balance
                 FROM ledger_entries
-                WHERE account_type = 'CLIENT' AND owner_ref = (SELECT id::text FROM clients WHERE client_code = :clientCode)
+                WHERE account_type = 'CLIENT' AND owner_ref = (SELECT c.id::text FROM clients c WHERE c.code = :clientCode)
                 """;
         var balance = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource("clientCode", clientCode), java.math.BigDecimal.class);
         return new MeQueryModels.MeBalance("CLIENT", clientCode, balance, "KMF");
@@ -52,7 +51,7 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
         String sql = """
                 SELECT card_uid, status, created_at
                 FROM cards
-                WHERE client_id = (SELECT id FROM clients WHERE client_code = :clientCode)
+                WHERE client_id = (SELECT c.id FROM clients c WHERE c.code = :clientCode)
                 ORDER BY created_at DESC, id DESC
                 """;
         return jdbcTemplate.query(sql, new MapSqlParameterSource("clientCode", clientCode), (rs, n) ->
@@ -68,7 +67,11 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
         var cursor = codec.decode(filter.cursor());
 
         StringBuilder sql = new StringBuilder("""
-                SELECT t.id, t.type, COALESCE(p.status, cr.status, 'COMPLETED') AS status, t.amount, t.created_at
+                SELECT t.id::text AS transaction_ref,
+                t.type,
+                COALESCE(p.status, cr.status, 'COMPLETED') AS status,
+                t.amount,
+                t.created_at
                 FROM transactions t
                 LEFT JOIN payouts p ON p.transaction_id = t.id
                 LEFT JOIN client_refunds cr ON cr.transaction_id = t.id
@@ -77,7 +80,7 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
                      FROM ledger_entries le
                      WHERE le.transaction_id = t.id
                      AND le.account_type = 'CLIENT'
-                     AND le.owner_ref = (SELECT id::text FROM clients WHERE client_code = :clientCode)
+                     AND le.owner_ref = (SELECT c.id::text FROM clients c WHERE c.code = :clientCode)
                 )
                 """);
         var params = new MapSqlParameterSource("clientCode", clientCode);
@@ -88,11 +91,18 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
         params.addValue("limit", limit + 1);
 
         List<MeQueryModels.MeTransactionItem> rows = jdbcTemplate.query(sql.toString(), params, (rs, n) -> new MeQueryModels.MeTransactionItem(
-                rs.getString("id"), rs.getString("type"), rs.getString("status"), rs.getBigDecimal("amount"), "KMF", rs.getTimestamp("created_at").toInstant()
+                rs.getString("transaction_ref"),
+                rs.getString("type"),
+                rs.getString("status"),
+                rs.getBigDecimal("amount"),
+                "KMF",
+                rs.getTimestamp("created_at").toInstant()
         ));
         boolean hasMore = rows.size() > limit;
         if (hasMore) rows = new ArrayList<>(rows.subList(0, limit));
-        String next = hasMore && !rows.isEmpty() ? codec.encode(rows.get(rows.size() - 1).createdAt(), UUID.fromString(rows.get(rows.size() - 1).transactionId())) : null;
+        String next = hasMore && !rows.isEmpty()
+                ? codec.encode(rows.get(rows.size() - 1).createdAt(), rows.get(rows.size() - 1).transactionRef())
+                : null;
         return new QueryPage<>(rows, next, hasMore);
     }
 
@@ -108,9 +118,9 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
     private void applyCursor(StringBuilder sql, MapSqlParameterSource params, CursorPayload cursor, boolean desc) {
         if (cursor == null) return;
         sql.append(desc
-                ? " AND (t.created_at < :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.id < CAST(:cursorId AS uuid)))"
-                : " AND (t.created_at > :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.id > CAST(:cursorId AS uuid)))");
+                ? " AND (t.created_at < :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.id::text < :cursorRef))"
+                : " AND (t.created_at > :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.id::text > :cursorRef))");
         params.addValue("cursorCreatedAt", cursor.createdAt());
-        params.addValue("cursorId", cursor.id());
+        params.addValue("cursorRef", cursor.ref());
     }
 }

@@ -70,31 +70,29 @@ public class BackofficeQueryController {
                 sort
         ));
         return new BackofficeResponses.ListResponse<>(
-                result.items().stream().map(i -> new BackofficeResponses.TransactionItem(i.transactionId(), i.type(), i.status(), i.amount(), i.currency(), i.merchantCode(), i.agentCode(), i.clientId(), i.createdAt())).toList(),
+                result.items().stream().map(i -> new BackofficeResponses.TransactionItem(i.transactionRef(), i.type(), i.status(), i.amount(), i.currency(), i.merchantCode(), i.agentCode(), i.clientCode(), i.createdAt())).toList(),
                 new BackofficeResponses.CursorPage(result.nextCursor(), result.hasMore())
         );
     }
 
     @GetMapping("/transactions/{transactionRef}")
     public BackofficeResponses.TransactionDetails getTransaction(@PathVariable String transactionRef) {
-        var d = transactionQueryUseCase.getById(transactionRef);
+        var d = transactionQueryUseCase.getByRef(transactionRef);
         return new BackofficeResponses.TransactionDetails(
-                d.transactionId(),
+                d.transactionRef(),
                 d.type(),
                 d.status(),
                 d.amount(),
                 d.currency(),
                 d.merchantCode(),
                 d.agentCode(),
-                d.clientId(),
+                d.clientCode(),
                 d.clientPhone(),
-                d.merchantId(),
-                d.agentId(),
                 d.terminalUid(),
                 d.cardUid(),
-                d.originalTransactionId(),
-                d.payout() == null ? null : new BackofficeResponses.TransactionPayout(d.payout().payoutId(), d.payout().status(), d.payout().amount(), d.payout().createdAt(), d.payout().completedAt(), d.payout().failedAt(), d.payout().failureReason()),
-                d.clientRefund() == null ? null : new BackofficeResponses.TransactionClientRefund(d.clientRefund().refundId(), d.clientRefund().status(), d.clientRefund().amount(), d.clientRefund().createdAt(), d.clientRefund().completedAt(), d.clientRefund().failedAt(), d.clientRefund().failureReason()),
+                d.originalTransactionRef(),
+                d.payout() == null ? null : new BackofficeResponses.TransactionPayout(d.payout().payoutRef(), d.payout().status(), d.payout().amount(), d.payout().createdAt(), d.payout().completedAt(), d.payout().failedAt(), d.payout().failureReason()),
+                d.clientRefund() == null ? null : new BackofficeResponses.TransactionClientRefund(d.clientRefund().refundRef(), d.clientRefund().status(), d.clientRefund().amount(), d.clientRefund().createdAt(), d.clientRefund().completedAt(), d.clientRefund().failedAt(), d.clientRefund().failureReason()),
                 d.ledgerLines().stream().map(l -> new BackofficeResponses.TransactionLedgerLine(l.accountType(), l.ownerRef(), l.entryType(), l.amount(), l.currency())).toList(),
                 d.createdAt()
         );
@@ -131,13 +129,13 @@ public class BackofficeQueryController {
         return new BackofficeResponses.ListResponse<>(
                 result.items().stream().map(i ->
                         new BackofficeResponses.AuditEventItem(
-                                i.eventId(),
+                                i.eventRef(),
                                 i.occurredAt(),
                                 i.actorType(),
                                 i.actorRef(),
                                 i.action(),
                                 i.resourceType(),
-                                i.resourceId(),
+                                i.resourceRef(),
                                 i.metadata())).toList(),
                 new BackofficeResponses.CursorPage(result.nextCursor(), result.hasMore())
         );
@@ -182,9 +180,9 @@ public class BackofficeQueryController {
         return toActorResponse(actorQueryUseCase.listMerchants(new BackofficeActorQuery(query, status, createdFrom, createdTo, limit, cursor, sort)));
     }
 
-    @GetMapping("/agents/{agentId}")
-    public BackofficeResponses.ActorDetails getAgent(@PathVariable String agentId) {
-        var d = actorDetailQueryUseCase.getAgentById(agentId);
+    @GetMapping("/agents/{agentCode}")
+    public BackofficeResponses.ActorDetails getAgent(@PathVariable String agentCode) {
+        var d = actorDetailQueryUseCase.getAgentByRef(agentCode);
         return new BackofficeResponses.ActorDetails(
                 d.actorRef(),
                 d.display(),
@@ -196,7 +194,12 @@ public class BackofficeQueryController {
 
     @GetMapping("/actors/{actorType}/{actorRef}")
     public BackofficeResponses.ActorDetails getActor(@PathVariable String actorType, @PathVariable String actorRef) {
-        var d = actorDetailQueryUseCase.getAgentById(actorRef);
+        var d = switch (actorType.toUpperCase()) {
+            case "AGENT" -> actorDetailQueryUseCase.getAgentByRef(actorRef);
+            case "CLIENT" -> actorDetailQueryUseCase.getClientByRef(actorRef);
+            case "MERCHANT" -> actorDetailQueryUseCase.getMerchantByRef(actorRef);
+            default -> throw new IllegalArgumentException("Unsupported actorType");
+        };
         return new BackofficeResponses.ActorDetails(
                 d.actorRef(),
                 d.display(),
@@ -216,7 +219,7 @@ public class BackofficeQueryController {
         return new BackofficeResponses.ListResponse<>(
                 results.stream().map(i -> new BackofficeResponses.LookupItem(
                         i.entityType(),
-                        i.entityId(),
+                        i.entityRef(),
                         i.display(),
                         i.status(),
                         null

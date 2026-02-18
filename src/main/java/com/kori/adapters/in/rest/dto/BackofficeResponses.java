@@ -13,14 +13,14 @@ public final class BackofficeResponses {
     public record ListResponse<T>(List<T> items, CursorPage page) {}
 
     public record TransactionItem(
-            String transactionId,
+            String transactionRef,
             String type,
             String status,
             BigDecimal amount,
             String currency,
             String merchantCode,
             String agentCode,
-            String clientId,
+            String clientCode,
             Instant createdAt
     ) {}
 
@@ -33,7 +33,7 @@ public final class BackofficeResponses {
     ) {}
 
     public record TransactionPayout(
-            String payoutId,
+            String payoutRef,
             String status,
             BigDecimal amount,
             Instant createdAt,
@@ -43,7 +43,7 @@ public final class BackofficeResponses {
     ) {}
 
     public record TransactionClientRefund(
-            String refundId,
+            String refundRef,
             String status,
             BigDecimal amount,
             Instant createdAt,
@@ -53,20 +53,18 @@ public final class BackofficeResponses {
     ) {}
 
     public record TransactionDetails(
-            String transactionId,
+            String transactionRef,
             String type,
             String status,
             BigDecimal amount,
             String currency,
             String merchantCode,
             String agentCode,
-            String clientId,
+            String clientCode,
             String clientPhone,
-            String merchantId,
-            String agentId,
             String terminalUid,
             String cardUid,
-            String originalTransactionId,
+            String originalTransactionRef,
             TransactionPayout payout,
             TransactionClientRefund clientRefund,
             List<TransactionLedgerLine> ledgerLines,
@@ -74,13 +72,13 @@ public final class BackofficeResponses {
     ) {}
 
     public record AuditEventItem(
-            String eventId,
+            String eventRef,
             Instant occurredAt,
             String actorType,
             String actorRef,
             String action,
             String resourceType,
-            String resourceId,
+            String resourceRef,
             Map<String, Object> metadata
     ) {}
 
@@ -101,7 +99,7 @@ public final class BackofficeResponses {
 
     public record LookupItem(
             String entityType,
-            String entityId,
+            String entityRef,
             String display,
             String status,
             String detailUrl

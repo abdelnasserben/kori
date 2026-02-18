@@ -24,7 +24,7 @@ public final class MeQueryModels {
             Instant createdAt) {}
 
     public record MeTransactionItem(
-            String transactionId,
+            String transactionRef,
             String type,
             String status,
             BigDecimal amount,
@@ -32,7 +32,7 @@ public final class MeQueryModels {
             Instant createdAt) {}
 
     public record ClientTransactionDetails(
-            String transactionId,
+            String transactionRef,
             String type,
             String status,
             BigDecimal amount,
@@ -40,11 +40,11 @@ public final class MeQueryModels {
             BigDecimal totalDebited,
             String currency,
             String merchantCode,
-            String originalTransactionId,
+            String originalTransactionRef,
             Instant createdAt) {}
 
     public record MerchantTransactionDetails(
-            String transactionId,
+            String transactionRef,
             String type,
             String status,
             BigDecimal amount,
@@ -52,8 +52,8 @@ public final class MeQueryModels {
             BigDecimal totalDebited,
             String currency,
             String agentCode,
-            String clientId,
-            String originalTransactionId,
+            String clientCode,
+            String originalTransactionRef,
             Instant createdAt) {}
 
     public record MeTerminalItem(

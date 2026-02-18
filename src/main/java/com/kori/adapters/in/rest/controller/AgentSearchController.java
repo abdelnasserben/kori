@@ -30,7 +30,7 @@ public class AgentSearchController {
     ) {
         var items = searchUseCase.search(actorContext, new AgentQueryModels.AgentSearchFilter(phone, cardUid, terminalUid, limit));
         return new AgentResponses.SearchResponse(items.stream()
-                .map(item -> new AgentResponses.SearchItem(item.entityType(), item.entityId(), item.display(), item.status(), item.links()))
+                .map(item -> new AgentResponses.SearchItem(item.entityType(), item.entityRef(), item.display(), item.status(), item.links()))
                 .toList());
     }
 }

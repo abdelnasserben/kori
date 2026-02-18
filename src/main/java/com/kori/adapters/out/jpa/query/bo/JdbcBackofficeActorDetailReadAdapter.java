@@ -18,39 +18,37 @@ public class JdbcBackofficeActorDetailReadAdapter implements BackofficeActorDeta
     }
 
     @Override
-    public Optional<BackofficeActorDetails> findAgentById(String agentId) {
-        return findById(agentId, "agents", "code", "AGENT");
+    public Optional<BackofficeActorDetails> findAgentByRef(String agentCode) {
+        return findByCode(agentCode, "agents", "code", "AGENT");
     }
 
     @Override
-    public Optional<BackofficeActorDetails> findClientById(String clientId) {
-        return findById(clientId, "clients", "phone_number", "CLIENT");
+    public Optional<BackofficeActorDetails> findClientByRef(String clientCode) {
+        return findByCode(clientCode, "clients", "code", "CLIENT");
     }
 
     @Override
-    public Optional<BackofficeActorDetails> findMerchantById(String merchantId) {
-        return findById(merchantId, "merchants", "code", "MERCHANT");
+    public Optional<BackofficeActorDetails> findMerchantByRef(String merchantCode) {
+        return findByCode(merchantCode, "merchants", "code", "MERCHANT");
     }
 
-    private Optional<BackofficeActorDetails> findById(String actorId, String table, String displayField, String actorType) {
+    private Optional<BackofficeActorDetails> findByCode(String actorRef, String table, String codeField, String actorType) {
         String sql = """
-                SELECT t.id::text AS actor_id,
+                SELECT t.%s AS actor_ref,
                        t.%s AS display,
                        t.status,
                        t.created_at,
                        (SELECT MAX(ae.occurred_at)
                           FROM audit_events ae
                          WHERE ae.actor_type = :actorType
-                           AND ae.actor_id = t.id::text) AS last_activity_at
+                           AND ae.actor_id = t.%s) AS last_activity_at
                 FROM %s t
-                WHERE t.id = CAST(:actorRef AS uuid)
+                WHERE t.%s = :actorRef
                 LIMIT 1
-                """.formatted(displayField, table);
-        var params = new MapSqlParameterSource()
-                .addValue("actorRef", actorId)
-                .addValue("actorType", actorType);
+                """.formatted(codeField, codeField, codeField, table, codeField);
+        var params = new MapSqlParameterSource().addValue("actorRef", actorRef).addValue("actorType", actorType);
         var rows = jdbcTemplate.query(sql, params, (rs, i) -> new BackofficeActorDetails(
-                rs.getString("actor_id"),
+                rs.getString("actor_ref"),
                 rs.getString("display"),
                 rs.getString("status"),
                 rs.getTimestamp("created_at").toInstant(),

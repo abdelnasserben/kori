@@ -7,7 +7,7 @@ public record BackofficeAuditEventQuery(
         String actorType,
         String actorRef,
         String resourceType,
-        String resourceId,
+        String resourceRef,
         Instant from,
         Instant to,
         Integer limit,

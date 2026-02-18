@@ -6,15 +6,15 @@ import com.kori.query.model.me.MeQueryModels;
 import java.util.Optional;
 
 public interface MerchantMeReadPort {
-    Optional<MeQueryModels.MeProfile> findProfile(String merchantId);
+    Optional<MeQueryModels.MeProfile> findProfile(String merchantCode);
 
-    MeQueryModels.MeBalance getBalance(String merchantId);
+    MeQueryModels.MeBalance getBalance(String merchantCode);
 
-    QueryPage<MeQueryModels.MeTransactionItem> listTransactions(String merchantId, MeQueryModels.MeTransactionsFilter filter);
+    QueryPage<MeQueryModels.MeTransactionItem> listTransactions(String merchantCode, MeQueryModels.MeTransactionsFilter filter);
 
-    QueryPage<MeQueryModels.MeTerminalItem> listTerminals(String merchantId, MeQueryModels.MeTerminalsFilter filter);
+    QueryPage<MeQueryModels.MeTerminalItem> listTerminals(String merchantCode, MeQueryModels.MeTerminalsFilter filter);
 
-    Optional<MeQueryModels.MeTerminalItem> findTerminalForMerchant(String merchantId, String terminalUid);
+    Optional<MeQueryModels.MeTerminalItem> findTerminalForMerchant(String merchantCode, String terminalUid);
 
     boolean existsTerminal(String terminalUid);
 }

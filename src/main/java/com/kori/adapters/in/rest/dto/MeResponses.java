@@ -31,7 +31,7 @@ public final class MeResponses {
             Instant createdAt) {}
 
     public record ClientTransactionDetailsResponse(
-            String transactionId,
+            String transactionRef,
             String type,
             String status,
             BigDecimal amount,
@@ -39,11 +39,11 @@ public final class MeResponses {
             BigDecimal totalDebited,
             String currency,
             String merchantCode,
-            String originalTransactionId,
+            String originalTransactionRef,
             Instant createdAt) {}
 
     public record MerchantTransactionDetailsResponse(
-            String transactionId,
+            String transactionRef,
             String type,
             String status,
             BigDecimal amount,
@@ -51,12 +51,12 @@ public final class MeResponses {
             BigDecimal totalDebited,
             String currency,
             String agentCode,
-            String clientId,
-            String originalTransactionId,
+            String clientCode,
+            String originalTransactionRef,
             Instant createdAt) {}
 
     public record TransactionItem(
-            String transactionId,
+            String transactionRef,
             String type,
             String status,
             BigDecimal amount,

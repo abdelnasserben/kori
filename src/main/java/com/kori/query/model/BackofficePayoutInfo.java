@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 public record BackofficePayoutInfo(
-        String payoutId,
+        String payoutRef,
         String status,
         BigDecimal amount,
         Instant createdAt,

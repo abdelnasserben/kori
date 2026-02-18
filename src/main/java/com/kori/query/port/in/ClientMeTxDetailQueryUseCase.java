@@ -4,6 +4,6 @@ import com.kori.application.security.ActorContext;
 import com.kori.query.model.me.MeQueryModels;
 
 public interface ClientMeTxDetailQueryUseCase {
-    MeQueryModels.ClientTransactionDetails getById(ActorContext actorContext, String transactionId);
+    MeQueryModels.ClientTransactionDetails getByRef(ActorContext actorContext, String transactionRef);
 }
 

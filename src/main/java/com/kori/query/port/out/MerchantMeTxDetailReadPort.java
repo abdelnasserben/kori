@@ -5,7 +5,7 @@ import com.kori.query.model.me.MeQueryModels;
 import java.util.Optional;
 
 public interface MerchantMeTxDetailReadPort {
-    Optional<MeQueryModels.MerchantTransactionDetails> findOwnedByMerchant(String merchantId, String transactionId);
+    Optional<MeQueryModels.MerchantTransactionDetails> findOwnedByMerchant(String merchantCode, String transactionRef);
 
-    boolean existsTransaction(String transactionId);
+    boolean existsTransaction(String transactionRef);
 }

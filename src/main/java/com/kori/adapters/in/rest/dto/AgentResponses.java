@@ -10,7 +10,7 @@ public final class AgentResponses {
     }
 
     public record SummaryResponse(
-            String agentId,
+            String agentCode,
             String code,
             String status,
             BigDecimal cashBalance,
@@ -19,7 +19,7 @@ public final class AgentResponses {
     }
 
     public record TransactionItem(
-            String transactionId,
+            String transactionRef,
             String type,
             String status,
             BigDecimal amount,
@@ -28,11 +28,11 @@ public final class AgentResponses {
     }
 
     public record ActivityItem(
-            String eventId,
+            String eventRef,
             Instant occurredAt,
             String action,
             String resourceType,
-            String resourceId,
+            String resourceRef,
             Map<String, Object> metadata) {
     }
 
@@ -47,7 +47,7 @@ public final class AgentResponses {
 
     public record SearchItem(
             String entityType,
-            String entityId,
+            String entityRef,
             String display,
             String status,
             Map<String, String> links) {

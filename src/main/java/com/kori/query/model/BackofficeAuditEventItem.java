@@ -4,13 +4,13 @@ import java.time.Instant;
 import java.util.Map;
 
 public record BackofficeAuditEventItem(
-        String eventId,
+        String eventRef,
         Instant occurredAt,
         String actorType,
         String actorRef,
         String action,
         String resourceType,
-        String resourceId,
+        String resourceRef,
         Map<String, Object> metadata
 ) {
 }

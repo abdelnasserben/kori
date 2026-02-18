@@ -7,5 +7,5 @@ import com.kori.query.model.QueryPage;
 
 public interface BackofficeTransactionQueryUseCase {
     QueryPage<BackofficeTransactionItem> list(BackofficeTransactionQuery query);
-    BackofficeTransactionDetails getById(String transactionId);
+    BackofficeTransactionDetails getByRef(String transactionId);
 }

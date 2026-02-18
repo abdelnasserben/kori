@@ -2,7 +2,6 @@ package com.kori.query.service;
 
 import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
-import com.kori.application.exception.ValidationException;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
 import com.kori.query.model.QueryPage;
@@ -48,7 +47,6 @@ public class MerchantMeQueryService implements MerchantMeQueryUseCase {
     @Override
     public MeQueryModels.MeTerminalItem getTerminalDetails(ActorContext actorContext, String terminalUid) {
         requireMerchant(actorContext);
-        validateTerminalUid(terminalUid);
         return readPort.findTerminalForMerchant(actorContext.actorRef(), terminalUid)
                 .orElseGet(() -> {
                     if (readPort.existsTerminal(terminalUid)) {
@@ -56,14 +54,6 @@ public class MerchantMeQueryService implements MerchantMeQueryUseCase {
                     }
                     throw new NotFoundException("Terminal not found");
                 });
-    }
-
-    private void validateTerminalUid(String terminalUid) {
-        try {
-            java.util.UUID.fromString(terminalUid);
-        } catch (Exception ex) {
-            throw new ValidationException("Invalid terminalUid", java.util.Map.of("field", "terminalUid"));
-        }
     }
 
     private void requireMerchant(ActorContext actorContext) {

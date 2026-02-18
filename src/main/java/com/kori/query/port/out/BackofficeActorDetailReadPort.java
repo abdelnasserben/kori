@@ -5,9 +5,9 @@ import com.kori.query.model.BackofficeActorDetails;
 import java.util.Optional;
 
 public interface BackofficeActorDetailReadPort {
-    Optional<BackofficeActorDetails> findAgentById(String agentId);
+    Optional<BackofficeActorDetails> findAgentByRef(String agentCode);
 
-    Optional<BackofficeActorDetails> findClientById(String clientId);
+    Optional<BackofficeActorDetails> findClientByRef(String clientCode);
 
-    Optional<BackofficeActorDetails> findMerchantById(String merchantId);
+    Optional<BackofficeActorDetails> findMerchantByRef(String merchantCode);
 }

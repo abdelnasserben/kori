@@ -4,7 +4,6 @@ import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.security.ActorContext;
 import com.kori.application.security.ActorType;
-import com.kori.application.utils.UuidParser;
 import com.kori.query.model.me.MeQueryModels;
 import com.kori.query.port.in.ClientMeTxDetailQueryUseCase;
 import com.kori.query.port.out.ClientMeTxDetailReadPort;
@@ -20,13 +19,11 @@ public class ClientMeTxDetailQueryService implements ClientMeTxDetailQueryUseCas
     }
 
     @Override
-    public MeQueryModels.ClientTransactionDetails getById(ActorContext actorContext, String transactionId) {
+    public MeQueryModels.ClientTransactionDetails getByRef(ActorContext actorContext, String transactionRef) {
         requireClient(actorContext);
-        UuidParser.parse(transactionId, "transactionId");
-
-        return readPort.findOwnedByClient(actorContext.actorRef(), transactionId)
+        return readPort.findOwnedByClient(actorContext.actorRef(), transactionRef)
                 .orElseGet(() -> {
-                    if (readPort.existsTransaction(transactionId)) {
+                    if (readPort.existsTransaction(transactionRef)) {
                         throw new ForbiddenOperationException("Forbidden operation");
                     }
                     throw new NotFoundException("Transaction not found");

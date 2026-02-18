@@ -1,6 +1,5 @@
 package com.kori.adapters.out.jpa.query.bo;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
@@ -14,9 +13,9 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 
 @Component
 public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEventReadPort {
@@ -25,19 +24,25 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final OpaqueCursorCodec codec = new OpaqueCursorCodec();
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public JdbcBackofficeAuditEventReadAdapter(NamedParameterJdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+    public JdbcBackofficeAuditEventReadAdapter(NamedParameterJdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
-        this.objectMapper = objectMapper;
     }
 
     @Override
     public QueryPage<BackofficeAuditEventItem> list(BackofficeAuditEventQuery query) {
         int limit = QueryInputValidator.normalizeLimit(query.limit(), DEFAULT_LIMIT, MAX_LIMIT);
+        boolean desc = QueryInputValidator.resolveSort(query.sort(), "occurredAt");
         var cursor = codec.decode(query.cursor());
-        var sortDesc = resolveSort(query.sort());
-        StringBuilder sql = new StringBuilder("SELECT id, occurred_at, actor_type, actor_id, action, metadata_json FROM audit_events WHERE 1=1");
+        StringBuilder sql = new StringBuilder("""
+           SELECT id::text AS event_ref, occurred_at, actor_type, actor_id AS actor_ref, action,
+               metadata_json::jsonb ->> 'resourceType' AS resource_type,
+               metadata_json::jsonb ->> 'resourceRef' AS resource_ref,
+               metadata_json
+          FROM audit_events
+          WHERE 1=1
+        """);
         var params = new MapSqlParameterSource();
         if (query.action() != null && !query.action().isBlank()) {
             sql.append(" AND action = :action");
@@ -52,12 +57,12 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
             params.addValue("actorRef", query.actorRef());
         }
         if (query.resourceType() != null && !query.resourceType().isBlank()) {
-            sql.append(" AND actor_type = :resourceType");
+            sql.append(" AND metadata_json::jsonb ->> 'resourceType' = :resourceType");
             params.addValue("resourceType", query.resourceType());
         }
-        if (query.resourceId() != null && !query.resourceId().isBlank()) {
-            sql.append(" AND actor_id = :resourceId");
-            params.addValue("resourceId", query.resourceId());
+        if (query.resourceRef() != null && !query.resourceRef().isBlank()) {
+            sql.append(" AND metadata_json::jsonb ->> 'resourceRef' = :resourceRef");
+            params.addValue("resourceRef", query.resourceRef());
         }
         if (query.from() != null) {
             sql.append(" AND occurred_at >= :from");
@@ -68,40 +73,35 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
             params.addValue("to", query.to());
         }
         if (cursor != null) {
-            sql.append(sortDesc
-                    ? " AND (occurred_at < :cursorCreatedAt OR (occurred_at = :cursorCreatedAt AND id < CAST(:cursorId AS uuid)))"
-                    : " AND (occurred_at > :cursorCreatedAt OR (occurred_at = :cursorCreatedAt AND id > CAST(:cursorId AS uuid)))");
+            sql.append(desc
+                    ? " AND (occurred_at < :cursorCreatedAt OR (occurred_at = :cursorCreatedAt AND id::text < :cursorRef))"
+                    : " AND (occurred_at > :cursorCreatedAt OR (occurred_at = :cursorCreatedAt AND id::text > :cursorRef))");
             params.addValue("cursorCreatedAt", cursor.createdAt());
-            params.addValue("cursorId", cursor.id());
+            params.addValue("cursorRef", cursor.ref());
         }
-        sql.append(" ORDER BY occurred_at ").append(sortDesc ? "DESC" : "ASC").append(", id ").append(sortDesc ? "DESC" : "ASC");
-        sql.append(" LIMIT :limit");
+        sql.append(" ORDER BY occurred_at ").append(desc ? "DESC" : "ASC").append(", id ").append(desc ? "DESC" : "ASC").append(" LIMIT :limit");
         params.addValue("limit", limit + 1);
 
-        List<BackofficeAuditEventItem> rows = jdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
-            try {
-                return new BackofficeAuditEventItem(
-                        rs.getString("id"),
-                        rs.getTimestamp("occurred_at").toInstant(),
-                        rs.getString("actor_type"),
-                        rs.getString("actor_id"),
-                        rs.getString("action"),
-                        rs.getString("actor_type"),
-                        rs.getString("actor_id"),
-                        objectMapper.readValue(rs.getString("metadata_json"), new TypeReference<Map<String, Object>>() {})
-                );
-            } catch (JsonProcessingException e) {
-                throw new RuntimeException(e);
-            }
-        });
+        List<BackofficeAuditEventItem> rows = jdbcTemplate.query(sql.toString(), params, (rs, i) -> new BackofficeAuditEventItem(
+                rs.getString("event_ref"), rs.getTimestamp("occurred_at").toInstant(), rs.getString("actor_type"), rs.getString("actor_ref"),
+                rs.getString("action"), rs.getString("resource_type"), rs.getString("resource_ref"), parseMetadata(rs.getString("metadata_json"))
+        ));
 
         boolean hasMore = rows.size() > limit;
         if (hasMore) rows = new ArrayList<>(rows.subList(0, limit));
-        String next = hasMore && !rows.isEmpty() ? codec.encode(rows.get(rows.size() - 1).occurredAt(), UUID.fromString(rows.get(rows.size() - 1).eventId())) : null;
+        String next = hasMore && !rows.isEmpty()
+                ? codec.encode(rows.get(rows.size() - 1).occurredAt(), rows.get(rows.size() - 1).eventRef())
+                : null;
         return new QueryPage<>(rows, next, hasMore);
     }
 
-    private boolean resolveSort(String sortRaw) {
-        return QueryInputValidator.resolveSort(sortRaw, "occurredAt");
+    private Map<String, Object> parseMetadata(String metadataJson) {
+        if (metadataJson == null || metadataJson.isBlank()) return Collections.emptyMap();
+        try {
+            return objectMapper.readValue(metadataJson, new TypeReference<>() {});
+        }
+        catch (Exception ignored) {
+            return Collections.emptyMap();
+        }
     }
 }

@@ -5,20 +5,18 @@ import java.time.Instant;
 import java.util.List;
 
 public record BackofficeTransactionDetails(
-        String transactionId,
+        String transactionRef,
         String type,
         String status,
         BigDecimal amount,
         String currency,
         String merchantCode,
         String agentCode,
-        String clientId,
+        String clientCode,
         String clientPhone,
-        String merchantId,
-        String agentId,
         String terminalUid,
         String cardUid,
-        String originalTransactionId,
+        String originalTransactionRef,
         BackofficePayoutInfo payout,
         BackofficeClientRefundInfo clientRefund,
         List<BackofficeLedgerLine> ledgerLines,

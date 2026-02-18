@@ -28,7 +28,7 @@ public class AgentMeController {
     public AgentResponses.SummaryResponse summary(ActorContext actorContext) {
         var item = queryUseCase.getSummary(actorContext);
         return new AgentResponses.SummaryResponse(
-                item.agentId(),
+                item.agentCode(),
                 item.code(),
                 item.status(),
                 item.cashBalance(),
@@ -53,7 +53,7 @@ public class AgentMeController {
         var page = queryUseCase.listTransactions(actorContext, new AgentQueryModels.AgentTransactionFilter(type, status, from, to, min, max, limit, cursor, sort));
         return new AgentResponses.ListResponse<>(
                 page.items().stream()
-                        .map(item -> new AgentResponses.TransactionItem(item.transactionId(), item.type(), item.status(), item.amount(), item.currency(), item.createdAt()))
+                        .map(item -> new AgentResponses.TransactionItem(item.transactionRef(), item.type(), item.status(), item.amount(), item.currency(), item.createdAt()))
                         .toList(),
                 new AgentResponses.CursorPage(page.nextCursor(), page.hasMore())
         );
@@ -72,7 +72,7 @@ public class AgentMeController {
         var page = queryUseCase.listActivities(actorContext, new AgentQueryModels.AgentActivityFilter(action, from, to, limit, cursor, sort));
         return new AgentResponses.ListResponse<>(
                 page.items().stream()
-                        .map(item -> new AgentResponses.ActivityItem(item.eventId(), item.occurredAt(), item.action(), item.resourceType(), item.resourceId(), item.metadata()))
+                        .map(item -> new AgentResponses.ActivityItem(item.eventRef(), item.occurredAt(), item.action(), item.resourceType(), item.resourceRef(), item.metadata()))
                         .toList(),
                 new AgentResponses.CursorPage(page.nextCursor(), page.hasMore())
         );

@@ -9,5 +9,5 @@ import java.util.Optional;
 
 public interface BackofficeTransactionReadPort {
     QueryPage<BackofficeTransactionItem> list(BackofficeTransactionQuery query);
-    Optional<BackofficeTransactionDetails> findById(String transactionId);
+    Optional<BackofficeTransactionDetails> findByRef(String transactionRef);
 }

@@ -3,9 +3,9 @@ package com.kori.query.port.in;
 import com.kori.query.model.BackofficeActorDetails;
 
 public interface BackofficeActorDetailQueryUseCase {
-    BackofficeActorDetails getAgentById(String agentId);
+    BackofficeActorDetails getAgentByRef(String agentCode);
 
-    BackofficeActorDetails getClientById(String clientId);
+    BackofficeActorDetails getClientByRef(String clientCode);
 
-    BackofficeActorDetails getMerchantById(String merchantId);
+    BackofficeActorDetails getMerchantByRef(String merchantCode);
 }

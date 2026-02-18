@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.Instant;
 
 public record BackofficeClientRefundInfo(
-        String refundId,
+        String refundRef,
         String status,
         BigDecimal amount,
         Instant createdAt,

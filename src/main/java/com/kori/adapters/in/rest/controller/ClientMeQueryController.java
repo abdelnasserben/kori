@@ -28,7 +28,7 @@ public class ClientMeQueryController {
     public MeResponses.ListResponse<MeResponses.TransactionItem> home(ActorContext actorContext) {
         var page = clientMeQueryUseCase.listTransactions(actorContext, new MeQueryModels.MeTransactionsFilter(null, null, null, null, null, null, 10, null, "createdAt:desc"));
         return new MeResponses.ListResponse<>(
-                page.items().stream().map(i -> new MeResponses.TransactionItem(i.transactionId(), i.type(), i.status(), i.amount(), i.currency(), i.createdAt())).toList(),
+                page.items().stream().map(i -> new MeResponses.TransactionItem(i.transactionRef(), i.type(), i.status(), i.amount(), i.currency(), i.createdAt())).toList(),
                 new MeResponses.CursorPage(page.nextCursor(), page.hasMore())
         );
     }
@@ -67,7 +67,7 @@ public class ClientMeQueryController {
     ) {
         var page = clientMeQueryUseCase.listTransactions(actorContext, new MeQueryModels.MeTransactionsFilter(type, status, from, to, min, max, limit, cursor, sort));
         return new MeResponses.ListResponse<>(
-                page.items().stream().map(i -> new MeResponses.TransactionItem(i.transactionId(), i.type(), i.status(), i.amount(), i.currency(), i.createdAt())).toList(),
+                page.items().stream().map(i -> new MeResponses.TransactionItem(i.transactionRef(), i.type(), i.status(), i.amount(), i.currency(), i.createdAt())).toList(),
                 new MeResponses.CursorPage(page.nextCursor(), page.hasMore())
         );
     }
@@ -76,9 +76,9 @@ public class ClientMeQueryController {
     public MeResponses.ClientTransactionDetailsResponse transactionDetails(
             ActorContext actorContext,
             @PathVariable String transactionRef) {
-        var d = clientMeTxDetailQueryUseCase.getById(actorContext, transactionRef);
+        var d = clientMeTxDetailQueryUseCase.getByRef(actorContext, transactionRef);
         return new MeResponses.ClientTransactionDetailsResponse(
-                d.transactionId(),
+                d.transactionRef(),
                 d.type(),
                 d.status(),
                 d.amount(),
@@ -86,7 +86,7 @@ public class ClientMeQueryController {
                 d.totalDebited(),
                 d.currency(),
                 d.merchantCode(),
-                d.originalTransactionId(),
+                d.originalTransactionRef(),
                 d.createdAt()
         );
     }

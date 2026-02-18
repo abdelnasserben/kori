@@ -6,9 +6,9 @@ import com.kori.query.model.me.AgentQueryModels;
 import java.util.Optional;
 
 public interface AgentMeReadPort {
-    Optional<AgentQueryModels.AgentSummary> findSummary(String agentId);
+    Optional<AgentQueryModels.AgentSummary> findSummary(String agentCode);
 
-    QueryPage<AgentQueryModels.AgentTransactionItem> listTransactions(String agentId, AgentQueryModels.AgentTransactionFilter filter);
+    QueryPage<AgentQueryModels.AgentTransactionItem> listTransactions(String agentCode, AgentQueryModels.AgentTransactionFilter filter);
 
-    QueryPage<AgentQueryModels.AgentActivityItem> listActivities(String agentId, AgentQueryModels.AgentActivityFilter filter);
+    QueryPage<AgentQueryModels.AgentActivityItem> listActivities(String agentCode, AgentQueryModels.AgentActivityFilter filter);
 }

@@ -24,8 +24,8 @@ public class BackofficeTransactionQueryService implements BackofficeTransactionQ
     }
 
     @Override
-    public BackofficeTransactionDetails getById(String transactionId) {
-        return readPort.findById(transactionId)
+    public BackofficeTransactionDetails getByRef(String transactionRef) {
+        return readPort.findByRef(transactionRef)
                 .orElseThrow(() -> new NotFoundException("Transaction not found"));
     }
 }

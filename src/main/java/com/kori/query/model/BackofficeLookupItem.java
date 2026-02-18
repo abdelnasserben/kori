@@ -2,7 +2,7 @@ package com.kori.query.model;
 
 public record BackofficeLookupItem(
         String entityType,
-        String entityId,
+        String entityRef,
         String display,
         String status
 ) {

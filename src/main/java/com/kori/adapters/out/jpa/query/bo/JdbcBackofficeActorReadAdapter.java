@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Component
 public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
@@ -26,47 +25,64 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
 
     @Override
     public QueryPage<BackofficeActorItem> listAgents(BackofficeActorQuery query) {
-        return list(query, "agents", "code", "id");
+        return list(query, "agents", "code");
     }
 
     @Override
     public QueryPage<BackofficeActorItem> listClients(BackofficeActorQuery query) {
-        return list(query, "clients", "phone_number", "id");
+        return list(query, "clients", "code");
     }
 
     @Override
     public QueryPage<BackofficeActorItem> listMerchants(BackofficeActorQuery query) {
-        return list(query, "merchants", "code", "id");
+        return list(query, "merchants", "code");
     }
 
-    private QueryPage<BackofficeActorItem> list(BackofficeActorQuery query, String table, String searchField, String idField) {
+    private QueryPage<BackofficeActorItem> list(BackofficeActorQuery query, String table, String codeField) {
         int limit = QueryInputValidator.normalizeLimit(query.limit(), 20, 100);
         var cursor = codec.decode(query.cursor());
         boolean desc = QueryInputValidator.resolveSort(query.sort(), "createdAt");
 
-        StringBuilder sql = new StringBuilder("SELECT " + idField + "::text AS actor_id, "+ searchField +" AS code, status, created_at FROM " + table + " WHERE 1=1");
+        StringBuilder sql = new StringBuilder("SELECT " + codeField + " AS actor_ref, " + codeField + " AS code, status, created_at FROM " + table + " WHERE 1=1");
         var params = new MapSqlParameterSource();
-        if (query.query() != null && !query.query().isBlank()) { sql.append(" AND ").append(searchField).append(" ILIKE :q"); params.addValue("q", "%" + query.query().trim() + "%"); }
-        if (query.status() != null && !query.status().isBlank()) { sql.append(" AND status = :status"); params.addValue("status", query.status()); }
-        if (query.createdFrom() != null) { sql.append(" AND created_at >= :from"); params.addValue("from", query.createdFrom()); }
-        if (query.createdTo() != null) { sql.append(" AND created_at <= :to"); params.addValue("to", query.createdTo()); }
+        if (query.query() != null && !query.query().isBlank()) {
+            sql.append(" AND ").append(codeField).append(" ILIKE :q");
+            params.addValue("q", "%" + query.query().trim() + "%");
+        }
+        if (query.status() != null && !query.status().isBlank()) {
+            sql.append(" AND status = :status");
+            params.addValue("status", query.status());
+        }
+        if (query.createdFrom() != null) {
+            sql.append(" AND created_at >= :from");
+            params.addValue("from", query.createdFrom());
+        }
+        if (query.createdTo() != null) {
+            sql.append(" AND created_at <= :to");
+            params.addValue("to", query.createdTo());
+        }
         if (cursor != null) {
             sql.append(desc
-                    ? " AND (created_at < :cursorCreatedAt OR (created_at = :cursorCreatedAt AND id < CAST(:cursorId AS uuid)))"
-                    : " AND (created_at > :cursorCreatedAt OR (created_at = :cursorCreatedAt AND id > CAST(:cursorId AS uuid)))");
+                    ? " AND (created_at < :cursorCreatedAt OR (created_at = :cursorCreatedAt AND " + codeField + " < :cursorRef))"
+                    : " AND (created_at > :cursorCreatedAt OR (created_at = :cursorCreatedAt AND " + codeField + " > :cursorRef))");
             params.addValue("cursorCreatedAt", cursor.createdAt());
-            params.addValue("cursorId", cursor.id());
+            params.addValue("cursorRef", cursor.ref());
         }
-        sql.append(" ORDER BY created_at ").append(desc ? "DESC" : "ASC").append(", id ").append(desc ? "DESC" : "ASC");
+        sql.append(" ORDER BY created_at ").append(desc ? "DESC" : "ASC").append(", ").append(codeField).append(desc ? " DESC" : " ASC");
         sql.append(" LIMIT :limit");
         params.addValue("limit", limit + 1);
 
         List<BackofficeActorItem> rows = jdbcTemplate.query(sql.toString(), params, (rs, i) -> new BackofficeActorItem(
-                rs.getString("actor_id"), rs.getString("code"), rs.getString("status"), rs.getTimestamp("created_at").toInstant()
+                rs.getString("actor_ref"),
+                rs.getString("code"),
+                rs.getString("status"),
+                rs.getTimestamp("created_at").toInstant()
         ));
         boolean hasMore = rows.size() > limit;
         if (hasMore) rows = new ArrayList<>(rows.subList(0, limit));
-        String next = hasMore && !rows.isEmpty() ? codec.encode(rows.get(rows.size() - 1).createdAt(), UUID.fromString(rows.get(rows.size() - 1).actorRef())) : null;
+        String next = hasMore && !rows.isEmpty()
+                ? codec.encode(rows.get(rows.size() - 1).createdAt(), rows.get(rows.size() - 1).actorRef())
+                : null;
         return new QueryPage<>(rows, next, hasMore);
     }
 }

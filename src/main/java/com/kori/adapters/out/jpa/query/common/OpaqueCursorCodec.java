@@ -8,16 +8,15 @@ import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
-import java.util.UUID;
 
 public final class OpaqueCursorCodec {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
-    public String encode(Instant createdAt, UUID id) {
+    public String encode(Instant createdAt, String ref) {
         try {
             String json = OBJECT_MAPPER.writeValueAsString(Map.of(
                     "createdAt", createdAt.toString(),
-                    "id", id.toString()
+                    "ref", ref
             ));
             return Base64.getUrlEncoder().withoutPadding().encodeToString(json.getBytes(StandardCharsets.UTF_8));
         } catch (Exception e) {
@@ -32,7 +31,8 @@ public final class OpaqueCursorCodec {
         try {
             String json = new String(Base64.getUrlDecoder().decode(cursor), StandardCharsets.UTF_8);
             Map<String, String> map = OBJECT_MAPPER.readValue(json, new TypeReference<>() {});
-            return new CursorPayload(Instant.parse(map.get("createdAt")), map.get("id"));
+            String ref = map.get("ref") != null ? map.get("ref") : map.get("id");
+            return new CursorPayload(Instant.parse(map.get("createdAt")), ref);
         } catch (Exception e) {
             throw new ValidationException("Invalid cursor format", Map.of("field", "cursor", "reason", "opaque base64 expected"));
         }
