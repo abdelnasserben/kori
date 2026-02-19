@@ -81,8 +81,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payments/merchant-withdraw").hasRole("AGENT")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payments/cash-in").hasRole("AGENT")
 
-                        // Terminal-only endpoint
+                        // Terminal endpoints
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payments/card").hasRole("TERMINAL")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/terminal/me/**").hasRole("TERMINAL")
 
                         // Mixed ledger read endpoints
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/ledger/balance").hasAnyRole("ADMIN", "AGENT", "MERCHANT", "CLIENT")
@@ -91,9 +92,10 @@ public class SecurityConfig {
                         // Backoffice endpoints
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/transactions/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/audit-events").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/agents/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/clients/**").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/merchants/**").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/agents").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/clients").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/merchants").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/actors/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/lookups").hasRole("ADMIN")
 
                         // Agent endpoints

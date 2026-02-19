@@ -180,18 +180,6 @@ public class BackofficeQueryController {
         return toActorResponse(actorQueryUseCase.listMerchants(new BackofficeActorQuery(query, status, createdFrom, createdTo, limit, cursor, sort)));
     }
 
-    @GetMapping("/agents/{agentCode}")
-    public BackofficeResponses.ActorDetails getAgent(@PathVariable String agentCode) {
-        var d = actorDetailQueryUseCase.getAgentByRef(agentCode);
-        return new BackofficeResponses.ActorDetails(
-                d.actorRef(),
-                d.display(),
-                d.status(),
-                d.createdAt(),
-                d.lastActivityAt()
-        );
-    }
-
     @GetMapping("/actors/{actorType}/{actorRef}")
     public BackofficeResponses.ActorDetails getActor(@PathVariable String actorType, @PathVariable String actorRef) {
         var d = switch (actorType.toUpperCase()) {

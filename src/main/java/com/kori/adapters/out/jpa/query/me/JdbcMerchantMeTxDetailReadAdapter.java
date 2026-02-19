@@ -29,7 +29,7 @@ public class JdbcMerchantMeTxDetailReadAdapter implements MerchantMeTxDetailRead
                        COALESCE(p.status, cr.status, 'COMPLETED') AS status,
                        t.amount,
                        owned.total_debited,
-                       (owned.total_debited - t.amount) AS fee,
+                       GREATEST((owned.total_debited - t.amount), 0) AS fee,
                        'KMF' AS currency,
                        CASE WHEN t.type = 'MERCHANT_WITHDRAW_AT_AGENT' THEN a.code ELSE NULL END AS agent_code,
                            c.code AS client_code,

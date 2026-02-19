@@ -29,7 +29,7 @@ public class JdbcClientMeTxDetailReadAdapter implements ClientMeTxDetailReadPort
                        COALESCE(p.status, cr.status, 'COMPLETED') AS status,
                        t.amount,
                        owned.total_debited,
-                       (owned.total_debited - t.amount) AS fee,
+                       GREATEST((owned.total_debited - t.amount), 0) AS fee,
                        'KMF' AS currency,
                        m.code AS merchant_code,
                        t.original_transaction_id::text AS original_transaction_ref,

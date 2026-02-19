@@ -39,7 +39,7 @@ public class LedgerEntryEntity {
     @Column(nullable = false, updatable = false, precision = 19, scale = 2)
     private BigDecimal amount;
 
-    @Column(name = "created_at", insertable = false, updatable = false)
+    @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
     @PrePersist
