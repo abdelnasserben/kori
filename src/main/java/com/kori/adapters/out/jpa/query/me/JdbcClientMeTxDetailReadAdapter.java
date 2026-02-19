@@ -1,5 +1,6 @@
 package com.kori.adapters.out.jpa.query.me;
 
+import com.kori.adapters.out.jpa.query.common.ReferenceResolver;
 import com.kori.query.model.me.MeQueryModels;
 import com.kori.query.port.out.ClientMeTxDetailReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -12,13 +13,16 @@ import java.util.Optional;
 public class JdbcClientMeTxDetailReadAdapter implements ClientMeTxDetailReadPort {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final ReferenceResolver referenceResolver;
 
-    public JdbcClientMeTxDetailReadAdapter(NamedParameterJdbcTemplate jdbcTemplate) {
+    public JdbcClientMeTxDetailReadAdapter(NamedParameterJdbcTemplate jdbcTemplate, ReferenceResolver referenceResolver) {
         this.jdbcTemplate = jdbcTemplate;
+        this.referenceResolver = referenceResolver;
     }
 
     @Override
     public Optional<MeQueryModels.ClientTransactionDetails> findOwnedByClient(String clientCode, String transactionRef) {
+        String resolvedIdText = referenceResolver.resolveClientIdTextByCode(clientCode);
         String sql = """
                 SELECT t.id::text AS transaction_ref,
                        t.type,
@@ -37,7 +41,7 @@ public class JdbcClientMeTxDetailReadAdapter implements ClientMeTxDetailReadPort
                       FROM ledger_entries le
                       WHERE le.transaction_id::text = :transactionRef
                         AND le.account_type = 'CLIENT'
-                        AND le.owner_ref = (SELECT c.id::text FROM clients c WHERE c.code = :clientCode)
+                        AND le.owner_ref = :resolvedIdText
                       GROUP BY le.transaction_id
                 ) owned ON owned.transaction_id = t.id
                 LEFT JOIN payouts p ON p.transaction_id = t.id
@@ -48,7 +52,7 @@ public class JdbcClientMeTxDetailReadAdapter implements ClientMeTxDetailReadPort
                 LIMIT 1
                 """;
         var params = new MapSqlParameterSource()
-                .addValue("clientCode", clientCode)
+                .addValue("resolvedIdText", resolvedIdText)
                 .addValue("transactionRef", transactionRef);
         var rows = jdbcTemplate.query(sql, params, (rs, i) -> new MeQueryModels.ClientTransactionDetails(
                 rs.getString("transaction_ref"),

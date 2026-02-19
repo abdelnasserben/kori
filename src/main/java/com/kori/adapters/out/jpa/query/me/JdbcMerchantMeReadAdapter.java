@@ -3,6 +3,7 @@ package com.kori.adapters.out.jpa.query.me;
 import com.kori.adapters.out.jpa.query.common.CursorPayload;
 import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
 import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
+import com.kori.adapters.out.jpa.query.common.ReferenceResolver;
 import com.kori.query.model.QueryPage;
 import com.kori.query.model.me.MeQueryModels;
 import com.kori.query.port.out.MerchantMeReadPort;
@@ -10,6 +11,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -20,10 +22,12 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
     private static final int MAX_LIMIT = 100;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final ReferenceResolver referenceResolver;
     private final OpaqueCursorCodec codec = new OpaqueCursorCodec();
 
-    public JdbcMerchantMeReadAdapter(NamedParameterJdbcTemplate jdbcTemplate) {
+    public JdbcMerchantMeReadAdapter(NamedParameterJdbcTemplate jdbcTemplate, ReferenceResolver referenceResolver) {
         this.jdbcTemplate = jdbcTemplate;
+        this.referenceResolver = referenceResolver;
     }
 
     @Override
@@ -45,9 +49,10 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
                 SELECT COALESCE(SUM(CASE WHEN le.entry_type = 'CREDIT' THEN le.amount ELSE -le.amount END), 0) AS balance
                 FROM ledger_entries le
                 WHERE le.account_type = 'MERCHANT'
-                AND le.owner_ref = (SELECT m.id::text FROM merchants m WHERE m.code = :merchantCode)
+                AND le.owner_ref = :resolvedIdText
                 """;
-        var balance = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource("merchantCode", merchantCode), java.math.BigDecimal.class);
+        String resolvedIdText = referenceResolver.resolveMerchantIdTextByCode(merchantCode);
+        var balance = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource("resolvedIdText", resolvedIdText), BigDecimal.class);
         return new MeQueryModels.MeBalance("MERCHANT", merchantCode, balance, "KMF");
     }
 
@@ -68,10 +73,13 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
                      SELECT 1 FROM ledger_entries le
                      WHERE le.transaction_id = t.id
                      AND le.account_type = 'MERCHANT'
-                     AND le.owner_ref = (SELECT m.id::text FROM merchants m WHERE m.code = :merchantCode)
+                     AND le.owner_ref = :resolvedIdText
                 )
                 """);
-        var params = new MapSqlParameterSource("merchantCode", merchantCode);
+        String resolvedIdText = referenceResolver.resolveMerchantIdTextByCode(merchantCode);
+        var params = new MapSqlParameterSource()
+                .addValue("merchantCode", merchantCode)
+                .addValue("resolvedIdText", resolvedIdText);
         applyTransactionFilters(sql, params, filter);
         applyTransactionCursor(sql, params, cursor, desc);
         sql.append(" ORDER BY t.created_at ").append(desc ? "DESC" : "ASC").append(", t.id ").append(desc ? "DESC" : "ASC");

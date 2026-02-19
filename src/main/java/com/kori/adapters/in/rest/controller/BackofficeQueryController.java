@@ -192,7 +192,7 @@ public class BackofficeQueryController {
         );
     }
 
-    @GetMapping("/actors/{actorType}/{phone}")
+    @GetMapping("/actors/{actorType}/{actorRef}")
     public BackofficeResponses.ActorDetails getActor(@PathVariable String actorType, @PathVariable String actorRef) {
         var d = switch (actorType.toUpperCase()) {
             case "AGENT" -> actorDetailQueryUseCase.getAgentByRef(actorRef);
@@ -231,7 +231,7 @@ public class BackofficeQueryController {
     private BackofficeResponses.ListResponse<BackofficeResponses.ActorItem> toActorResponse(QueryPage<BackofficeActorItem> result) {
         return new BackofficeResponses.ListResponse<>(
                 result.items().stream().map(i ->
-                        new BackofficeResponses.ActorItem(i.actorRef(), i.code(), i.status(), i.createdAt())).toList(),
+                        new BackofficeResponses.ActorItem(i.actorRef(), i.status(), i.createdAt())).toList(),
                 new BackofficeResponses.CursorPage(result.nextCursor(), result.hasMore())
         );
     }

@@ -1,5 +1,6 @@
 package com.kori.adapters.out.jpa.query.me;
 
+import com.kori.adapters.out.jpa.query.common.ReferenceResolver;
 import com.kori.query.model.me.MeQueryModels;
 import com.kori.query.port.out.MerchantMeTxDetailReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -12,13 +13,16 @@ import java.util.Optional;
 public class JdbcMerchantMeTxDetailReadAdapter implements MerchantMeTxDetailReadPort {
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final ReferenceResolver referenceResolver;
 
-    public JdbcMerchantMeTxDetailReadAdapter(NamedParameterJdbcTemplate jdbcTemplate) {
+    public JdbcMerchantMeTxDetailReadAdapter(NamedParameterJdbcTemplate jdbcTemplate, ReferenceResolver referenceResolver) {
         this.jdbcTemplate = jdbcTemplate;
+        this.referenceResolver = referenceResolver;
     }
 
     @Override
     public Optional<MeQueryModels.MerchantTransactionDetails> findOwnedByMerchant(String merchantCode, String transactionRef) {
+        String resolvedIdText = referenceResolver.resolveMerchantIdTextByCode(merchantCode);
         String sql = """
                 SELECT t.id::text AS transaction_ref,
                        t.type,
@@ -29,7 +33,7 @@ public class JdbcMerchantMeTxDetailReadAdapter implements MerchantMeTxDetailRead
                        'KMF' AS currency,
                        CASE WHEN t.type = 'MERCHANT_WITHDRAW_AT_AGENT' THEN a.code ELSE NULL END AS agent_code,
                            c.code AS client_code,
-                           t.original_transaction_id::text AS original_transaction_ref
+                           t.original_transaction_id::text AS original_transaction_ref,
                        t.created_at
                 FROM transactions t
                 JOIN (
@@ -38,7 +42,7 @@ public class JdbcMerchantMeTxDetailReadAdapter implements MerchantMeTxDetailRead
                      FROM ledger_entries le
                      WHERE le.transaction_id::text = :transactionRef
                         AND le.account_type = 'MERCHANT'
-                        AND le.owner_ref = (SELECT m.id::text FROM merchants m WHERE m.code = :merchantCode)
+                        AND le.owner_ref = :resolvedIdText
                      GROUP BY le.transaction_id
                 ) owned ON owned.transaction_id = t.id
                 LEFT JOIN payouts p ON p.transaction_id = t.id
@@ -46,14 +50,14 @@ public class JdbcMerchantMeTxDetailReadAdapter implements MerchantMeTxDetailRead
                 LEFT JOIN ledger_entries agent_entry ON agent_entry.transaction_id = t.id
                 AND agent_entry.account_type = 'AGENT_WALLET'
                 LEFT JOIN agents a ON a.id::text = agent_entry.owner_ref
-                LEFT JOIN ledger_entries client_entry ON client_entry.transaction_id = t.id 
+                LEFT JOIN ledger_entries client_entry ON client_entry.transaction_id = t.id
                 AND client_entry.account_type = 'CLIENT'
                 LEFT JOIN clients c ON c.id::text = client_entry.owner_ref
                 WHERE t.id::text = :transactionRef
                 LIMIT 1
                 """;
         var params = new MapSqlParameterSource()
-                .addValue("merchantCode", merchantCode)
+                .addValue("resolvedIdText", resolvedIdText)
                 .addValue("transactionRef", transactionRef);
         var rows = jdbcTemplate.query(sql, params, (rs, i) -> new MeQueryModels.MerchantTransactionDetails(
                 rs.getString("transaction_ref"),

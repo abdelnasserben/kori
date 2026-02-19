@@ -107,9 +107,9 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
                        t.original_transaction_id::text AS original_transaction_ref,
                        COALESCE(p.status, cr.status, 'COMPLETED') AS status,
                        'KMF' AS currency,
-                       m.phone AS merchant_code,
-                       a.phone AS agent_code,
-                       c.phone AS client_code,
+                       m.code AS merchant_code,
+                       a.code AS agent_code,
+                       c.code AS client_code,
                        c.phone_number AS client_phone
                 FROM transactions t
                 LEFT JOIN payouts p ON p.transaction_id = t.id
@@ -162,7 +162,7 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
             p.addValue("max", q.max());
         }
         if (q.query() != null && !q.query().isBlank()) {
-            sql.append(" AND (t.id::text ILIKE :q OR m.phone ILIKE :q OR a.phone ILIKE :q OR c.phone ILIKE :q)");
+            sql.append(" AND (t.id::text ILIKE :q OR m.code ILIKE :q OR a.code ILIKE :q OR c.code ILIKE :q)");
             p.addValue("q", "%" + q.query().trim() + "%");
         }
         if (q.terminalUid() != null && !q.terminalUid().isBlank()) {
@@ -174,11 +174,11 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
             p.addValue("cardUid", q.cardUid().trim());
         }
         if (q.merchantCode() != null && !q.merchantCode().isBlank()) {
-            sql.append(" AND m.phone = :merchantCode");
+            sql.append(" AND m.code = :merchantCode");
             p.addValue("merchantCode", q.merchantCode().trim());
         }
         if (q.agentCode() != null && !q.agentCode().isBlank()) {
-            sql.append(" AND a.phone = :agentCode");
+            sql.append(" AND a.code = :agentCode");
             p.addValue("agentCode", q.agentCode().trim());
         }
         if (q.clientPhone() != null && !q.clientPhone().isBlank()) {
@@ -188,16 +188,16 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
         if (q.actorType() != null && q.actorRef() != null && !q.actorType().isBlank() && !q.actorRef().isBlank()) {
             switch (q.actorType().trim().toUpperCase()) {
                 case "MERCHANT" -> {
-                    sql.append(" AND m.phone = :phone");
-                    p.addValue("phone", q.actorRef());
+                    sql.append(" AND m.code = :actorRef");
+                    p.addValue("actorRef", q.actorRef());
                 }
                 case "AGENT" -> {
-                    sql.append(" AND a.phone = :phone");
-                    p.addValue("phone", q.actorRef());
+                    sql.append(" AND a.code = :actorRef");
+                    p.addValue("actorRef", q.actorRef());
                 }
                 case "CLIENT" -> {
-                    sql.append(" AND c.phone = :phone");
-                    p.addValue("phone", q.actorRef());
+                    sql.append(" AND c.code = :actorRef");
+                    p.addValue("actorRef", q.actorRef());
                 }
                 default -> throw new ValidationException("Unsupported actorType", Map.of("field", "actorType"));
             }
@@ -237,18 +237,37 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
         var rows = jdbcTemplate.query(sql, new MapSqlParameterSource("transactionRef", transactionRef), (rs, n) -> new TransactionMetadata(rs.getString("terminal_uid"), rs.getString("card_uid"), rs.getTimestamp("occurred_at").toInstant()));
         String terminalUid = null; String cardUid = null;
         for (var row : rows) {
-            if (terminalUid == null && row.terminalUid() != null && !row.terminalUid().isBlank())
+            if (terminalUid == null && row.terminalUid() != null && !row.terminalUid().isBlank()) {
                 terminalUid = row.terminalUid();
-            if (cardUid == null && row.cardUid() != null && !row.cardUid().isBlank())
+            }
+            if (cardUid == null && row.cardUid() != null && !row.cardUid().isBlank()) {
                 cardUid = row.cardUid();
-            if (terminalUid != null && cardUid != null)
+            }
+            if (terminalUid != null && cardUid != null) {
                 break;
+            }
         }
         return new TransactionMetadata(terminalUid, cardUid, null);
     }
 
     private List<BackofficeLedgerLine> readLedgerLines(String transactionRef) {
-        String sql = "SELECT account_type, owner_ref, entry_type, amount FROM ledger_entries WHERE transaction_id::text = :transactionRef ORDER BY created_at ASC NULLS LAST, id ASC";
+        String sql = """
+                SELECT le.account_type,
+                       CASE
+                           WHEN le.account_type IN ('MERCHANT', 'MERCHANT_SETTLEMENT') THEN m.code
+                           WHEN le.account_type IN ('AGENT_WALLET', 'AGENT_CASH_CLEARING') THEN a.code
+                           WHEN le.account_type = 'CLIENT' THEN c.code
+                           ELSE le.owner_ref
+                       END AS owner_ref,
+                       le.entry_type,
+                       le.amount
+                FROM ledger_entries le
+                LEFT JOIN merchants m ON m.id::text = le.owner_ref
+                LEFT JOIN agents a ON a.id::text = le.owner_ref
+                LEFT JOIN clients c ON c.id::text = le.owner_ref
+                WHERE le.transaction_id::text = :transactionRef
+                ORDER BY le.created_at ASC NULLS LAST, le.id ASC
+                """;
         return jdbcTemplate.query(sql, new MapSqlParameterSource("transactionRef", transactionRef), (rs, n) -> new BackofficeLedgerLine(
                 rs.getString("account_type"),
                 rs.getString("owner_ref"),

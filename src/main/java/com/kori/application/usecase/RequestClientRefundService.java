@@ -80,7 +80,7 @@ public class RequestClientRefundService implements RequestClientRefundUseCase {
                         throw new ForbiddenOperationException("A refund is already REQUESTED for this client");
                     }
 
-                    var clientWallet = LedgerAccountRef.client(clientCode.value());
+                    var clientWallet = LedgerAccountRef.client(client.id().value().toString());
                     ledgerAccountLockPort.lock(clientWallet);
                     Money due = ledgerQueryPort.netBalance(clientWallet);
                     if (due.isZero()) {

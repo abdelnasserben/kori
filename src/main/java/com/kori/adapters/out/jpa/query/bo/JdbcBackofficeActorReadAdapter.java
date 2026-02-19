@@ -25,28 +25,28 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
 
     @Override
     public QueryPage<BackofficeActorItem> listAgents(BackofficeActorQuery query) {
-        return list(query, "agents", "phone");
+        return list(query, "agents", "code");
     }
 
     @Override
     public QueryPage<BackofficeActorItem> listClients(BackofficeActorQuery query) {
-        return list(query, "clients", "phone");
+        return list(query, "clients", "code");
     }
 
     @Override
     public QueryPage<BackofficeActorItem> listMerchants(BackofficeActorQuery query) {
-        return list(query, "merchants", "phone");
+        return list(query, "merchants", "code");
     }
 
-    private QueryPage<BackofficeActorItem> list(BackofficeActorQuery query, String table, String codeField) {
+    private QueryPage<BackofficeActorItem> list(BackofficeActorQuery query, String table, String actorRefField) {
         int limit = QueryInputValidator.normalizeLimit(query.limit(), 20, 100);
         var cursor = codec.decode(query.cursor());
         boolean desc = QueryInputValidator.resolveSort(query.sort(), "createdAt");
 
-        StringBuilder sql = new StringBuilder("SELECT " + codeField + " AS actor_ref, " + codeField + " AS phone, status, created_at FROM " + table + " WHERE 1=1");
+        StringBuilder sql = new StringBuilder("SELECT " + actorRefField + " AS actor_ref, status, created_at FROM " + table + " WHERE 1=1");
         var params = new MapSqlParameterSource();
         if (query.query() != null && !query.query().isBlank()) {
-            sql.append(" AND ").append(codeField).append(" ILIKE :q");
+            sql.append(" AND ").append(actorRefField).append(" ILIKE :q");
             params.addValue("q", "%" + query.query().trim() + "%");
         }
         if (query.status() != null && !query.status().isBlank()) {
@@ -63,18 +63,17 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
         }
         if (cursor != null) {
             sql.append(desc
-                    ? " AND (created_at < :cursorCreatedAt OR (created_at = :cursorCreatedAt AND " + codeField + " < :cursorRef))"
-                    : " AND (created_at > :cursorCreatedAt OR (created_at = :cursorCreatedAt AND " + codeField + " > :cursorRef))");
+                    ? " AND (created_at < :cursorCreatedAt OR (created_at = :cursorCreatedAt AND " + actorRefField + " < :cursorRef))"
+                    : " AND (created_at > :cursorCreatedAt OR (created_at = :cursorCreatedAt AND " + actorRefField + " > :cursorRef))");
             params.addValue("cursorCreatedAt", cursor.createdAt());
             params.addValue("cursorRef", cursor.ref());
         }
-        sql.append(" ORDER BY created_at ").append(desc ? "DESC" : "ASC").append(", ").append(codeField).append(desc ? " DESC" : " ASC");
+        sql.append(" ORDER BY created_at ").append(desc ? "DESC" : "ASC").append(", ").append(actorRefField).append(desc ? " DESC" : " ASC");
         sql.append(" LIMIT :limit");
         params.addValue("limit", limit + 1);
 
         List<BackofficeActorItem> rows = jdbcTemplate.query(sql.toString(), params, (rs, i) -> new BackofficeActorItem(
                 rs.getString("actor_ref"),
-                rs.getString("phone"),
                 rs.getString("status"),
                 rs.getTimestamp("created_at").toInstant()
         ));

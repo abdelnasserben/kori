@@ -3,6 +3,7 @@ package com.kori.adapters.out.jpa.query.me;
 import com.kori.adapters.out.jpa.query.common.CursorPayload;
 import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
 import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
+import com.kori.adapters.out.jpa.query.common.ReferenceResolver;
 import com.kori.query.model.QueryPage;
 import com.kori.query.model.me.MeQueryModels;
 import com.kori.query.port.out.ClientMeReadPort;
@@ -10,6 +11,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -21,10 +23,12 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
     private static final int MAX_LIMIT = 100;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final ReferenceResolver referenceResolver;
     private final OpaqueCursorCodec codec = new OpaqueCursorCodec();
 
-    public JdbcClientMeReadAdapter(NamedParameterJdbcTemplate jdbcTemplate) {
+    public JdbcClientMeReadAdapter(NamedParameterJdbcTemplate jdbcTemplate, ReferenceResolver referenceResolver) {
         this.jdbcTemplate = jdbcTemplate;
+        this.referenceResolver = referenceResolver;
     }
 
     @Override
@@ -41,12 +45,13 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
 
     @Override
     public MeQueryModels.MeBalance getBalance(String clientCode) {
+        String resolvedIdText = referenceResolver.resolveClientIdTextByCode(clientCode);
         String sql = """
                 SELECT COALESCE(SUM(CASE WHEN entry_type = 'CREDIT' THEN amount ELSE -amount END), 0) AS balance
                 FROM ledger_entries
-                WHERE account_type = 'CLIENT' AND owner_ref = (SELECT c.id::text FROM clients c WHERE c.code = :clientCode)
+                WHERE account_type = 'CLIENT' AND owner_ref = :resolvedIdText
                 """;
-        var balance = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource("clientCode", clientCode), java.math.BigDecimal.class);
+        var balance = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource("resolvedIdText", resolvedIdText), BigDecimal.class);
         return new MeQueryModels.MeBalance("CLIENT", clientCode, balance, "KMF");
     }
 
@@ -69,6 +74,7 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
         QueryInputValidator.validateEnumFilter("type", filter.type());
         QueryInputValidator.validateEnumFilter("status", filter.status());
         var cursor = codec.decode(filter.cursor());
+        String resolvedIdText = referenceResolver.resolveClientIdTextByCode(clientCode);
 
         StringBuilder sql = new StringBuilder("""
                 SELECT t.id::text AS transaction_ref,
@@ -84,10 +90,10 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
                      FROM ledger_entries le
                      WHERE le.transaction_id = t.id
                      AND le.account_type = 'CLIENT'
-                     AND le.owner_ref = (SELECT c.id::text FROM clients c WHERE c.code = :clientCode)
+                     AND le.owner_ref = :resolvedIdText
                 )
                 """);
-        var params = new MapSqlParameterSource("clientCode", clientCode);
+        var params = new MapSqlParameterSource("resolvedIdText", resolvedIdText);
         applyTransactionFilters(sql, params, filter);
         applyCursor(sql, params, cursor, desc);
         sql.append(" ORDER BY t.created_at ").append(desc ? "DESC" : "ASC").append(", t.id ").append(desc ? "DESC" : "ASC");

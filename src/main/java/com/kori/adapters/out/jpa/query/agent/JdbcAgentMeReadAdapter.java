@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.out.jpa.query.common.CursorPayload;
 import com.kori.adapters.out.jpa.query.common.OpaqueCursorCodec;
 import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
+import com.kori.adapters.out.jpa.query.common.ReferenceResolver;
 import com.kori.query.model.QueryPage;
 import com.kori.query.model.me.AgentQueryModels;
 import com.kori.query.port.out.AgentMeReadPort;
@@ -20,44 +21,49 @@ public class JdbcAgentMeReadAdapter implements AgentMeReadPort {
     private static final int MAX_LIMIT = 100;
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
+    private final ReferenceResolver referenceResolver;
     private final OpaqueCursorCodec codec = new OpaqueCursorCodec();
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public JdbcAgentMeReadAdapter(NamedParameterJdbcTemplate jdbcTemplate) {
+    public JdbcAgentMeReadAdapter(NamedParameterJdbcTemplate jdbcTemplate, ReferenceResolver referenceResolver) {
         this.jdbcTemplate = jdbcTemplate;
+        this.referenceResolver = referenceResolver;
     }
 
     @Override
     public Optional<AgentQueryModels.AgentSummary> findSummary(String agentCode) {
+        String resolvedIdText = referenceResolver.resolveAgentIdTextByCode(agentCode);
         String sql = """
-                SELECT a.code AS agent_code,
-                       a.phone_number AS phone,
+                SELECT a.code AS actor_ref,
                        a.status,
                        COALESCE((
                            SELECT SUM(CASE WHEN le.entry_type = 'CREDIT' THEN le.amount ELSE -le.amount END)
                            FROM ledger_entries le
-                           WHERE le.account_type = 'AGENT_CASH_CLEARING' AND le.owner_ref = a.id::text
+                           WHERE le.account_type = 'AGENT_CASH_CLEARING' AND le.owner_ref = :resolvedIdText
                        ), 0) AS cash_balance,
                        COALESCE((
                            SELECT SUM(CASE WHEN le.entry_type = 'CREDIT' THEN le.amount ELSE -le.amount END)
                            FROM ledger_entries le
-                           WHERE le.account_type = 'AGENT_WALLET' AND le.owner_ref = a.id::text
+                           WHERE le.account_type = 'AGENT_WALLET' AND le.owner_ref = :resolvedIdText
                        ), 0) AS commission_balance,
                        (
                            SELECT COUNT(DISTINCT t.id)
-                           FROM transactions t JOIN ledger_entries le ON le.transaction_id = t.id
+                           FROM transactions t
+                           JOIN ledger_entries le ON le.transaction_id = t.id
                            WHERE le.account_type IN ('AGENT_CASH_CLEARING', 'AGENT_WALLET')
-                             AND le.owner_ref = a.id::text
+                             AND le.owner_ref = :resolvedIdText
                              AND t.created_at >= NOW() - INTERVAL '7 days'
                        ) AS tx_count_7d
                 FROM agents a
-                WHERE a.phone = :agentCode
+                WHERE a.code = :agentCode
                 LIMIT 1
                 """;
         var rows = jdbcTemplate.query(
                 sql,
-                new MapSqlParameterSource("agentCode", agentCode), (rs, n) -> new AgentQueryModels.AgentSummary(
-                        rs.getString("phone"),
+                new MapSqlParameterSource()
+                        .addValue("agentCode", agentCode)
+                        .addValue("resolvedIdText", resolvedIdText), (rs, n) -> new AgentQueryModels.AgentSummary(
+                        rs.getString("actor_ref"),
                         rs.getString("status"),
                         rs.getBigDecimal("cash_balance"),
                         rs.getBigDecimal("commission_balance"),
@@ -72,22 +78,26 @@ public class JdbcAgentMeReadAdapter implements AgentMeReadPort {
         QueryInputValidator.validateEnumFilter("type", filter.type());
         QueryInputValidator.validateEnumFilter("status", filter.status());
         CursorPayload cursor = codec.decode(filter.cursor());
+        String resolvedIdText = referenceResolver.resolveAgentIdTextByCode(agentCode);
 
         StringBuilder sql = new StringBuilder("""
-                SELECT DISTINCT t.id::text AS transaction_ref,
+                SELECT t.id::text AS transaction_ref,
                        t.type,
                        COALESCE(p.status, cr.status, 'COMPLETED') AS status,
                        t.amount,
                        t.created_at
                 FROM transactions t
-                JOIN ledger_entries le ON le.transaction_id = t.id
-                JOIN agents a ON a.id::text = le.owner_ref
                 LEFT JOIN payouts p ON p.transaction_id = t.id
                 LEFT JOIN client_refunds cr ON cr.transaction_id = t.id
-                WHERE a.phone = :agentCode
-                  AND le.account_type IN ('AGENT_CASH_CLEARING', 'AGENT_WALLET')
+                WHERE EXISTS (
+                   SELECT 1
+                   FROM ledger_entries le
+                   WHERE le.transaction_id = t.id
+                   AND le.account_type IN ('AGENT_CASH_CLEARING', 'AGENT_WALLET')
+                   AND le.owner_ref = :resolvedIdText
+                )
                 """);
-        var params = new MapSqlParameterSource("agentCode", agentCode);
+        var params = new MapSqlParameterSource("resolvedIdText", resolvedIdText);
 
         if (filter.type() != null && !filter.type().isBlank()) {
             sql.append(" AND t.type = :type");
@@ -158,13 +168,22 @@ public class JdbcAgentMeReadAdapter implements AgentMeReadPort {
                        metadata_json
                 FROM audit_events
                 WHERE actor_type = 'AGENT'
-                  AND actor_id = :phone
+                  AND actor_id = :actorRef
                 """);
-        var params = new MapSqlParameterSource("phone", agentCode);
+        var params = new MapSqlParameterSource("actorRef", agentCode);
 
-        if (filter.action() != null && !filter.action().isBlank()) { sql.append(" AND action = :action"); params.addValue("action", filter.action()); }
-        if (filter.from() != null) { sql.append(" AND occurred_at >= :from"); params.addValue("from", filter.from()); }
-        if (filter.to() != null) { sql.append(" AND occurred_at <= :to"); params.addValue("to", filter.to()); }
+        if (filter.action() != null && !filter.action().isBlank()) {
+            sql.append(" AND action = :action");
+            params.addValue("action", filter.action());
+        }
+        if (filter.from() != null) {
+            sql.append(" AND occurred_at >= :from");
+            params.addValue("from", filter.from());
+        }
+        if (filter.to() != null) {
+            sql.append(" AND occurred_at <= :to");
+            params.addValue("to", filter.to());
+        }
         if (cursor != null) {
             sql.append(desc
                     ? " AND (occurred_at < :cursorCreatedAt OR (occurred_at = :cursorCreatedAt AND id::text < :cursorRef))"

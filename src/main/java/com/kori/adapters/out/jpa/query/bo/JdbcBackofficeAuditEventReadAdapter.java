@@ -53,8 +53,8 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
             params.addValue("actorType", query.actorType());
         }
         if (query.actorRef() != null && !query.actorRef().isBlank()) {
-            sql.append(" AND actor_id = :phone");
-            params.addValue("phone", query.actorRef());
+            sql.append(" AND actor_id = :actorRef");
+            params.addValue("actorRef", query.actorRef());
         }
         if (query.resourceType() != null && !query.resourceType().isBlank()) {
             sql.append(" AND metadata_json::jsonb ->> 'resourceType' = :resourceType");
