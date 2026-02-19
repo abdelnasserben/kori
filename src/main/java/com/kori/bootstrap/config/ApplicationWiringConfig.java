@@ -5,7 +5,6 @@ import com.kori.application.handler.OnClientStatusChangedHandler;
 import com.kori.application.handler.OnMerchantStatusChangedHandler;
 import com.kori.application.port.in.*;
 import com.kori.application.port.out.*;
-import com.kori.application.security.LedgerAccessPolicy;
 import com.kori.application.usecase.*;
 import com.kori.query.port.in.*;
 import com.kori.query.port.out.*;
@@ -19,12 +18,23 @@ import org.springframework.transaction.support.TransactionTemplate;
 public class ApplicationWiringConfig {
 
     // -----------------------------
-    // Admin access service
+    // Other services
     // -----------------------------
 
     @Bean
     public AdminAccessService adminAccessService(AdminRepositoryPort adminRepositoryPort) {
         return new AdminAccessService(adminRepositoryPort);
+    }
+
+    @Bean
+    public LedgerOwnerRefResolver ledgerOwnerRefResolver(
+            ClientRepositoryPort clientRepositoryPort,
+            MerchantRepositoryPort merchantRepositoryPort,
+            AgentRepositoryPort agentRepositoryPort) {
+        return new LedgerOwnerRefResolver(
+                clientRepositoryPort,
+                merchantRepositoryPort,
+                agentRepositoryPort);
     }
 
 
@@ -725,11 +735,6 @@ public class ApplicationWiringConfig {
     // -----------------------------
 
     @Bean
-    public LedgerAccessPolicy ledgerAccessPolicy() {
-        return new LedgerAccessPolicy();
-    }
-
-    @Bean
     public OperationAuthorizationService operationStatusGuards(AccountProfilePort accountProfilePort) {
         return new OperationAuthorizationService(accountProfilePort);
     }
@@ -741,24 +746,27 @@ public class ApplicationWiringConfig {
     @Bean
     public GetBalanceUseCase getBalanceUseCase(
             LedgerQueryPort ledgerQueryPort,
-            LedgerAccessPolicy ledgerAccessPolicy,
-            ClientRepositoryPort clientRepositoryPort
+            AdminAccessService adminAccessService,
+            LedgerOwnerRefResolver ledgerOwnerRefResolver
     ) {
-        return new GetBalanceService(ledgerQueryPort, ledgerAccessPolicy, clientRepositoryPort);
+        return new GetBalanceService(
+                ledgerQueryPort,
+                adminAccessService,
+                ledgerOwnerRefResolver);
     }
 
     @Bean
     public SearchTransactionHistoryUseCase searchTransactionHistoryUseCase(
+            AdminAccessService adminAccessService,
             LedgerQueryPort ledgerQueryPort,
             TransactionRepositoryPort transactionRepositoryPort,
-            LedgerAccessPolicy ledgerAccessPolicy,
-            ClientRepositoryPort clientRepositoryPort
+            LedgerOwnerRefResolver ledgerOwnerRefResolver
     ) {
         return new SearchTransactionHistoryService(
+                adminAccessService,
                 ledgerQueryPort,
                 transactionRepositoryPort,
-                ledgerAccessPolicy,
-                clientRepositoryPort
+                ledgerOwnerRefResolver
         );
     }
 

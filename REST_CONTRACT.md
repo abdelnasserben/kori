@@ -1,4 +1,4 @@
-# KORI REST Contract (version exclusive)
+# KORI REST Contract
 
 Ce document remplace totalement l'ancien contrat et décrit **tous les endpoints exposés** par l'API `v1`, avec rôles, paramètres, tri/pagination/filtrage.
 
@@ -31,7 +31,7 @@ Endpoints publics (sans JWT):
 
 ---
 
-## 3) Écriture (command side)
+## 3) Écriture
 
 ### 3.1 Administration
 
@@ -103,21 +103,21 @@ Endpoints publics (sans JWT):
 
 | Méthode | Endpoint | Rôle |
 |---|---|---|
-| GET | `/ledger/balance` | ADMIN, AGENT, MERCHANT, CLIENT |
-| POST | `/ledger/transactions/search` | ADMIN, AGENT, MERCHANT, CLIENT |
+| GET | `/ledger/balance` | ADMIN |
+| POST | `/ledger/transactions/search` | ADMIN |
 
 Paramètres `POST /ledger/transactions/search` (body):
 - `accountType`
 - `ownerRef`
-- `type`
-- `status`
+- `transactionType`
 - `from`
 - `to`
-- `min`
-- `max`
+- `beforeCreatedAt`
+- `beforeTransactionId`
+- `minAmount`
+- `maxAmount`
+- `view`
 - `limit`
-- `cursor`
-- `sort`
 
 ---
 

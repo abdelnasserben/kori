@@ -9,17 +9,16 @@ import com.kori.adapters.in.rest.dto.Responses.TransactionHistoryResponse;
 import com.kori.application.command.GetBalanceCommand;
 import com.kori.application.command.SearchTransactionHistoryCommand;
 import com.kori.application.command.TransactionHistoryView;
+import com.kori.application.exception.ValidationException;
 import com.kori.application.port.in.GetBalanceUseCase;
 import com.kori.application.port.in.SearchTransactionHistoryUseCase;
 import com.kori.application.security.ActorContext;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerAccountType;
 import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.ExampleObject;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Locale;
@@ -43,8 +42,8 @@ public class LedgerController {
     @Operation(summary = "Get account balance")
     public BalanceResponse getBalance(
             ActorContext actorContext,
-            @RequestParam(required = false) String accountType,
-            @RequestParam(required = false) String ownerRef
+            @RequestParam @NotBlank String accountType,
+            @RequestParam @NotBlank String ownerRef
     ) {
         var result = getBalanceUseCase.execute(new GetBalanceCommand(actorContext, accountType, ownerRef));
         return new BalanceResponse(result.accountType(), result.ownerRef(), result.balance());
@@ -52,52 +51,25 @@ public class LedgerController {
 
     @PostMapping("/transactions/search")
     @Operation(summary = "Search transaction history")
-    @ApiResponse(
-            responseCode = "200",
-            description = "Paginated transaction history",
-            content = @Content(
-                    mediaType = "application/json",
-                    examples = @ExampleObject(value = """
-                        {
-                          "ledgerScope": {
-                            "accountType": "MERCHANT",
-                            "ownerRef": "M-000000"
-                          },
-                          "items": [
-                            {
-                              "transactionId": "trx_2001",
-                              "transactionType": "CARD_PAYMENT",
-                              "createdAt": "2024-08-10T14:22:10Z",
-                              "clientCode": "client-55",
-                              "merchantId": "merchant-33",
-                              "agentId": null,
-                              "selfTotalDebits": 0,
-                              "selfTotalCredits": 1500,
-                              "selfNet": 1500,
-                              "amount": 1500,
-                              "fee": 30,
-                              "totalDebited": 1530
-                            }
-                          ],
-                          "nextBeforeCreatedAt": "2024-08-10T14:22:10Z",
-                          "nextBeforeTransactionId": "trx_2001"
-                        }
-                        """)
-            )
-    )
     public TransactionHistoryResponse searchTransactions(
             ActorContext actorContext,
             @Valid @RequestBody SearchLedgerRequest request
     ) {
-        LedgerAccountRef scope = null;
-        if (request.accountType() != null && request.ownerRef() != null) {
-            LedgerAccountType type = LedgerAccountType.valueOf(request.accountType().toUpperCase(Locale.ROOT));
-            scope = new LedgerAccountRef(type, request.ownerRef());
+        LedgerAccountType type;
+        try {
+            type = LedgerAccountType.valueOf(request.accountType().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new ValidationException("Invalid accountType: " + request.accountType());
         }
+        LedgerAccountRef scope = new LedgerAccountRef(type, request.ownerRef());
 
         TransactionHistoryView view = null;
         if (request.view() != null) {
-            view = TransactionHistoryView.valueOf(request.view().toUpperCase(Locale.ROOT));
+            try {
+                view = TransactionHistoryView.valueOf(request.view().toUpperCase(Locale.ROOT));
+            } catch (IllegalArgumentException ex) {
+                throw new ValidationException("Invalid view: " + request.view());
+            }
         }
 
         int limit = request.limit() == null ? 0 : request.limit();
@@ -118,13 +90,10 @@ public class LedgerController {
                 )
         );
 
-        LedgerScope ledgerScope = null;
-        if (result.ledgerAccountRef() != null) {
-            ledgerScope = new LedgerScope(
-                    result.ledgerAccountRef().type().name(),
-                    result.ledgerAccountRef().ownerRef()
-            );
-        }
+        LedgerScope ledgerScope = new LedgerScope(
+                result.ledgerAccountRef().type().name(),
+                result.ledgerAccountRef().ownerRef()
+        );
 
         var items = result.items().stream()
                 .map(item -> new TransactionHistoryItemResponse(

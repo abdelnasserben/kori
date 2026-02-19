@@ -51,7 +51,7 @@ public class SecurityConfig {
                                 "/actuator/health/**"
                         ).permitAll()
 
-                        // Admin controllers
+                        // Admin endpoints
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/admins").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/admins/*/status").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/agents").hasRole("ADMIN")
@@ -74,7 +74,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payouts/*/complete").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payouts/*/fail").hasRole("ADMIN")
 
-                        // Agent-only endpoints
+                        // Agent endpoints
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/cards/enroll").hasRole("AGENT")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/cards/add").hasRole("AGENT")
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/cards/*/status/agent").hasRole("AGENT")
@@ -85,9 +85,9 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payments/card").hasRole("TERMINAL")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/terminal/me/**").hasRole("TERMINAL")
 
-                        // Mixed ledger read endpoints
-                        .requestMatchers(HttpMethod.GET, API_VERSION + "/ledger/balance").hasAnyRole("ADMIN", "AGENT", "MERCHANT", "CLIENT")
-                        .requestMatchers(HttpMethod.POST, API_VERSION + "/ledger/transactions/search").hasAnyRole("ADMIN", "AGENT", "MERCHANT", "CLIENT")
+                        // Ledger read endpoints
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/ledger/balance").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, API_VERSION + "/ledger/transactions/search").hasRole("ADMIN")
 
                         // Backoffice endpoints
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/transactions/**").hasRole("ADMIN")

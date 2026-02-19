@@ -2,21 +2,15 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.SearchTransactionHistoryCommand;
 import com.kori.application.command.TransactionHistoryView;
-import com.kori.application.exception.ForbiddenOperationException;
 import com.kori.application.port.in.SearchTransactionHistoryUseCase;
-import com.kori.application.port.out.ClientRepositoryPort;
 import com.kori.application.port.out.LedgerQueryPort;
 import com.kori.application.port.out.TransactionRepositoryPort;
 import com.kori.application.result.TransactionHistoryItem;
 import com.kori.application.result.TransactionHistoryResult;
-import com.kori.application.security.ActorContext;
-import com.kori.application.security.ActorType;
-import com.kori.application.security.LedgerAccessPolicy;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerAccountType;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.ledger.LedgerEntryType;
-import com.kori.domain.model.client.ClientCode;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.transaction.TransactionId;
 import com.kori.domain.model.transaction.TransactionType;
@@ -27,26 +21,25 @@ import java.util.*;
 
 public final class SearchTransactionHistoryService implements SearchTransactionHistoryUseCase {
 
+    private final AdminAccessService adminAccessService;
     private final LedgerQueryPort ledgerQueryPort;
     private final TransactionRepositoryPort transactionRepositoryPort;
-    private final LedgerAccessPolicy ledgerAccessPolicy;
-    private final ClientRepositoryPort clientRepositoryPort;
+    private final LedgerOwnerRefResolver ledgerOwnerRefResolver;
 
-    public SearchTransactionHistoryService(LedgerQueryPort ledgerQueryPort,
-                                           TransactionRepositoryPort transactionRepositoryPort,
-                                           LedgerAccessPolicy ledgerAccessPolicy, ClientRepositoryPort clientRepositoryPort) {
+    public SearchTransactionHistoryService(AdminAccessService adminAccessService, LedgerQueryPort ledgerQueryPort, TransactionRepositoryPort transactionRepositoryPort, LedgerOwnerRefResolver ledgerOwnerRefResolver) {
+        this.adminAccessService = adminAccessService;
         this.ledgerQueryPort = Objects.requireNonNull(ledgerQueryPort);
         this.transactionRepositoryPort = Objects.requireNonNull(transactionRepositoryPort);
-        this.ledgerAccessPolicy = Objects.requireNonNull(ledgerAccessPolicy);
-        this.clientRepositoryPort = Objects.requireNonNull(clientRepositoryPort);
+        this.ledgerOwnerRefResolver = ledgerOwnerRefResolver;
     }
 
     @Override
     public TransactionHistoryResult execute(SearchTransactionHistoryCommand command) {
-        Objects.requireNonNull(command);
+        var actorContext = command.actorContext();
+        adminAccessService.requireActiveAdmin(actorContext, "consult ledger history");
 
-        LedgerAccountRef scope = resolveScope(command.actorContext(), command.ledgerAccountRef());
-        ledgerAccessPolicy.assertCanReadLedger(command.actorContext(), scope);
+        LedgerAccountRef requestedScope = command.ledgerAccountRef();
+        LedgerAccountRef scope = ledgerOwnerRefResolver.resolveToLedgerKey(requestedScope);
 
         // Entries of the actor's ledger (scope) => defines which tx are visible for that actor.
         List<LedgerEntry> scopeEntries = ledgerQueryPort.findEntries(scope);
@@ -67,7 +60,7 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
             var tx = txOpt.get();
 
             // Filters on the transaction itself
-            if (command.transactionType() != null && !tx.type().name().equals(command.transactionType())) continue;
+            if (command.transactionType() != null && !tx.type().name().equalsIgnoreCase(command.transactionType())) continue;
             if (!withinRange(tx.createdAt(), command.from(), command.to())) continue;
 
             // Stable cursor filtering
@@ -196,28 +189,6 @@ public final class SearchTransactionHistoryService implements SearchTransactionH
             }
         }
         return null;
-    }
-
-    private LedgerAccountRef resolveScope(ActorContext actorContext, LedgerAccountRef requestedScope) {
-        if (requestedScope != null) {
-            if (actorContext.actorType() != ActorType.ADMIN) {
-                throw new ForbiddenOperationException("Only ADMIN can specify an arbitrary ledger scope");
-            }
-            return requestedScope;
-        }
-
-        return switch (actorContext.actorType()) {
-            case CLIENT -> LedgerAccountRef.client(resolveClientOwnerRef(actorContext.actorRef()));
-            case MERCHANT -> LedgerAccountRef.merchant(actorContext.actorRef());
-            case AGENT -> LedgerAccountRef.agentWallet(actorContext.actorRef());
-            default -> throw new ForbiddenOperationException("Actor type cannot consult history");
-        };
-    }
-
-    private String resolveClientOwnerRef(String clientActorRef) {
-        return clientRepositoryPort.findByCode(ClientCode.of(clientActorRef))
-                .orElseThrow(() -> new ForbiddenOperationException("Client not found"))
-                .id().value().toString();
     }
 
     private boolean passesAmountFilter(TransactionHistoryView view,

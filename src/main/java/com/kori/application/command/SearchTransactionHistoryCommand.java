@@ -10,8 +10,6 @@ import java.util.Objects;
 
 public record SearchTransactionHistoryCommand(
         ActorContext actorContext,
-
-        // Optional: ADMIN can terminalUid an arbitrary scope; others must terminalUid self.
         LedgerAccountRef ledgerAccountRef,
 
         // Filters
@@ -19,7 +17,7 @@ public record SearchTransactionHistoryCommand(
         Instant from,
         Instant to,
 
-        // Cursor-based pagination (stable)
+        // Cursor-based pagination
         Instant beforeCreatedAt,
         String beforeTransactionId,
 
@@ -35,6 +33,8 @@ public record SearchTransactionHistoryCommand(
 ) {
     public SearchTransactionHistoryCommand {
         Objects.requireNonNull(actorContext, "actorContext must not be null");
+        Objects.requireNonNull(ledgerAccountRef, "ledgerAccountRef must not be null");
+
         if (limit <= 0) limit = 50;
         if (view == null) view = TransactionHistoryView.SUMMARY;
 

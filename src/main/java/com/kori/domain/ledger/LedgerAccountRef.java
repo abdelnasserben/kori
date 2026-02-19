@@ -48,6 +48,10 @@ public record LedgerAccountRef(LedgerAccountType type, String ownerRef) {
         return new LedgerAccountRef(LedgerAccountType.PLATFORM_CLIENT_REFUND_CLEARING, "SYSTEM");
     }
 
+    public static LedgerAccountRef of(String accountType, String ownerRef) {
+        return new LedgerAccountRef(LedgerAccountType.valueOf(accountType), ownerRef);
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -68,8 +72,4 @@ public record LedgerAccountRef(LedgerAccountType type, String ownerRef) {
         return this.type == LedgerAccountType.MERCHANT;
     }
 
-    public boolean isForAgent() {
-        return this.type == LedgerAccountType.AGENT_WALLET
-                || this.type == LedgerAccountType.AGENT_CASH_CLEARING;
-    }
 }

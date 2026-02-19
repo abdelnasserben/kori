@@ -144,8 +144,8 @@ public final class Requests {
     ) {}
 
     public record SearchLedgerRequest(
-            String accountType,
-            String ownerRef,
+            @NotBlank String accountType,
+            @NotBlank String ownerRef,
             String transactionType,
             Instant from,
             Instant to,
