@@ -86,7 +86,7 @@ class AdminControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.phone").value("INVALID_INPUT"))
                 .andExpect(jsonPath("$.details.fields").isArray());
     }
 
@@ -104,7 +104,7 @@ class AdminControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().is(status.value()))
-                .andExpect(jsonPath("$.code").value(code))
+                .andExpect(jsonPath("$.phone").value(code))
                 .andExpect(jsonPath("$.message").value(message));
     }
 }

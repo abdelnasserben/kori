@@ -211,7 +211,7 @@ final class CreateAgentServiceTest {
 
         assertThrows(ForbiddenOperationException.class, () -> service.execute(cmd(adminActor())));
 
-        // Agent is saved BEFORE profile duplication check (as per service code)
+        // Agent is saved BEFORE profile duplication check (as per service phone)
         verify(agentRepositoryPort).save(any(Agent.class));
 
         verify(accountProfilePort, never()).save(any(AccountProfile.class));

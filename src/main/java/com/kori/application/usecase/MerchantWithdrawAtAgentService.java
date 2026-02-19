@@ -93,7 +93,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
 
                     operationAuthorizationService.authorizeAgentOperation(agent);
 
-                    // Resolve MERCHANT by code
+                    // Resolve MERCHANT by phone
                     Merchant merchant = merchantRepositoryPort.findByCode(MerchantCode.of(command.merchantCode()))
                             .orElseThrow(() -> new ForbiddenOperationException("Merchant not found"));
 

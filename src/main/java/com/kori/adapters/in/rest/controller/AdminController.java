@@ -50,7 +50,7 @@ public class AdminController {
                         actorContext,
                         request.username())
         );
-        return new CreateAdminResponse(result.adminId());
+        return new CreateAdminResponse(result.adminUsername());
     }
 
     @PatchMapping("/{adminUsername}/status")

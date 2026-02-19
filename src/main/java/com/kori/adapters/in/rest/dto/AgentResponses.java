@@ -10,7 +10,6 @@ public final class AgentResponses {
     }
 
     public record SummaryResponse(
-            String agentCode,
             String code,
             String status,
             BigDecimal cashBalance,

@@ -21,9 +21,7 @@ public class JdbcAgentSearchReadAdapter implements AgentSearchReadPort {
     @Override
     public List<AgentQueryModels.AgentSearchItem> searchByPhone(String phone, int limit) {
         String sql = """
-                SELECT c.code AS entity_ref, 
-                       c.phone_number AS display,
-                       c.status
+                SELECT c.code AS entity_ref, c.phone_number AS display, c.status
                 FROM clients c
                 WHERE c.phone_number = :phone OR c.phone_number ILIKE :prefix
                 ORDER BY c.phone_number ASC
@@ -93,7 +91,7 @@ public class JdbcAgentSearchReadAdapter implements AgentSearchReadPort {
                 rs.getString("status"),
                 Map.of(
                         "terminal", "/api/v1/terminals/" + rs.getString("entity_ref"),
-                        "merchant", "/api/v1/merchants/" + rs.getString("merchant_ref")
+                        "merchant", "/api/v1/merchants/" + rs.getString("merchant_code")
                 )
         ));
     }

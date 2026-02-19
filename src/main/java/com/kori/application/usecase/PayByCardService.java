@@ -13,7 +13,6 @@ import com.kori.application.port.out.*;
 import com.kori.application.result.PayByCardResult;
 import com.kori.application.security.PinFormatValidator;
 import com.kori.application.utils.AuditBuilder;
-import com.kori.application.utils.UuidParser;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.card.Card;
@@ -21,7 +20,7 @@ import com.kori.domain.model.client.Client;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.terminal.Terminal;
-import com.kori.domain.model.terminal.TerminalId;
+import com.kori.domain.model.terminal.TerminalUid;
 import com.kori.domain.model.transaction.Transaction;
 import com.kori.domain.model.transaction.TransactionId;
 
@@ -96,11 +95,11 @@ public final class PayByCardService implements PayByCardUseCase {
                 PayByCardResult.class,
                 () -> {
 
-                    // Terminal
                     ActorTypeGuards.onlyTerminalCan(command.actorContext(), "initiate PayByCard");
 
-                    TerminalId terminalId = new TerminalId(UuidParser.parse(command.terminalUid(), "terminalUid"));
-                    Terminal terminal = terminalRepositoryPort.findById(terminalId)
+                    String terminalUidStr = command.actorContext().actorRef();
+                    TerminalUid terminalUid = TerminalUid.of(terminalUidStr);
+                    Terminal terminal = terminalRepositoryPort.findByUid(terminalUid)
                             .orElseThrow(() -> new NotFoundException("Terminal not found"));
                     ActorStatusGuards.requireActiveTerminal(terminal);
 
@@ -172,7 +171,7 @@ public final class PayByCardService implements PayByCardUseCase {
 
                     Map<String, String> metadata = new HashMap<>();
                     metadata.put("transactionId", tx.id().value().toString());
-                    metadata.put("terminalUid", command.terminalUid());
+                    metadata.put("terminalUid", terminalUidStr);
                     metadata.put("merchantCode", merchant.code().value());
                     metadata.put("cardUid", command.cardUid());
 

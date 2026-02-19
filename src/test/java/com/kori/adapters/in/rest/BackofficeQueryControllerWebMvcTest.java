@@ -132,6 +132,6 @@ class BackofficeQueryControllerWebMvcTest {
         when(actorDetailQueryUseCase.getAgentById(any())).thenThrow(new ValidationException("Invalid agentId", Map.of("field", "agentId")));
         mockMvc.perform(get(ApiPaths.BACKOFFICE + "/agents/not-a-uuid").with(admin))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+                .andExpect(jsonPath("$.phone").value("INVALID_INPUT"));
     }
 }

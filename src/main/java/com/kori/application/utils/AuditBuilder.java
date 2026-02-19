@@ -19,7 +19,7 @@ public final class AuditBuilder {
      * @param actorContext actor performing the action (ADMIN)
      * @param occurredAt timestamp (usually TimeProviderPort.now())
      * @param subjectKey key used in metadata, e.g. "clientCode", "merchantCode", "agentCode"
-     * @param subjectValue id/code value
+     * @param subjectValue id/phone value
      * @param before before status name
      * @param after after status name
      * @param reason normalized reason (already N/A if blank)

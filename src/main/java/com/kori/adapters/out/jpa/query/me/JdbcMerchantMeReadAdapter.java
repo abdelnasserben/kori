@@ -65,7 +65,7 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
                 LEFT JOIN payouts p ON p.transaction_id = t.id
                 LEFT JOIN client_refunds cr ON cr.transaction_id = t.id
                 WHERE EXISTS (
-                     ELECT 1 FROM ledger_entries le
+                     SELECT 1 FROM ledger_entries le
                      WHERE le.transaction_id = t.id
                      AND le.account_type = 'MERCHANT'
                      AND le.owner_ref = (SELECT m.id::text FROM merchants m WHERE m.code = :merchantCode)

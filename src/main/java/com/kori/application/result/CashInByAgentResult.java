@@ -4,8 +4,8 @@ import java.math.BigDecimal;
 
 public record CashInByAgentResult(
         String transactionId,
-        String agentId,
-        String clientId,
+        String agentCode,
+        String clientCode,
         String clientPhoneNumber,
         BigDecimal amount
 ) {

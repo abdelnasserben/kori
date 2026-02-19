@@ -159,6 +159,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
 
                     return new EnrollCardResult(
                             outcome.transaction().id().value().toString(),
+                            client.code().value(),
                             client.phoneNumber().value(),
                             outcome.card().cardUid(),
                             outcome.cardPrice().asBigDecimal(),

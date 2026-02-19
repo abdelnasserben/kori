@@ -102,7 +102,7 @@ class AgentQueryControllerWebMvcTest {
         when(agentSearchUseCase.search(any(), any())).thenThrow(new ValidationException("One lookup parameter is required"));
         mockMvc.perform(get(ApiPaths.AGENT_SEARCH).with(agent))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+                .andExpect(jsonPath("$.phone").value("INVALID_INPUT"));
     }
 
     @Test
@@ -114,6 +114,6 @@ class AgentQueryControllerWebMvcTest {
 
         mockMvc.perform(get(ApiPaths.AGENT_ME + "/transactions").with(agent).param("sort", "createdAt:wrong"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+                .andExpect(jsonPath("$.phone").value("INVALID_INPUT"));
     }
 }

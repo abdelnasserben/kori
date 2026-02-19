@@ -16,7 +16,7 @@ public final class Requests {
 
     /**
      * Comoros phone numbers only.
-     * Comoros country calling code: +269
+     * Comoros country calling phone: +269
      * National significant number length is typically 7 digits.
      */
 
@@ -49,7 +49,6 @@ public final class Requests {
     ) {}
 
     public record PayByCardRequest(
-            @NotBlank String terminalUid,
             @NotBlank @Size(max = 64) String cardUid,
             @Pattern(regexp = PIN_REGEX_4_DIGITS, message = "PIN must be exactly 4 digits")
             String pin,

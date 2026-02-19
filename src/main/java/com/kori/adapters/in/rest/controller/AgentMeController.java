@@ -28,7 +28,6 @@ public class AgentMeController {
     public AgentResponses.SummaryResponse summary(ActorContext actorContext) {
         var item = queryUseCase.getSummary(actorContext);
         return new AgentResponses.SummaryResponse(
-                item.agentCode(),
                 item.code(),
                 item.status(),
                 item.cashBalance(),

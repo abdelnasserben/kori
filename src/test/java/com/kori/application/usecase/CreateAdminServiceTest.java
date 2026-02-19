@@ -89,7 +89,7 @@ final class CreateAdminServiceTest {
 
         CreateAdminResult out = service.execute(cmd(adminActor()));
 
-        assertEquals(ADMIN_UUID.toString(), out.adminId());
+        assertEquals(ADMIN_UUID.toString(), out.adminUsername());
 
         ArgumentCaptor<Admin> adminCaptor = ArgumentCaptor.forClass(Admin.class);
         verify(adminRepositoryPort).save(adminCaptor.capture());

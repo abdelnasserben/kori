@@ -65,6 +65,7 @@ public class CardController {
         );
         return new EnrollCardResponse(
                 result.transactionId(),
+                result.clientCode(),
                 result.clientPhoneNumber(),
                 result.cardUid(),
                 result.cardPrice(),

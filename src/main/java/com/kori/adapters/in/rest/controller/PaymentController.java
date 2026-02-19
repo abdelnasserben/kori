@@ -52,7 +52,6 @@ public class PaymentController {
                         idempotencyKey,
                         idempotencyRequestHasher.hashPayload(request),
                         actorContext,
-                        request.terminalUid(),
                         request.cardUid(),
                         request.pin(),
                         request.amount()
@@ -117,8 +116,8 @@ public class PaymentController {
         );
         return new CashInByAgentResponse(
                 result.transactionId(),
-                result.agentId(),
-                result.clientId(),
+                result.agentCode(),
+                result.clientCode(),
                 result.clientPhoneNumber(),
                 result.amount()
         );

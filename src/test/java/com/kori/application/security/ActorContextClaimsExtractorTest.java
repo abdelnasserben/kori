@@ -32,7 +32,7 @@ class ActorContextClaimsExtractorTest {
         Map<String, Object> claims = Map.of(
                 "sub", "subject-1",
                 "actorType", "terminal",
-                "actorRef", "TERM-1001"
+                "phone", "TERM-1001"
         );
 
         ActorContext context = extractor.extract(claims);

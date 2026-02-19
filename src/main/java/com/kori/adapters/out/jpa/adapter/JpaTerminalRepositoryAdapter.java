@@ -54,7 +54,8 @@ public class JpaTerminalRepositoryAdapter implements TerminalRepositoryPort {
 
     @Override
     public Optional<Terminal> findByUid(TerminalUid terminalUid) {
-        return repo.findByTerminalUid(terminalUid.value());
+        return repo.findByTerminalUid(terminalUid.value())
+                .map(this::toDomain);
     }
 
     @Override

@@ -13,10 +13,11 @@ public final class Responses {
 
     public record CreateMerchantResponse(String merchantId, String code) {}
 
-    public record CreateTerminalResponse(String terminalId, String merchantCode) {}
+    public record CreateTerminalResponse(String terminalUid, String merchantCode) {}
 
     public record EnrollCardResponse(
             String transactionId,
+            String clientCode,
             String clientPhoneNumber,
             String cardUid,
             BigDecimal cardPrice,
@@ -54,8 +55,8 @@ public final class Responses {
 
     public record CashInByAgentResponse(
             String transactionId,
-            String agentId,
-            String clientId,
+            String agentCode,
+            String clientCode,
             String clientPhoneNumber,
             BigDecimal amount
     ) {}

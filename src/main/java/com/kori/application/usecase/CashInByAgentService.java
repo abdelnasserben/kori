@@ -113,8 +113,8 @@ public final class CashInByAgentService implements CashInByAgentUseCase {
 
                     return new CashInByAgentResult(
                             tx.id().value().toString(),
-                            agent.id().value().toString(),
-                            client.id().value().toString(),
+                            agent.code().value(),
+                            client.code().value(),
                             client.phoneNumber().value(),
                             amount.asBigDecimal()
                     );

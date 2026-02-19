@@ -25,17 +25,17 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
 
     @Override
     public QueryPage<BackofficeActorItem> listAgents(BackofficeActorQuery query) {
-        return list(query, "agents", "code");
+        return list(query, "agents", "phone");
     }
 
     @Override
     public QueryPage<BackofficeActorItem> listClients(BackofficeActorQuery query) {
-        return list(query, "clients", "code");
+        return list(query, "clients", "phone");
     }
 
     @Override
     public QueryPage<BackofficeActorItem> listMerchants(BackofficeActorQuery query) {
-        return list(query, "merchants", "code");
+        return list(query, "merchants", "phone");
     }
 
     private QueryPage<BackofficeActorItem> list(BackofficeActorQuery query, String table, String codeField) {
@@ -43,7 +43,7 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
         var cursor = codec.decode(query.cursor());
         boolean desc = QueryInputValidator.resolveSort(query.sort(), "createdAt");
 
-        StringBuilder sql = new StringBuilder("SELECT " + codeField + " AS actor_ref, " + codeField + " AS code, status, created_at FROM " + table + " WHERE 1=1");
+        StringBuilder sql = new StringBuilder("SELECT " + codeField + " AS actor_ref, " + codeField + " AS phone, status, created_at FROM " + table + " WHERE 1=1");
         var params = new MapSqlParameterSource();
         if (query.query() != null && !query.query().isBlank()) {
             sql.append(" AND ").append(codeField).append(" ILIKE :q");
@@ -74,7 +74,7 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
 
         List<BackofficeActorItem> rows = jdbcTemplate.query(sql.toString(), params, (rs, i) -> new BackofficeActorItem(
                 rs.getString("actor_ref"),
-                rs.getString("code"),
+                rs.getString("phone"),
                 rs.getString("status"),
                 rs.getTimestamp("created_at").toInstant()
         ));

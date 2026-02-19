@@ -18,7 +18,7 @@ public class ApplicationException extends RuntimeException {
                 String message,
                 Map<String, Object> metadata) {
             super(message);
-            this.code = Objects.requireNonNull(code, "code");
+            this.code = Objects.requireNonNull(code, "phone");
             this.category = Objects.requireNonNull(category, "category");
             this.metadata = Map.copyOf(Objects.requireNonNull(metadata, "metadata"));
         }

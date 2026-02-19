@@ -53,7 +53,7 @@ public final class FailAgentPayoutService implements FailAgentPayoutUseCase {
         }
 
         if (payout.status() != PayoutStatus.REQUESTED) {
-            throw new ForbiddenOperationException("Payout is not in REQUESTED code");
+            throw new ForbiddenOperationException("Payout is not in REQUESTED phone");
         }
 
         Instant now = timeProviderPort.now();

@@ -256,10 +256,10 @@ else
   tar xzf${__MVNW_QUIET_TAR:+"$__MVNW_QUIET_TAR"} "$TMP_DOWNLOAD_DIR/$distributionUrlName" -C "$TMP_DOWNLOAD_DIR" || die "failed to untar"
 fi
 
-# Find the actual extracted directory code (handles snapshots where filename != directory code)
+# Find the actual extracted directory phone (handles snapshots where filename != directory phone)
 actualDistributionDir=""
 
-# First try the expected directory code (for regular distributions)
+# First try the expected directory phone (for regular distributions)
 if [ -d "$TMP_DOWNLOAD_DIR/$distributionUrlNameMain" ]; then
   if [ -f "$TMP_DOWNLOAD_DIR/$distributionUrlNameMain/bin/$MVN_CMD" ]; then
     actualDistributionDir="$distributionUrlNameMain"

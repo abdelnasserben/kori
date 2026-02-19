@@ -107,9 +107,9 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
                        t.original_transaction_id::text AS original_transaction_ref,
                        COALESCE(p.status, cr.status, 'COMPLETED') AS status,
                        'KMF' AS currency,
-                       m.code AS merchant_code,
-                       a.code AS agent_code,
-                       c.code AS client_code,
+                       m.phone AS merchant_code,
+                       a.phone AS agent_code,
+                       c.phone AS client_code,
                        c.phone_number AS client_phone
                 FROM transactions t
                 LEFT JOIN payouts p ON p.transaction_id = t.id
@@ -162,7 +162,7 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
             p.addValue("max", q.max());
         }
         if (q.query() != null && !q.query().isBlank()) {
-            sql.append(" AND (t.id::text ILIKE :q OR m.code ILIKE :q OR a.code ILIKE :q OR c.code ILIKE :q)");
+            sql.append(" AND (t.id::text ILIKE :q OR m.phone ILIKE :q OR a.phone ILIKE :q OR c.phone ILIKE :q)");
             p.addValue("q", "%" + q.query().trim() + "%");
         }
         if (q.terminalUid() != null && !q.terminalUid().isBlank()) {
@@ -174,11 +174,11 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
             p.addValue("cardUid", q.cardUid().trim());
         }
         if (q.merchantCode() != null && !q.merchantCode().isBlank()) {
-            sql.append(" AND m.code = :merchantCode");
+            sql.append(" AND m.phone = :merchantCode");
             p.addValue("merchantCode", q.merchantCode().trim());
         }
         if (q.agentCode() != null && !q.agentCode().isBlank()) {
-            sql.append(" AND a.code = :agentCode");
+            sql.append(" AND a.phone = :agentCode");
             p.addValue("agentCode", q.agentCode().trim());
         }
         if (q.clientPhone() != null && !q.clientPhone().isBlank()) {
@@ -188,16 +188,16 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
         if (q.actorType() != null && q.actorRef() != null && !q.actorType().isBlank() && !q.actorRef().isBlank()) {
             switch (q.actorType().trim().toUpperCase()) {
                 case "MERCHANT" -> {
-                    sql.append(" AND m.code = :actorRef");
-                    p.addValue("actorRef", q.actorRef());
+                    sql.append(" AND m.phone = :phone");
+                    p.addValue("phone", q.actorRef());
                 }
                 case "AGENT" -> {
-                    sql.append(" AND a.code = :actorRef");
-                    p.addValue("actorRef", q.actorRef());
+                    sql.append(" AND a.phone = :phone");
+                    p.addValue("phone", q.actorRef());
                 }
                 case "CLIENT" -> {
-                    sql.append(" AND c.code = :actorRef");
-                    p.addValue("actorRef", q.actorRef());
+                    sql.append(" AND c.phone = :phone");
+                    p.addValue("phone", q.actorRef());
                 }
                 default -> throw new ValidationException("Unsupported actorType", Map.of("field", "actorType"));
             }

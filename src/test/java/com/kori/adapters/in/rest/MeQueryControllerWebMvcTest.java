@@ -125,7 +125,7 @@ class MeQueryControllerWebMvcTest {
         when(clientMeTxDetailQueryUseCase.getByRef(any(), eq("not-a-uuid"))).thenThrow(new ValidationException("Invalid transactionId", java.util.Map.of("field", "transactionId")));
         mockMvc.perform(get(ApiPaths.CLIENT_ME + "/transactions/not-a-uuid").with(clientJwt))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT"));
+                .andExpect(jsonPath("$.phone").value("INVALID_INPUT"));
 
         when(clientMeTxDetailQueryUseCase.getByRef(any(), eq("22222222-2222-2222-2222-222222222222"))).thenThrow(new ForbiddenOperationException("Forbidden operation"));
         mockMvc.perform(get(ApiPaths.CLIENT_ME + "/transactions/22222222-2222-2222-2222-222222222222").with(clientJwt)).andExpect(status().isForbidden());

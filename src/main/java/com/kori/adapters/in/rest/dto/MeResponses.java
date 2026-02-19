@@ -14,8 +14,8 @@ public final class MeResponses {
             CursorPage page) {}
 
     public record ProfileResponse(
-            String actorRef,
             String code,
+            String phone,
             String status,
             Instant createdAt) {}
 

@@ -119,7 +119,7 @@ class SecurityEndpointsWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.phone").value("AUTHENTICATION_REQUIRED"))
                 .andExpect(jsonPath("$.message").value("Authentication required"));
 
         // avec token mais sans actor claims => ton resolver lève ActorContextAuthenticationException => généralement 403
@@ -129,7 +129,7 @@ class SecurityEndpointsWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.phone").value("AUTHENTICATION_REQUIRED"))
                 .andExpect(jsonPath("$.message").value("Authentication required"));
 
         // avec token + actor claims => OK (et rôle TERMINAL OK)
@@ -152,7 +152,7 @@ class SecurityEndpointsWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.phone").value("AUTHENTICATION_REQUIRED"))
                 .andExpect(jsonPath("$.message").value("Authentication required"))
                 .andExpect(jsonPath("$.details").isMap())
                 .andExpect(jsonPath("$.path").exists());
@@ -164,7 +164,7 @@ class SecurityEndpointsWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN_OPERATION"))
+                .andExpect(jsonPath("$.phone").value("FORBIDDEN_OPERATION"))
                 .andExpect(jsonPath("$.message").value("Forbidden operation"))
                 .andExpect(jsonPath("$.details").isMap())
                 .andExpect(jsonPath("$.path").exists());
@@ -188,7 +188,7 @@ class SecurityEndpointsWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.phone").value("AUTHENTICATION_REQUIRED"))
                 .andExpect(jsonPath("$.message").value("Authentication required"))
                 .andExpect(jsonPath("$.details").isMap())
                 .andExpect(jsonPath("$.path").exists());
@@ -199,7 +199,7 @@ class SecurityEndpointsWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN_OPERATION"))
+                .andExpect(jsonPath("$.phone").value("FORBIDDEN_OPERATION"))
                 .andExpect(jsonPath("$.message").value("Forbidden operation"))
                 .andExpect(jsonPath("$.details").isMap())
                 .andExpect(jsonPath("$.path").exists());
@@ -222,7 +222,7 @@ class SecurityEndpointsWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.phone").value("AUTHENTICATION_REQUIRED"))
                 .andExpect(jsonPath("$.message").value("Authentication required"))
                 .andExpect(jsonPath("$.details").isMap())
                 .andExpect(jsonPath("$.path").exists());
@@ -233,7 +233,7 @@ class SecurityEndpointsWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN_OPERATION"))
+                .andExpect(jsonPath("$.phone").value("FORBIDDEN_OPERATION"))
                 .andExpect(jsonPath("$.message").value("Forbidden operation"))
                 .andExpect(jsonPath("$.details").isMap())
                 .andExpect(jsonPath("$.path").exists());
@@ -256,7 +256,7 @@ class SecurityEndpointsWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.phone").value("AUTHENTICATION_REQUIRED"))
                 .andExpect(jsonPath("$.message").value("Authentication required"))
                 .andExpect(jsonPath("$.details").isMap())
                 .andExpect(jsonPath("$.path").exists());
@@ -267,7 +267,7 @@ class SecurityEndpointsWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN_OPERATION"))
+                .andExpect(jsonPath("$.phone").value("FORBIDDEN_OPERATION"))
                 .andExpect(jsonPath("$.message").value("Forbidden operation"))
                 .andExpect(jsonPath("$.details").isMap())
                 .andExpect(jsonPath("$.path").exists());
@@ -293,7 +293,7 @@ class SecurityEndpointsWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"))
+                .andExpect(jsonPath("$.phone").value("AUTHENTICATION_REQUIRED"))
                 .andExpect(jsonPath("$.message").value("Authentication required"))
                 .andExpect(jsonPath("$.details").isMap())
                 .andExpect(jsonPath("$.path").exists());
@@ -303,7 +303,7 @@ class SecurityEndpointsWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN_OPERATION"))
+                .andExpect(jsonPath("$.phone").value("FORBIDDEN_OPERATION"))
                 .andExpect(jsonPath("$.message").value("Forbidden operation"))
                 .andExpect(jsonPath("$.details").isMap())
                 .andExpect(jsonPath("$.path").exists());
@@ -324,14 +324,14 @@ class SecurityEndpointsWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.code").value("AUTHENTICATION_REQUIRED"));
+                .andExpect(jsonPath("$.phone").value("AUTHENTICATION_REQUIRED"));
 
         mockMvc.perform(patch(ApiPaths.CONFIG + "/platform")
                         .with(wrongRoleJwt)
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(payload))
                 .andExpect(status().isForbidden())
-                .andExpect(jsonPath("$.code").value("FORBIDDEN_OPERATION"));
+                .andExpect(jsonPath("$.phone").value("FORBIDDEN_OPERATION"));
 
         mockMvc.perform(patch(ApiPaths.CONFIG + "/platform")
                         .with(adminJwt)

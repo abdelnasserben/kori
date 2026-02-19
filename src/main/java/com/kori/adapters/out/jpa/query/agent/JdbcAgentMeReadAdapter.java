@@ -31,7 +31,7 @@ public class JdbcAgentMeReadAdapter implements AgentMeReadPort {
     public Optional<AgentQueryModels.AgentSummary> findSummary(String agentCode) {
         String sql = """
                 SELECT a.code AS agent_code,
-                       a.code,
+                       a.phone_number AS phone,
                        a.status,
                        COALESCE((
                            SELECT SUM(CASE WHEN le.entry_type = 'CREDIT' THEN le.amount ELSE -le.amount END)
@@ -51,14 +51,13 @@ public class JdbcAgentMeReadAdapter implements AgentMeReadPort {
                              AND t.created_at >= NOW() - INTERVAL '7 days'
                        ) AS tx_count_7d
                 FROM agents a
-                WHERE a.code = :agentCode
+                WHERE a.phone = :agentCode
                 LIMIT 1
                 """;
         var rows = jdbcTemplate.query(
                 sql,
                 new MapSqlParameterSource("agentCode", agentCode), (rs, n) -> new AgentQueryModels.AgentSummary(
-                rs.getString("agent_code"),
-                        rs.getString("code"),
+                        rs.getString("phone"),
                         rs.getString("status"),
                         rs.getBigDecimal("cash_balance"),
                         rs.getBigDecimal("commission_balance"),
@@ -85,17 +84,35 @@ public class JdbcAgentMeReadAdapter implements AgentMeReadPort {
                 JOIN agents a ON a.id::text = le.owner_ref
                 LEFT JOIN payouts p ON p.transaction_id = t.id
                 LEFT JOIN client_refunds cr ON cr.transaction_id = t.id
-                WHERE a.code = :agentCode
+                WHERE a.phone = :agentCode
                   AND le.account_type IN ('AGENT_CASH_CLEARING', 'AGENT_WALLET')
                 """);
         var params = new MapSqlParameterSource("agentCode", agentCode);
 
-        if (filter.type() != null && !filter.type().isBlank()) { sql.append(" AND t.type = :type"); params.addValue("type", filter.type()); }
-        if (filter.status() != null && !filter.status().isBlank()) { sql.append(" AND COALESCE(p.status, cr.status, 'COMPLETED') = :status"); params.addValue("status", filter.status()); }
-        if (filter.from() != null) { sql.append(" AND t.created_at >= :from"); params.addValue("from", filter.from()); }
-        if (filter.to() != null) { sql.append(" AND t.created_at <= :to"); params.addValue("to", filter.to()); }
-        if (filter.min() != null) { sql.append(" AND t.amount >= :min"); params.addValue("min", filter.min()); }
-        if (filter.max() != null) { sql.append(" AND t.amount <= :max"); params.addValue("max", filter.max()); }
+        if (filter.type() != null && !filter.type().isBlank()) {
+            sql.append(" AND t.type = :type");
+            params.addValue("type", filter.type());
+        }
+        if (filter.status() != null && !filter.status().isBlank()) {
+            sql.append(" AND COALESCE(p.status, cr.status, 'COMPLETED') = :status");
+            params.addValue("status", filter.status());
+        }
+        if (filter.from() != null) {
+            sql.append(" AND t.created_at >= :from");
+            params.addValue("from", filter.from());
+        }
+        if (filter.to() != null) {
+            sql.append(" AND t.created_at <= :to");
+            params.addValue("to", filter.to());
+        }
+        if (filter.min() != null) {
+            sql.append(" AND t.amount >= :min");
+            params.addValue("min", filter.min());
+        }
+        if (filter.max() != null) {
+            sql.append(" AND t.amount <= :max");
+            params.addValue("max", filter.max());
+        }
 
         if (cursor != null) {
             sql.append(desc
@@ -105,7 +122,7 @@ public class JdbcAgentMeReadAdapter implements AgentMeReadPort {
             params.addValue("cursorRef", cursor.ref());
         }
 
-        sql.append(" ORDER BY t.created_at ").append(desc ? "DESC" : "ASC").append(", t.id ").append(desc ? "DESC" : "ASC");
+        sql.append(" ORDER BY t.created_at ").append(desc ? "DESC" : "ASC").append(", t.id::text ").append(desc ? "DESC" : "ASC");
         sql.append(" LIMIT :limit");
         params.addValue("limit", limit + 1);
 
@@ -141,9 +158,9 @@ public class JdbcAgentMeReadAdapter implements AgentMeReadPort {
                        metadata_json
                 FROM audit_events
                 WHERE actor_type = 'AGENT'
-                  AND actor_id = :actorRef
+                  AND actor_id = :phone
                 """);
-        var params = new MapSqlParameterSource("actorRef", agentCode);
+        var params = new MapSqlParameterSource("phone", agentCode);
 
         if (filter.action() != null && !filter.action().isBlank()) { sql.append(" AND action = :action"); params.addValue("action", filter.action()); }
         if (filter.from() != null) { sql.append(" AND occurred_at >= :from"); params.addValue("from", filter.from()); }

@@ -192,7 +192,7 @@ public class BackofficeQueryController {
         );
     }
 
-    @GetMapping("/actors/{actorType}/{actorRef}")
+    @GetMapping("/actors/{actorType}/{phone}")
     public BackofficeResponses.ActorDetails getActor(@PathVariable String actorType, @PathVariable String actorRef) {
         var d = switch (actorType.toUpperCase()) {
             case "AGENT" -> actorDetailQueryUseCase.getAgentByRef(actorRef);

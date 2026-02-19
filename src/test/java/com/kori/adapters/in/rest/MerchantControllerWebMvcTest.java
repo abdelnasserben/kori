@@ -53,7 +53,7 @@ class MerchantControllerWebMvcTest extends BaseWebMvcTest {
                         .header(ApiHeaders.IDEMPOTENCY_KEY, "idem-1"))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.merchantId").value("merchant-123"))
-                .andExpect(jsonPath("$.code").value("M-123456"));
+                .andExpect(jsonPath("$.phone").value("M-123456"));
     }
 
     @Test
@@ -87,7 +87,7 @@ class MerchantControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_INPUT"))
+                .andExpect(jsonPath("$.phone").value("INVALID_INPUT"))
                 .andExpect(jsonPath("$.details.fields").isArray());
     }
 
@@ -105,7 +105,7 @@ class MerchantControllerWebMvcTest extends BaseWebMvcTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().is(status.value()))
-                .andExpect(jsonPath("$.code").value(code))
+                .andExpect(jsonPath("$.phone").value(code))
                 .andExpect(jsonPath("$.message").value(message));
     }
 }

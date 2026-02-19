@@ -42,6 +42,13 @@ public class LedgerEntryEntity {
     @Column(name = "created_at", insertable = false, updatable = false)
     private OffsetDateTime createdAt;
 
+    @PrePersist
+    public void prePersist() {
+        if (createdAt == null) {
+            createdAt = OffsetDateTime.now();
+        }
+    }
+
     protected LedgerEntryEntity() {}
 
     public LedgerEntryEntity(

@@ -19,17 +19,17 @@ public class JdbcBackofficeActorDetailReadAdapter implements BackofficeActorDeta
 
     @Override
     public Optional<BackofficeActorDetails> findAgentByRef(String agentCode) {
-        return findByCode(agentCode, "agents", "code", "AGENT");
+        return findByCode(agentCode, "agents", "phone", "AGENT");
     }
 
     @Override
     public Optional<BackofficeActorDetails> findClientByRef(String clientCode) {
-        return findByCode(clientCode, "clients", "code", "CLIENT");
+        return findByCode(clientCode, "clients", "phone", "CLIENT");
     }
 
     @Override
     public Optional<BackofficeActorDetails> findMerchantByRef(String merchantCode) {
-        return findByCode(merchantCode, "merchants", "code", "MERCHANT");
+        return findByCode(merchantCode, "merchants", "phone", "MERCHANT");
     }
 
     private Optional<BackofficeActorDetails> findByCode(String actorRef, String table, String codeField, String actorType) {
@@ -43,10 +43,10 @@ public class JdbcBackofficeActorDetailReadAdapter implements BackofficeActorDeta
                          WHERE ae.actor_type = :actorType
                            AND ae.actor_id = t.%s) AS last_activity_at
                 FROM %s t
-                WHERE t.%s = :actorRef
+                WHERE t.%s = :phone
                 LIMIT 1
                 """.formatted(codeField, codeField, codeField, table, codeField);
-        var params = new MapSqlParameterSource().addValue("actorRef", actorRef).addValue("actorType", actorType);
+        var params = new MapSqlParameterSource().addValue("phone", actorRef).addValue("actorType", actorType);
         var rows = jdbcTemplate.query(sql, params, (rs, i) -> new BackofficeActorDetails(
                 rs.getString("actor_ref"),
                 rs.getString("display"),

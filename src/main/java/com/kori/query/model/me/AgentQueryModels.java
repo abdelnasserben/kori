@@ -9,7 +9,6 @@ public final class AgentQueryModels {
     }
 
     public record AgentSummary(
-            String agentCode,
             String code,
             String status,
             BigDecimal cashBalance,

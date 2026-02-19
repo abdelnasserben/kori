@@ -26,9 +26,9 @@ class CreateAdminServiceIT extends IntegrationTestBase {
                 adminActor()
         ));
 
-        assertNotNull(result.adminId());
+        assertNotNull(result.adminUsername());
 
-        Admin admin = adminRepositoryPort.findById(new AdminId(UUID.fromString(result.adminId()))).orElseThrow();
+        Admin admin = adminRepositoryPort.findById(new AdminId(UUID.fromString(result.adminUsername()))).orElseThrow();
         assertEquals(Status.ACTIVE, admin.status());
 
         assertTrue(auditEventJpaRepository.findAll().stream()

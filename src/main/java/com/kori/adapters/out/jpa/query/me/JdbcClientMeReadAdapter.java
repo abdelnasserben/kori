@@ -29,9 +29,13 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
 
     @Override
     public Optional<MeQueryModels.MeProfile> findProfile(String clientCode) {
-        String sql = "SELECT c.code AS actor_ref, c.phone_number AS code, c.status, c.created_at FROM clients c WHERE c.code = :clientCode LIMIT 1";
+        String sql = "SELECT c.code AS actor_ref, c.phone_number AS phone, c.status, c.created_at FROM clients c WHERE c.code = :clientCode LIMIT 1";
         var rows = jdbcTemplate.query(sql, new MapSqlParameterSource("clientCode", clientCode), (rs, n) ->
-                new MeQueryModels.MeProfile(rs.getString("actor_ref"), rs.getString("code"), rs.getString("status"), rs.getTimestamp("created_at").toInstant()));
+                new MeQueryModels.MeProfile(
+                        rs.getString("actor_ref"),
+                        rs.getString("phone"),
+                        rs.getString("status"),
+                        rs.getTimestamp("created_at").toInstant()));
         return rows.stream().findFirst();
     }
 

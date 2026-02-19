@@ -3,10 +3,11 @@ package com.kori.application.result;
 import java.math.BigDecimal;
 import java.util.Objects;
 
-public record EnrollCardResult(String transactionId, String clientPhoneNumber, String cardUid,
+public record EnrollCardResult(String transactionId, String clientCode, String clientPhoneNumber, String cardUid,
                                BigDecimal cardPrice, BigDecimal agentCommission, boolean clientCreated,
                                boolean accountCreated) {
     public EnrollCardResult(String transactionId,
+                            String clientCode,
                             String clientPhoneNumber,
                             String cardUid,
                             BigDecimal cardPrice,
@@ -14,6 +15,7 @@ public record EnrollCardResult(String transactionId, String clientPhoneNumber, S
                             boolean clientCreated,
                             boolean accountCreated) {
         this.transactionId = Objects.requireNonNull(transactionId);
+        this.clientCode = Objects.requireNonNull(clientCode);
         this.clientPhoneNumber = Objects.requireNonNull(clientPhoneNumber);
         this.cardUid = Objects.requireNonNull(cardUid);
         this.cardPrice = Objects.requireNonNull(cardPrice);

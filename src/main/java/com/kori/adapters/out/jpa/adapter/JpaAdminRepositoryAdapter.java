@@ -45,7 +45,14 @@ public class JpaAdminRepositoryAdapter implements AdminRepositoryPort {
     }
 
     @Override
+    @Transactional(readOnly = true)
     public Optional<Admin> findByUsername(String username) {
-        return repo.findByUsername(username);
+        return repo.findByUsername(username)
+                .map(entity -> new Admin(
+                        new AdminId(entity.getId()),
+                        AdminUsername.of(entity.getUsername()),
+                        Status.valueOf(entity.getStatus()),
+                        entity.getCreatedAt()
+                ));
     }
 }

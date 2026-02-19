@@ -80,7 +80,7 @@ public class RestExceptionHandler {
     ) {
         // 4xx: we can expose a PUBLIC message if you ensure messages are written as public-safe.
         // Metadata is sanitized.
-        log.warn("Validation error: code={} path={} msg={}", ex.code(), request.getRequestURI(), ex.toString());
+        log.warn("Validation error: phone={} path={} msg={}", ex.code(), request.getRequestURI(), ex.toString());
         return buildResponse(HttpStatus.BAD_REQUEST, ex.code().name(),
                 safeMessage(ex.getMessage()), sanitize(ex.metadata()), request);
     }
@@ -105,7 +105,7 @@ public class RestExceptionHandler {
             ForbiddenOperationException ex,
             HttpServletRequest request
     ) {
-        log.warn("Forbidden: code={} path={} msg={}", ex.code(), request.getRequestURI(), ex.toString());
+        log.warn("Forbidden: phone={} path={} msg={}", ex.code(), request.getRequestURI(), ex.toString());
         return buildResponse(HttpStatus.FORBIDDEN, ex.code().name(),
                 safeMessage(ex.getMessage()), sanitize(ex.metadata()), request);
     }
@@ -115,7 +115,7 @@ public class RestExceptionHandler {
             NotFoundException ex,
             HttpServletRequest request
     ) {
-        log.warn("Not found: code={} path={} msg={}", ex.code(), request.getRequestURI(), ex.toString());
+        log.warn("Not found: phone={} path={} msg={}", ex.code(), request.getRequestURI(), ex.toString());
         return buildResponse(HttpStatus.NOT_FOUND, ex.code().name(),
                 safeMessage(ex.getMessage()), sanitize(ex.metadata()), request);
     }
@@ -125,7 +125,7 @@ public class RestExceptionHandler {
             IdempotencyConflictException ex,
             HttpServletRequest request
     ) {
-        log.warn("Idempotency conflict: code={} path={} msg={}", ex.code(), request.getRequestURI(), ex.toString());
+        log.warn("Idempotency conflict: phone={} path={} msg={}", ex.code(), request.getRequestURI(), ex.toString());
         return buildResponse(HttpStatus.CONFLICT, ex.code().name(),
                 safeMessage(ex.getMessage()), sanitize(ex.metadata()), request);
     }
@@ -136,7 +136,7 @@ public class RestExceptionHandler {
             HttpServletRequest request
     ) {
         // Optional explicit mapping, keeps conflict semantics clear.
-        log.warn("Insufficient funds: code={} path={} msg={}", ex.code(), request.getRequestURI(), ex.toString());
+        log.warn("Insufficient funds: phone={} path={} msg={}", ex.code(), request.getRequestURI(), ex.toString());
         return buildResponse(HttpStatus.CONFLICT, ex.code().name(),
                 safeMessage(ex.getMessage()), sanitize(ex.metadata()), request);
     }
@@ -152,7 +152,7 @@ public class RestExceptionHandler {
         HttpStatus status = mapApplicationExceptionToStatus(ex);
 
         if (status.is5xxServerError() || ex.category() == ApplicationErrorCategory.TECHNICAL) {
-            log.error("Technical failure: code={} category={} path={}", ex.code(), ex.category(), request.getRequestURI(), ex);
+            log.error("Technical failure: phone={} category={} path={}", ex.code(), ex.category(), request.getRequestURI(), ex);
             return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR,
                     ApplicationErrorCode.TECHNICAL_FAILURE.name(),
                     "Unexpected error",
@@ -160,7 +160,7 @@ public class RestExceptionHandler {
                     request);
         }
 
-        log.warn("Application error: code={} category={} path={} msg={}",
+        log.warn("Application error: phone={} category={} path={} msg={}",
                 ex.code(), ex.category(), request.getRequestURI(), ex.toString());
 
         return buildResponse(status, ex.code().name(),

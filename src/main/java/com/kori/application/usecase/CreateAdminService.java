@@ -61,7 +61,7 @@ public final class CreateAdminService implements CreateAdminUseCase {
                             metadata
                     ));
 
-                    return new CreateAdminResult(adminId.value().toString());
+                    return new CreateAdminResult(adminId.value().toString(), username.value());
                 }
         );
     }
