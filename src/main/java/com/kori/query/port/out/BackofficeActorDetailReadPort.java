@@ -10,4 +10,8 @@ public interface BackofficeActorDetailReadPort {
     Optional<BackofficeActorDetails> findClientByRef(String clientCode);
 
     Optional<BackofficeActorDetails> findMerchantByRef(String merchantCode);
+
+    Optional<BackofficeActorDetails> findTerminalByRef(String terminalUid);
+
+    Optional<BackofficeActorDetails> findAdminByRef(String adminUsername);
 }

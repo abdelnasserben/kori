@@ -8,4 +8,8 @@ public interface BackofficeActorDetailQueryUseCase {
     BackofficeActorDetails getClientByRef(String clientCode);
 
     BackofficeActorDetails getMerchantByRef(String merchantCode);
+
+    BackofficeActorDetails getTerminalByRef(String terminalUid);
+
+    BackofficeActorDetails getAdminByRef(String adminUsername);
 }

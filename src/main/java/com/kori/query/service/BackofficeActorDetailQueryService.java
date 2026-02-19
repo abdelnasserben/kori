@@ -28,4 +28,14 @@ public class BackofficeActorDetailQueryService implements BackofficeActorDetailQ
     public BackofficeActorDetails getMerchantByRef(String merchantCode) {
         return readPort.findMerchantByRef(merchantCode).orElseThrow(() -> new NotFoundException("Merchant not found"));
     }
+
+    @Override
+    public BackofficeActorDetails getTerminalByRef(String terminalUid) {
+        return readPort.findTerminalByRef(terminalUid).orElseThrow(() -> new NotFoundException("Terminal not found"));
+    }
+
+    @Override
+    public BackofficeActorDetails getAdminByRef(String adminUsername) {
+        return readPort.findAdminByRef(adminUsername).orElseThrow(() -> new NotFoundException("Admin not found"));
+    }
 }

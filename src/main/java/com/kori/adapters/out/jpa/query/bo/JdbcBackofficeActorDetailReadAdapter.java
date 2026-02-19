@@ -32,6 +32,16 @@ public class JdbcBackofficeActorDetailReadAdapter implements BackofficeActorDeta
         return findByCode(merchantCode, "merchants", "code", "MERCHANT");
     }
 
+    @Override
+    public Optional<BackofficeActorDetails> findTerminalByRef(String terminalUid) {
+        return findByCode(terminalUid, "terminals", "terminal_uid", "TERMINAL");
+    }
+
+    @Override
+    public Optional<BackofficeActorDetails> findAdminByRef(String adminUsername) {
+        return findByCode(adminUsername, "admins", "username", "ADMIN");
+    }
+
     private Optional<BackofficeActorDetails> findByCode(String actorRef, String table, String codeField, String actorType) {
         String sql = """
                 SELECT t.%s AS actor_ref,

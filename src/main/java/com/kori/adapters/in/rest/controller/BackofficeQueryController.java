@@ -186,6 +186,8 @@ public class BackofficeQueryController {
             case "AGENT" -> actorDetailQueryUseCase.getAgentByRef(actorRef);
             case "CLIENT" -> actorDetailQueryUseCase.getClientByRef(actorRef);
             case "MERCHANT" -> actorDetailQueryUseCase.getMerchantByRef(actorRef);
+            case "TERMINAL" -> actorDetailQueryUseCase.getTerminalByRef(actorRef);
+            case "ADMIN" -> actorDetailQueryUseCase.getAdminByRef(actorRef);
             default -> throw new IllegalArgumentException("Unsupported actorType");
         };
         return new BackofficeResponses.ActorDetails(
