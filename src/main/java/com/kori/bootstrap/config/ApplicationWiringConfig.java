@@ -289,6 +289,8 @@ public class ApplicationWiringConfig {
             AgentRepositoryPort agentRepositoryPort,
             TransactionRepositoryPort transactionRepositoryPort,
             LedgerAppendPort ledgerAppendPort,
+            LedgerQueryPort ledgerQueryPort,
+            LedgerAccountLockPort ledgerAccountLockPort,
             AuditPort auditPort
     ) {
         var useCase = new AdminReceiptAdminServiceAgentBankDeposit(
@@ -299,6 +301,8 @@ public class ApplicationWiringConfig {
                 agentRepositoryPort,
                 transactionRepositoryPort,
                 ledgerAppendPort,
+                ledgerQueryPort,
+                ledgerAccountLockPort,
                 auditPort
         );
 

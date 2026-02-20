@@ -2,6 +2,7 @@ package com.kori.application.usecase;
 
 import com.kori.application.command.AdminReceiptAgentBankDepositCommand;
 import com.kori.application.exception.NotFoundException;
+import com.kori.application.exception.ValidationException;
 import com.kori.application.guard.ActorStatusGuards;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.AdminReceiptAgentBankDepositUseCase;
@@ -28,6 +29,8 @@ public final class AdminReceiptAdminServiceAgentBankDeposit implements AdminRece
     private final AgentRepositoryPort agentRepositoryPort;
     private final TransactionRepositoryPort transactionRepositoryPort;
     private final LedgerAppendPort ledgerAppendPort;
+    private final LedgerQueryPort ledgerQueryPort;
+    private final LedgerAccountLockPort ledgerAccountLockPort;
     private final AuditPort auditPort;
     private final IdempotencyExecutor idempotencyExecutor;
 
@@ -38,6 +41,8 @@ public final class AdminReceiptAdminServiceAgentBankDeposit implements AdminRece
                                                     AgentRepositoryPort agentRepositoryPort,
                                                     TransactionRepositoryPort transactionRepositoryPort,
                                                     LedgerAppendPort ledgerAppendPort,
+                                                    LedgerQueryPort ledgerQueryPort,
+                                                    LedgerAccountLockPort ledgerAccountLockPort,
                                                     AuditPort auditPort) {
         this.adminAccessService = adminAccessService;
         this.timeProviderPort = timeProviderPort;
@@ -45,6 +50,8 @@ public final class AdminReceiptAdminServiceAgentBankDeposit implements AdminRece
         this.agentRepositoryPort = agentRepositoryPort;
         this.transactionRepositoryPort = transactionRepositoryPort;
         this.ledgerAppendPort = ledgerAppendPort;
+        this.ledgerQueryPort = ledgerQueryPort;
+        this.ledgerAccountLockPort = ledgerAccountLockPort;
         this.auditPort = auditPort;
         this.idempotencyExecutor = new IdempotencyExecutor(idempotencyPort);
     }
@@ -68,12 +75,22 @@ public final class AdminReceiptAdminServiceAgentBankDeposit implements AdminRece
 
                     agentRepositoryPort.findByIdForUpdate(agent.id());
 
+                    var agentCashClearingAcc = LedgerAccountRef.agentCashClearing(agent.id().value().toString());
+                    ledgerAccountLockPort.lock(agentCashClearingAcc);
+
+                    Money expectedAmount = Money.of(ledgerQueryPort.netBalance(agentCashClearingAcc).asBigDecimal().negate());
+                    if (expectedAmount.asBigDecimal().compareTo(amount.asBigDecimal()) != 0) {
+                        throw new ValidationException(
+                                "Deposit amount must match the amount due by the agent",
+                                Map.of("field", "amount")
+                        );
+                    }
+
                     TransactionId txId = new TransactionId(idGeneratorPort.newUuid());
                     Transaction tx = Transaction.agentBankDepositReceipt(txId, amount, now);
                     transactionRepositoryPort.save(tx);
 
                     var bankAcc = LedgerAccountRef.platformBank();
-                    var agentCashClearingAcc = LedgerAccountRef.agentCashClearing(agent.id().value().toString());
 
                     ledgerAppendPort.append(List.of(
                             LedgerEntry.debit(tx.id(), bankAcc, amount),
