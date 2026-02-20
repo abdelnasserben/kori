@@ -2,7 +2,7 @@ package com.kori.application.result;
 
 import java.math.BigDecimal;
 
-public record UpdateFeeConfigResult(
+public record FeeConfigResult(
         BigDecimal cardEnrollmentPrice,
         BigDecimal cardPaymentFeeRate,
         BigDecimal cardPaymentFeeMin,

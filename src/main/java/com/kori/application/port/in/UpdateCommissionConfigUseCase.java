@@ -1,8 +1,8 @@
 package com.kori.application.port.in;
 
 import com.kori.application.command.UpdateCommissionConfigCommand;
-import com.kori.application.result.UpdateCommissionConfigResult;
+import com.kori.application.result.CommissionConfigResult;
 
 public interface UpdateCommissionConfigUseCase {
-    UpdateCommissionConfigResult execute(UpdateCommissionConfigCommand command);
+    CommissionConfigResult execute(UpdateCommissionConfigCommand command);
 }

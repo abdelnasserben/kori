@@ -6,7 +6,7 @@ import com.kori.application.port.in.UpdateCommissionConfigUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.CommissionConfigPort;
 import com.kori.application.port.out.TimeProviderPort;
-import com.kori.application.result.UpdateCommissionConfigResult;
+import com.kori.application.result.CommissionConfigResult;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.application.utils.ReasonNormalizer;
 import com.kori.domain.model.config.CommissionConfig;
@@ -37,7 +37,7 @@ public class UpdateCommissionConfigService implements UpdateCommissionConfigUseC
     }
 
     @Override
-    public UpdateCommissionConfigResult execute(UpdateCommissionConfigCommand cmd) {
+    public CommissionConfigResult execute(UpdateCommissionConfigCommand cmd) {
         adminAccessService.requireActiveAdmin(cmd.actorContext(), "update commission config");
 
         validate(cmd);
@@ -77,7 +77,7 @@ public class UpdateCommissionConfigService implements UpdateCommissionConfigUseC
                 metadata
         ));
 
-        return new UpdateCommissionConfigResult(
+        return new CommissionConfigResult(
                 cmd.cardEnrollmentAgentCommission(),
                 cmd.merchantWithdrawCommissionRate(),
                 cmd.merchantWithdrawCommissionMin(),

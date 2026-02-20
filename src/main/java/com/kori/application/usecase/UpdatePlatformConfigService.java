@@ -6,7 +6,7 @@ import com.kori.application.port.in.UpdatePlatformConfigUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.PlatformConfigPort;
 import com.kori.application.port.out.TimeProviderPort;
-import com.kori.application.result.UpdatePlatformConfigResult;
+import com.kori.application.result.PlatformConfigResult;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.application.utils.ReasonNormalizer;
 import com.kori.domain.model.config.PlatformConfig;
@@ -36,7 +36,7 @@ public class UpdatePlatformConfigService implements UpdatePlatformConfigUseCase 
     }
 
     @Override
-    public UpdatePlatformConfigResult execute(UpdatePlatformConfigCommand cmd) {
+    public PlatformConfigResult execute(UpdatePlatformConfigCommand cmd) {
         adminAccessService.requireActiveAdmin(cmd.actorContext(), "update platform config");
 
         validate(cmd);
@@ -68,7 +68,7 @@ public class UpdatePlatformConfigService implements UpdatePlatformConfigUseCase 
                 metadata
         ));
 
-        return new UpdatePlatformConfigResult(
+        return new PlatformConfigResult(
                 cmd.agentCashLimitGlobal(),
                 cmd.clientTransferMaxPerTransaction(),
                 cmd.clientTransferDailyMax()

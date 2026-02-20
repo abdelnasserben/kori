@@ -10,17 +10,12 @@ import com.kori.adapters.in.rest.dto.Responses.UpdatePlatformConfigResponse;
 import com.kori.application.command.UpdateCommissionConfigCommand;
 import com.kori.application.command.UpdateFeeConfigCommand;
 import com.kori.application.command.UpdatePlatformConfigCommand;
-import com.kori.application.port.in.UpdateCommissionConfigUseCase;
-import com.kori.application.port.in.UpdateFeeConfigUseCase;
-import com.kori.application.port.in.UpdatePlatformConfigUseCase;
+import com.kori.application.port.in.*;
 import com.kori.application.security.ActorContext;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping(ApiPaths.CONFIG)
@@ -30,12 +25,43 @@ public class ConfigController {
     private final UpdateFeeConfigUseCase updateFeeConfigUseCase;
     private final UpdateCommissionConfigUseCase updateCommissionConfigUseCase;
     private final UpdatePlatformConfigUseCase updatePlatformConfigUseCase;
+    private final GetFeeConfigUseCase getFeeConfigUseCase;
+    private final GetCommissionConfigUseCase getCommissionConfigUseCase;
+    private final GetPlatformConfigUseCase getPlatformConfigUseCase;
 
     public ConfigController(UpdateFeeConfigUseCase updateFeeConfigUseCase,
-                            UpdateCommissionConfigUseCase updateCommissionConfigUseCase, UpdatePlatformConfigUseCase updatePlatformConfigUseCase) {
+                            UpdateCommissionConfigUseCase updateCommissionConfigUseCase,
+                            UpdatePlatformConfigUseCase updatePlatformConfigUseCase,
+                            GetFeeConfigUseCase getFeeConfigUseCase,
+                            GetCommissionConfigUseCase getCommissionConfigUseCase,
+                            GetPlatformConfigUseCase getPlatformConfigUseCase) {
         this.updateFeeConfigUseCase = updateFeeConfigUseCase;
         this.updateCommissionConfigUseCase = updateCommissionConfigUseCase;
         this.updatePlatformConfigUseCase = updatePlatformConfigUseCase;
+        this.getFeeConfigUseCase = getFeeConfigUseCase;
+        this.getCommissionConfigUseCase = getCommissionConfigUseCase;
+        this.getPlatformConfigUseCase = getPlatformConfigUseCase;
+    }
+
+    @GetMapping("/fees")
+    @Operation(summary = "Get fees")
+    public UpdateFeeConfigResponse getFees(ActorContext actorContext) {
+        var result = getFeeConfigUseCase.execute(actorContext);
+        return new UpdateFeeConfigResponse(
+                result.cardEnrollmentPrice(),
+                result.cardPaymentFeeRate(),
+                result.cardPaymentFeeMin(),
+                result.cardPaymentFeeMax(),
+                result.merchantWithdrawFeeRate(),
+                result.merchantWithdrawFeeMin(),
+                result.merchantWithdrawFeeMax(),
+                result.clientTransferFeeRate(),
+                result.clientTransferFeeMin(),
+                result.clientTransferFeeMax(),
+                result.cardPaymentFeeRefundable(),
+                result.merchantWithdrawFeeRefundable(),
+                result.cardEnrollmentPriceRefundable()
+        );
     }
 
     @PatchMapping("/fees")
@@ -78,6 +104,18 @@ public class ConfigController {
         );
     }
 
+    @GetMapping("/commissions")
+    @Operation(summary = "Get commissions")
+    public UpdateCommissionConfigResponse getCommissions(ActorContext actorContext) {
+        var result = getCommissionConfigUseCase.execute(actorContext);
+        return new UpdateCommissionConfigResponse(
+                result.cardEnrollmentAgentCommission(),
+                result.merchantWithdrawCommissionRate(),
+                result.merchantWithdrawCommissionMin(),
+                result.merchantWithdrawCommissionMax()
+        );
+    }
+
     @PatchMapping("/commissions")
     @Operation(summary = "Update commissions")
     public UpdateCommissionConfigResponse updateCommissions(
@@ -97,6 +135,17 @@ public class ConfigController {
                 result.merchantWithdrawCommissionRate(),
                 result.merchantWithdrawCommissionMin(),
                 result.merchantWithdrawCommissionMax()
+        );
+    }
+
+    @GetMapping("/platform")
+    @Operation(summary = "Get platform config")
+    public UpdatePlatformConfigResponse getPlatformConfig(ActorContext actorContext) {
+        var result = getPlatformConfigUseCase.execute(actorContext);
+        return new UpdatePlatformConfigResponse(
+                result.agentCashLimitGlobal(),
+                result.clientTransferMaxPerTransaction(),
+                result.clientTransferDailyMax()
         );
     }
 

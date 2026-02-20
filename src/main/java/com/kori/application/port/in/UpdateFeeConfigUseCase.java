@@ -1,8 +1,8 @@
 package com.kori.application.port.in;
 
 import com.kori.application.command.UpdateFeeConfigCommand;
-import com.kori.application.result.UpdateFeeConfigResult;
+import com.kori.application.result.FeeConfigResult;
 
 public interface UpdateFeeConfigUseCase {
-    UpdateFeeConfigResult execute(UpdateFeeConfigCommand command);
+    FeeConfigResult execute(UpdateFeeConfigCommand command);
 }

@@ -155,11 +155,14 @@ sort=-createdAt
 
 ## 4.2 Configuration (ADMIN)
 
-| Méthode | Endpoint              | Description             |
-| ------- | --------------------- | ----------------------- |
-| PATCH   | `/config/fees`        | Mise à jour des frais   |
-| PATCH   | `/config/commissions` | Mise à jour commissions |
-| PATCH   | `/config/platform`    | Paramètres plateforme   |
+| Méthode | Endpoint              | Description                     |
+| ------- | --------------------- | ------------------------------- |
+| GET     | `/config/fees`        | Lire la configuration des frais |
+| PATCH   | `/config/fees`        | Mise à jour des frais           |
+| GET     | `/config/commissions` | Lire la configuration commissions |
+| PATCH   | `/config/commissions` | Mise à jour commissions         |
+| GET     | `/config/platform`    | Lire les paramètres plateforme  |
+| PATCH   | `/config/platform`    | Paramètres plateforme           |
 
 ---
 

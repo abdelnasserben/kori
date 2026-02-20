@@ -6,7 +6,7 @@ import com.kori.application.port.in.UpdateFeeConfigUseCase;
 import com.kori.application.port.out.AuditPort;
 import com.kori.application.port.out.FeeConfigPort;
 import com.kori.application.port.out.TimeProviderPort;
-import com.kori.application.result.UpdateFeeConfigResult;
+import com.kori.application.result.FeeConfigResult;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.application.utils.ReasonNormalizer;
 import com.kori.domain.model.config.FeeConfig;
@@ -37,7 +37,7 @@ public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
     }
 
     @Override
-    public UpdateFeeConfigResult execute(UpdateFeeConfigCommand cmd) {
+    public FeeConfigResult execute(UpdateFeeConfigCommand cmd) {
         adminAccessService.requireActiveAdmin(cmd.actorContext(), "update fee config");
 
         validate(cmd);
@@ -101,7 +101,7 @@ public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
                 metadata
         ));
 
-        return new UpdateFeeConfigResult(
+        return new FeeConfigResult(
                 cmd.cardEnrollmentPrice(),
                 cmd.cardPaymentFeeRate(),
                 cmd.cardPaymentFeeMin(),

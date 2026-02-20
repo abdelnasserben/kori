@@ -769,6 +769,39 @@ public class ApplicationWiringConfig {
         );
     }
 
+    @Bean
+    public GetFeeConfigUseCase getFeeConfigUseCase(
+            AdminAccessService adminAccessService,
+            FeeConfigPort feeConfigPort
+    ) {
+        return new GetFeeConfigService(
+                adminAccessService,
+                feeConfigPort
+        );
+    }
+
+    @Bean
+    public GetCommissionConfigUseCase getCommissionConfigUseCase(
+            AdminAccessService adminAccessService,
+            CommissionConfigPort commissionConfigPort
+    ) {
+        return new GetCommissionConfigService(
+                adminAccessService,
+                commissionConfigPort
+        );
+    }
+
+    @Bean
+    public GetPlatformConfigUseCase getPlatformConfigUseCase(
+            AdminAccessService adminAccessService,
+            PlatformConfigPort platformConfigPort
+    ) {
+        return new GetPlatformConfigService(
+                adminAccessService,
+                platformConfigPort
+        );
+    }
+
     // -----------------------------
     // Policy and Guard
     // -----------------------------
