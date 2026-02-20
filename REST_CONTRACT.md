@@ -1,338 +1,436 @@
-# KORI REST Contract
+# KORI REST API – OFFICIAL CONTRACT (v1)
 
-Ce document remplace totalement l'ancien contrat et décrit **tous les endpoints exposés** par l'API `v1`, avec rôles, paramètres, tri/pagination/filtrage.
-
----
-
-## 1) Base API
-
-- Base URL: `/api/v1`
-- Format: `application/json`
-- Auth: Bearer JWT (sauf Swagger/health)
-- Idempotence: pour les opérations financières `POST`, header recommandé `Idempotency-Key`
+Ce document décrit l’ensemble des endpoints exposés par l’API `v1`, les rôles autorisés, les règles de filtrage/pagination, les formats standard et la structure des erreurs.
 
 ---
 
-## 2) Authentification & rôles
+# 1) Base API
 
-Rôles applicatifs:
-- `ADMIN`
-- `AGENT`
-- `MERCHANT`
-- `CLIENT`
-- `TERMINAL`
+* **Base URL** : `/api/v1`
+* **Format** : `application/json`
+* **Authentification** : Bearer JWT
+* **Fuseau horaire** : UTC
+* **Versioning** : URI-based (`/v1`)
 
-Endpoints publics (sans JWT):
-- `/api-docs/**`
-- `/v3/api-docs/**`
-- `/swagger-ui/**`
-- `/swagger-ui.html`
-- `/actuator/health/**`
+Endpoints publics :
+
+* `/v3/api-docs/**`
+* `/swagger-ui/**`
+* `/actuator/health/**`
 
 ---
 
-## 3) Écriture
+# 2) Authentification & Rôles
 
-### 3.1 Administration
+## Rôles applicatifs
 
-| Méthode | Endpoint | Rôle | Description |
-|---|---|---|---|
-| POST | `/admins` | ADMIN | Créer un admin |
-| PATCH | `/admins/{adminUsername}/status` | ADMIN | Changer statut admin |
-| POST | `/agents` | ADMIN | Créer un agent |
-| PATCH | `/agents/{agentCode}/status` | ADMIN | Changer statut agent |
-| POST | `/merchants` | ADMIN | Créer un marchand |
-| PATCH | `/merchants/{merchantCode}/status` | ADMIN | Changer statut marchand |
-| POST | `/terminals` | ADMIN | Créer un terminal |
-| PATCH | `/terminals/{terminalUid}/status` | ADMIN | Changer statut terminal |
-| PATCH | `/clients/{clientCode}/status` | ADMIN | Changer statut client |
-| PATCH | `/account-profiles/status` | ADMIN | Changer statut profil compte |
+* `ADMIN`
+* `AGENT`
+* `MERCHANT`
+* `CLIENT`
+* `TERMINAL`
 
----
+## JWT Requirements
 
-### 3.2 Config
+Le token JWT doit contenir :
 
-| Méthode | Endpoint | Rôle | Description |
-|---|---|---|---|
-| PATCH | `/config/fees` | ADMIN | Mise à jour des frais |
-| PATCH | `/config/commissions` | ADMIN | Mise à jour des commissions |
-| PATCH | `/config/platform` | ADMIN | Mise à jour paramètres plateforme |
+* `sub`
+* `roles`
+* `actorType`
+* `actorRef`
+
+Les endpoints `/me` utilisent automatiquement `actorRef` du token.
 
 ---
 
-### 3.3 Cartes
-
-| Méthode | Endpoint | Rôle | Description |
-|---|---|---|---|
-| POST | `/cards/enroll` | AGENT | Enrôler une carte |
-| POST | `/cards/add` | AGENT | Ajouter carte à client existant |
-| PATCH | `/cards/{cardUid}/status/agent` | AGENT | Changer statut carte (agent) |
-| PATCH | `/cards/{cardUid}/status/admin` | ADMIN | Changer statut carte (admin) |
-| POST | `/cards/{cardUid}/unblock` | ADMIN | Débloquer carte |
+# 3) Standards Globaux
 
 ---
 
-### 3.4 Paiements / opérations financières
+## 3.1 Format des dates
 
-| Méthode | Endpoint | Rôle | Description |
-|---|---|---|---|
-| POST | `/payments/card` | TERMINAL | Paiement carte client -> marchand |
-| POST | `/payments/merchant-withdraw` | AGENT | Retrait marchand via agent |
-| POST | `/payments/cash-in` | AGENT | Cash-in client |
-| POST | `/payments/client-transfer` | CLIENT | Transfert P2P client |
-| POST | `/payments/agent-bank-deposits` | ADMIN | Dépôt banque agent |
-| POST | `/payments/reversals` | ADMIN | Renversement transaction |
+* ISO-8601
+* UTC
+* Exemple :
 
----
-
-### 3.5 Payouts / Refunds
-
-| Méthode | Endpoint | Rôle | Description |
-|---|---|---|---|
-| POST | `/payouts/requests` | ADMIN | Demander payout agent |
-| POST | `/payouts/{payoutId}/complete` | ADMIN | Compléter payout |
-| POST | `/payouts/{payoutId}/fail` | ADMIN | Échouer payout |
-| POST | `/client-refunds/requests` | ADMIN | Demander refund client |
-| POST | `/client-refunds/{refundId}/complete` | ADMIN | Compléter refund |
-| POST | `/client-refunds/{refundId}/fail` | ADMIN | Échouer refund |
+```
+2026-02-20T10:15:30Z
+```
 
 ---
 
-## 4) Lecture commune
+## 3.2 Format des montants
 
-### 4.1 Ledger
-
-| Méthode | Endpoint | Rôle |
-|---|---|---|
-| GET | `/ledger/balance` | ADMIN |
-| POST | `/ledger/transactions/search` | ADMIN |
-
-Paramètres `POST /ledger/transactions/search` (body):
-- `accountType`
-- `ownerRef`
-- `transactionType`
-- `from`
-- `to`
-- `beforeCreatedAt`
-- `beforeTransactionId`
-- `minAmount`
-- `maxAmount`
-- `view`
-- `limit`
+* Type : decimal
+* Devise : `KMF`
+* Toujours positifs
+* Le sens débit/crédit dépend du contexte
 
 ---
 
-## 5) Self-service (`/me`)
+## 3.3 Format des réponses
 
-### 5.1 Client (`CLIENT`)
+### 🔹 Réponse simple
 
-| Méthode | Endpoint | Description |
-|---|---|---|
-| GET | `/client/me/home` | Dashboard client |
-| GET | `/client/me/profile` | Profil client |
-| GET | `/client/me/balance` | Solde client |
-| GET | `/client/me/cards` | Cartes du client |
-| GET | `/client/me/transactions` | Historique transactions client |
-| GET | `/client/me/transactions/{transactionRef}` | Détail transaction client |
+```json
+{
+  ...objet...
+}
+```
 
-Query params `/client/me/transactions`:
-- `type`
-- `status`
-- `from`
-- `to`
-- `min`
-- `max`
-- `limit`
-- `cursor`
-- `sort`
+### 🔹 Réponse paginée
 
----
+```json
+{
+  "items": [ ... ],
+  "page": {
+    "nextCursor": "opaque-string-or-null",
+    "hasMore": true
+  }
+}
+```
 
-### 5.2 Marchand (`MERCHANT`)
-
-| Méthode | Endpoint | Description |
-|---|---|---|
-| GET | `/merchant/me/profile` | Profil marchand |
-| GET | `/merchant/me/balance` | Solde marchand |
-| GET | `/merchant/me/transactions` | Historique transactions marchand |
-| GET | `/merchant/me/transactions/{transactionRef}` | Détail transaction marchand |
-| GET | `/merchant/me/terminals` | Liste terminaux marchand |
-| GET | `/merchant/me/terminals/{terminalUid}` | Détail terminal |
-
-Query params `/merchant/me/transactions`:
-- `type`
-- `status`
-- `from`
-- `to`
-- `min`
-- `max`
-- `limit`
-- `cursor`
-- `sort`
-
-Query params `/merchant/me/terminals`:
-- `status`
-- `terminalUid`
-- `limit`
-- `cursor`
-- `sort`
+* `nextCursor` doit être réutilisé tel quel.
+* `hasMore` indique s’il reste des éléments.
 
 ---
 
-### 5.3 Agent (`AGENT`)
+## 3.4 Idempotence
 
-| Méthode | Endpoint | Description |
-|---|---|---|
-| GET | `/agent/me/summary` | Résumé agent |
-| GET | `/agent/me/transactions` | Historique transactions agent |
-| GET | `/agent/me/activities` | Activités agent |
-| GET | `/agent/search` | Recherche agent |
+Pour les opérations financières `POST` :
 
-Query params `/agent/me/transactions`:
-- `type`
-- `status`
-- `from`
-- `to`
-- `min`
-- `max`
-- `limit`
-- `cursor`
-- `sort`
+Header requis :
 
-Query params `/agent/me/activities`:
-- `from`
-- `to`
-- `limit`
-- `cursor`
-- `sort`
+```
+Idempotency-Key: <uuid>
+```
+
+Règles :
+
+* Même clé + même body → même résultat
+* Même clé + body différent → `409 Conflict`
 
 ---
 
-### 5.4 Terminal (`TERMINAL`)
+## 3.5 Tri
 
-| Méthode | Endpoint | Description |
-|---|---|---|
-| GET | `/terminal/me/status` | Statut terminal |
-| GET | `/terminal/me/config` | Configuration terminal |
-| GET | `/terminal/me/health` | Santé terminal |
+Paramètre :
 
----
+```
+sort=createdAt
+sort=-createdAt
+```
 
-## 6) Backoffice read (`ADMIN`)
-
-### 6.1 Transactions
-
-| Méthode | Endpoint |
-|---|---|
-| GET | `/backoffice/transactions` |
-| GET | `/backoffice/transactions/{transactionRef}` |
-
-Query params `/backoffice/transactions`:
-- `query`
-- `type`
-- `status`
-- `actorType`
-- `actorRef`
-- `terminalUid`
-- `cardUid`
-- `merchantCode`
-- `agentCode`
-- `clientPhone`
-- `from`
-- `to`
-- `min`
-- `max`
-- `limit`
-- `cursor`
-- `sort`
+* Défaut : `-createdAt`
 
 ---
 
-### 6.2 Audit
+## 3.6 Pagination
 
-| Méthode | Endpoint |
-|---|---|
-| GET | `/backoffice/audit-events` |
-
-Query params:
-- `action`
-- `actorType`
-- `actorRef`
-- `resourceType`
-- `resourceRef`
-- `from`
-- `to`
-- `limit`
-- `cursor`
-- `sort`
+* `limit` : borné côté serveur
+* `cursor` : opaque, non modifiable
 
 ---
 
-### 6.3 Acteurs
-
-| Méthode | Endpoint |
-|---|---|
-| GET | `/backoffice/agents` |
-| GET | `/backoffice/clients` |
-| GET | `/backoffice/merchants` |
-| GET | `/backoffice/actors/{actorType}/{actorRef}` |
-
-
-Query params listes:
-- `query`
-- `status`
-- `createdFrom`
-- `createdTo`
-- `limit`
-- `cursor`
-- `sort`
+# 4) Écriture (Write Side)
 
 ---
 
-### 6.4 Lookup
+## 4.1 Administration (ADMIN)
 
-| Méthode | Endpoint |
-|---|---|
-| GET | `/backoffice/lookups` |
-
-Query params:
-- `q`
-- `type`
-- `limit`
-
----
-
-## 7) Tri, filtres, pagination
-
-### 7.1 `sort`
-- `sort=createdAt`
-- `sort=-createdAt`
-- Défaut: `createdAt` décroissant
-
-### 7.2 `cursor`
-- Pagination cursor-based opaque
-
-### 7.3 `limit`
-- Valeur par défaut côté service
-- Bornée au max autorisé
-
-### 7.4 Filtres date/montant
-- `from` / `to`: ISO-8601
-- `min` / `max`: décimal
+| Méthode | Endpoint                           | Description                  |
+| ------- | ---------------------------------- | ---------------------------- |
+| POST    | `/admins`                          | Créer admin                  |
+| PATCH   | `/admins/{adminUsername}/status`   | Changer statut admin         |
+| POST    | `/agents`                          | Créer agent                  |
+| PATCH   | `/agents/{agentCode}/status`       | Changer statut agent         |
+| POST    | `/merchants`                       | Créer marchand               |
+| PATCH   | `/merchants/{merchantCode}/status` | Changer statut marchand      |
+| POST    | `/terminals`                       | Créer terminal               |
+| PATCH   | `/terminals/{terminalUid}/status`  | Changer statut terminal      |
+| PATCH   | `/clients/{clientCode}/status`     | Changer statut client        |
+| PATCH   | `/account-profiles/status`         | Changer statut profil compte |
 
 ---
 
-## 8) Erreurs standard
+## 4.2 Configuration (ADMIN)
 
-- `400`
-- `401`
-- `403`
-- `404`
-- `409`
-- `500`
+| Méthode | Endpoint              | Description             |
+| ------- | --------------------- | ----------------------- |
+| PATCH   | `/config/fees`        | Mise à jour des frais   |
+| PATCH   | `/config/commissions` | Mise à jour commissions |
+| PATCH   | `/config/platform`    | Paramètres plateforme   |
 
 ---
 
-## 9) Compatibilité
+## 4.3 Cartes
 
-Ce contrat est désormais **la référence unique**.
+| Méthode | Endpoint                        | Rôle  |
+| ------- | ------------------------------- | ----- |
+| POST    | `/cards/enroll`                 | AGENT |
+| POST    | `/cards/add`                    | AGENT |
+| PATCH   | `/cards/{cardUid}/status/agent` | AGENT |
+| PATCH   | `/cards/{cardUid}/status/admin` | ADMIN |
+| POST    | `/cards/{cardUid}/unblock`      | ADMIN |
+
+---
+
+## 4.4 Opérations financières
+
+| Endpoint                             | Rôle     |
+| ------------------------------------ | -------- |
+| POST `/payments/card`                | TERMINAL |
+| POST `/payments/merchant-withdraw`   | AGENT    |
+| POST `/payments/cash-in`             | AGENT    |
+| POST `/payments/client-transfer`     | CLIENT   |
+| POST `/payments/agent-bank-deposits` | ADMIN    |
+| POST `/payments/reversals`           | ADMIN    |
+
+---
+
+## Exemple – Transfert P2P
+
+### Request
+
+```http
+POST /payments/client-transfer
+Authorization: Bearer <token>
+Idempotency-Key: 123e4567-e89b-12d3-a456-426614174000
+```
+
+```json
+{
+  "recipientPhoneNumber": "+2697734567",
+  "amount": 1000
+}
+```
+
+### Response
+
+```json
+{
+  "transactionId": "TX-12345",
+  "senderClientCode": "C-001",
+  "recipientClientCode": "C-002",
+  "recipientPhoneNumber": "+2697734567",
+  "amount": 1000,
+  "fee": 10,
+  "totalDebited": 1010
+}
+```
+
+---
+
+# 5) Lecture – Ledger (ADMIN)
+
+| Méthode | Endpoint                      |
+| ------- | ----------------------------- |
+| GET     | `/ledger/balance`             |
+| POST    | `/ledger/transactions/search` |
+
+Filtres principaux :
+
+* `accountType`
+* `ownerRef`
+* `transactionType`
+* `from`
+* `to`
+* `minAmount`
+* `maxAmount`
+* `limit`
+
+---
+
+# 6) Self-Service
+
+---
+
+## CLIENT
+
+| Endpoint                                       |
+| ---------------------------------------------- |
+| GET `/client/me/home`                          |
+| GET `/client/me/profile`                       |
+| GET `/client/me/balance`                       |
+| GET `/client/me/cards`                         |
+| GET `/client/me/transactions`                  |
+| GET `/client/me/transactions/{transactionRef}` |
+
+Filtres transactions :
+
+* `type`
+* `status`
+* `from`
+* `to`
+* `min`
+* `max`
+* `limit`
+* `cursor`
+* `sort`
+
+---
+
+## MERCHANT
+
+| Endpoint                                         |
+| ------------------------------------------------ |
+| GET `/merchant/me/profile`                       |
+| GET `/merchant/me/balance`                       |
+| GET `/merchant/me/transactions`                  |
+| GET `/merchant/me/transactions/{transactionRef}` |
+| GET `/merchant/me/terminals`                     |
+| GET `/merchant/me/terminals/{terminalUid}`       |
+
+---
+
+## AGENT
+
+| Endpoint                     |
+| ---------------------------- |
+| GET `/agent/me/summary`      |
+| GET `/agent/me/transactions` |
+| GET `/agent/me/activities`   |
+| GET `/agent/search`          |
+
+---
+
+## TERMINAL
+
+| Endpoint                  |
+| ------------------------- |
+| GET `/terminal/me/status` |
+| GET `/terminal/me/config` |
+| GET `/terminal/me/health` |
+
+---
+
+# 7) Backoffice (ADMIN)
+
+---
+
+## Transactions
+
+GET `/backoffice/transactions`
+
+Filtres :
+
+* `query` (recherche libre sur transactionRef, merchantCode, agentCode, clientCode)
+* `type`
+* `status`
+* `actorType`
+* `actorRef`
+* `terminalUid`
+* `cardUid`
+* `merchantCode`
+* `agentCode`
+* `clientPhone`
+* `from`
+* `to`
+* `min`
+* `max`
+* `limit`
+* `cursor`
+* `sort`
+
+---
+
+## Audit
+
+GET `/backoffice/audit-events`
+
+Filtres :
+
+* `action`
+* `actorType`
+* `actorRef`
+* `resourceType`
+* `resourceRef`
+* `from`
+* `to`
+
+---
+
+## Acteurs
+
+GET :
+
+* `/backoffice/agents`
+* `/backoffice/clients`
+* `/backoffice/merchants`
+* `/backoffice/actors/{actorType}/{actorRef}`
+
+---
+
+## Lookup
+
+GET `/backoffice/lookups`
+
+* `q`
+* `type`
+* `limit`
+
+---
+
+# 8) Valeurs Enum Principales
+
+## Transaction Types
+
+* `CARD_PAYMENT`
+* `CASH_IN`
+* `CLIENT_TRANSFER`
+* `MERCHANT_WITHDRAW`
+* `REVERSAL`
+* `AGENT_BANK_DEPOSIT`
+
+## Transaction Status
+
+* `PENDING`
+* `COMPLETED`
+* `FAILED`
+* `REVERSED`
+
+## Actor Status
+
+* `ACTIVE`
+* `INACTIVE`
+* `SUSPENDED`
+
+---
+
+# 9) Format d’erreur standard
+
+Toutes les erreurs retournent :
+
+```json
+{
+  "errorCode": "INSUFFICIENT_FUNDS",
+  "message": "Client balance is insufficient",
+  "correlationId": "uuid",
+  "timestamp": "2026-02-20T10:15:30Z"
+}
+```
+
+Codes possibles :
+
+* `INSUFFICIENT_FUNDS`
+* `DAILY_LIMIT_EXCEEDED`
+* `MAX_TRANSACTION_EXCEEDED`
+* `INVALID_STATUS`
+* `IDEMPOTENCY_CONFLICT`
+* `UNAUTHORIZED`
+* `FORBIDDEN`
+
+---
+
+# 10) Référence officielle
+
+L’OpenAPI généré est la source technique de vérité :
+
+
+Ce document est la référence fonctionnelle destinée aux équipes :
+
+* Mobile
+* Web
+* Backoffice
+* QA
+* Intégration
