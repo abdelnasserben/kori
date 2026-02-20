@@ -74,4 +74,8 @@ public record Transaction(
     public static Transaction clientRefund(TransactionId id, Money amount, Instant createdAt) {
         return new Transaction(id, TransactionType.CLIENT_REFUND, amount, createdAt, null);
     }
+
+    public static Transaction clientTransfer(TransactionId id, Money amount, Instant createdAt) {
+        return new Transaction(id, TransactionType.CLIENT_TRANSFER, amount, createdAt, null);
+    }
 }

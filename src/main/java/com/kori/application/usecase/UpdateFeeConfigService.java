@@ -52,6 +52,9 @@ public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
                 cmd.merchantWithdrawFeeRate(),
                 cmd.merchantWithdrawFeeMin(),
                 cmd.merchantWithdrawFeeMax(),
+                cmd.clientTransferFeeRate(),
+                cmd.clientTransferFeeMin(),
+                cmd.clientTransferFeeMax(),
                 cmd.cardPaymentFeeRefundable(),
                 cmd.merchantWithdrawFeeRefundable(),
                 cmd.cardEnrollmentPriceRefundable()
@@ -71,6 +74,9 @@ public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
         metadata.put("merchantWithdrawFeeRate", cmd.merchantWithdrawFeeRate().toPlainString());
         metadata.put("merchantWithdrawFeeMin", cmd.merchantWithdrawFeeMin().toPlainString());
         metadata.put("merchantWithdrawFeeMax", cmd.merchantWithdrawFeeMax().toPlainString());
+        metadata.put("clientTransferFeeRate", cmd.clientTransferFeeRate().toPlainString());
+        metadata.put("clientTransferFeeMin", cmd.clientTransferFeeMin().toPlainString());
+        metadata.put("clientTransferFeeMax", cmd.clientTransferFeeMax().toPlainString());
         metadata.put("cardPaymentFeeRefundable", String.valueOf(cmd.cardPaymentFeeRefundable()));
         metadata.put("merchantWithdrawFeeRefundable", String.valueOf(cmd.merchantWithdrawFeeRefundable()));
         metadata.put("cardEnrollmentPriceRefundable", String.valueOf(cmd.cardEnrollmentPriceRefundable()));
@@ -83,6 +89,9 @@ public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
             metadata.put("previousMerchantWithdrawFeeRate", cfg.merchantWithdrawFeeRate().toPlainString());
             metadata.put("previousMerchantWithdrawFeeMin", cfg.merchantWithdrawFeeMin().toPlainString());
             metadata.put("previousMerchantWithdrawFeeMax", cfg.merchantWithdrawFeeMax().toPlainString());
+            metadata.put("previousClientTransferFeeRate", cfg.clientTransferFeeRate().toPlainString());
+            metadata.put("previousClientTransferFeeMin", cfg.clientTransferFeeMin().toPlainString());
+            metadata.put("previousClientTransferFeeMax", cfg.clientTransferFeeMax().toPlainString());
         });
 
         auditPort.publish(AuditBuilder.buildBasicAudit(
@@ -100,6 +109,9 @@ public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
                 cmd.merchantWithdrawFeeRate(),
                 cmd.merchantWithdrawFeeMin(),
                 cmd.merchantWithdrawFeeMax(),
+                cmd.clientTransferFeeRate(),
+                cmd.clientTransferFeeMin(),
+                cmd.clientTransferFeeMax(),
                 cmd.cardPaymentFeeRefundable(),
                 cmd.merchantWithdrawFeeRefundable(),
                 cmd.cardEnrollmentPriceRefundable()
@@ -119,6 +131,11 @@ public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
         validateNonNegative(cmd.merchantWithdrawFeeMin(), "merchantWithdrawFeeMin", errors);
         validateNonNegative(cmd.merchantWithdrawFeeMax(), "merchantWithdrawFeeMax", errors);
         validateMinMax(cmd.merchantWithdrawFeeMin(), cmd.merchantWithdrawFeeMax(), "merchantWithdrawFee", errors);
+
+        validateRate(cmd.clientTransferFeeRate(), "clientTransferFeeRate", errors);
+        validateNonNegative(cmd.clientTransferFeeMin(), "clientTransferFeeMin", errors);
+        validateNonNegative(cmd.clientTransferFeeMax(), "clientTransferFeeMax", errors);
+        validateMinMax(cmd.clientTransferFeeMin(), cmd.clientTransferFeeMax(), "clientTransferFee", errors);
 
         if (!errors.isEmpty()) {
             throw new ValidationException("Invalid fee configuration", errors);

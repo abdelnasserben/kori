@@ -40,6 +40,13 @@ public class JpaFeePolicyAdapter implements FeePolicyPort {
         return percentMinMax(amount, cfg.getMerchantWithdrawFeeRate(), cfg.getMerchantWithdrawFeeMin(), cfg.getMerchantWithdrawFeeMax());
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    public Money clientTransferFee(Money amount) {
+        var cfg = repo.findById(1).orElseThrow(() -> new IllegalStateException("fee_config id=1 missing"));
+        return percentMinMax(amount, cfg.getClientTransferFeeRate(), cfg.getClientTransferFeeMin(), cfg.getClientTransferFeeMax());
+    }
+
     private static Money percentMinMax(Money amount, BigDecimal rate, BigDecimal min, BigDecimal max) {
         BigDecimal v = amount.asBigDecimal().multiply(rate).setScale(2, RoundingMode.HALF_UP);
         if (v.compareTo(min) < 0) v = min;

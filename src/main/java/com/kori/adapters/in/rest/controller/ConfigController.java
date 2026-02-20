@@ -53,6 +53,9 @@ public class ConfigController {
                 request.merchantWithdrawFeeRate(),
                 request.merchantWithdrawFeeMin(),
                 request.merchantWithdrawFeeMax(),
+                request.clientTransferFeeRate(),
+                request.clientTransferFeeMin(),
+                request.clientTransferFeeMax(),
                 Boolean.TRUE.equals(request.cardPaymentFeeRefundable()),
                 Boolean.TRUE.equals(request.merchantWithdrawFeeRefundable()),
                 Boolean.TRUE.equals(request.cardEnrollmentPriceRefundable()),
@@ -66,6 +69,9 @@ public class ConfigController {
                 result.merchantWithdrawFeeRate(),
                 result.merchantWithdrawFeeMin(),
                 result.merchantWithdrawFeeMax(),
+                result.clientTransferFeeRate(),
+                result.clientTransferFeeMin(),
+                result.clientTransferFeeMax(),
                 result.cardPaymentFeeRefundable(),
                 result.merchantWithdrawFeeRefundable(),
                 result.cardEnrollmentPriceRefundable()
@@ -103,8 +109,14 @@ public class ConfigController {
         var result = updatePlatformConfigUseCase.execute(new UpdatePlatformConfigCommand(
                 actorContext,
                 request.agentCashLimitGlobal(),
+                request.clientTransferMaxPerTransaction(),
+                request.clientTransferDailyMax(),
                 request.reason()
         ));
-        return new UpdatePlatformConfigResponse(result.agentCashLimitGlobal());
+        return new UpdatePlatformConfigResponse(
+                result.agentCashLimitGlobal(),
+                result.clientTransferMaxPerTransaction(),
+                result.clientTransferDailyMax()
+        );
     }
 }

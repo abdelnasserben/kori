@@ -33,6 +33,9 @@ public class JpaFeeConfigAdapter implements FeeConfigPort {
                         cfg.getMerchantWithdrawFeeRate(),
                         cfg.getMerchantWithdrawFeeMin(),
                         cfg.getMerchantWithdrawFeeMax(),
+                        cfg.getClientTransferFeeRate(),
+                        cfg.getClientTransferFeeMin(),
+                        cfg.getClientTransferFeeMax(),
                         cfg.isCardPaymentFeeRefundable(),
                         cfg.isMerchantWithdrawFeeRefundable(),
                         cfg.isCardEnrollmentPriceRefundable()
@@ -52,6 +55,9 @@ public class JpaFeeConfigAdapter implements FeeConfigPort {
                 config.merchantWithdrawFeeRate(),
                 config.merchantWithdrawFeeMin(),
                 config.merchantWithdrawFeeMax(),
+                config.clientTransferFeeRate(),
+                config.clientTransferFeeMin(),
+                config.clientTransferFeeMax(),
                 config.cardPaymentFeeRefundable(),
                 config.merchantWithdrawFeeRefundable(),
                 config.cardEnrollmentPriceRefundable()

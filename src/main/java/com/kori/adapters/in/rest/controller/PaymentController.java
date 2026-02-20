@@ -24,16 +24,22 @@ public class PaymentController {
     private final MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase;
     private final CashInByAgentUseCase cashInByAgentUseCase;
     private final AdminReceiptAgentBankDepositUseCase adminReceiptAgentBankDepositUseCase;
+    private final ClientTransferUseCase clientTransferUseCase;
     private final ReversalUseCase reversalUseCase;
     private final IdempotencyRequestHasher idempotencyRequestHasher;
 
     public PaymentController(PayByCardUseCase payByCardUseCase,
-                             MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase, CashInByAgentUseCase cashInByAgentUseCase, AdminReceiptAgentBankDepositUseCase adminReceiptAgentBankDepositUseCase,
-                             ReversalUseCase reversalUseCase, IdempotencyRequestHasher idempotencyRequestHasher) {
+                             MerchantWithdrawAtAgentUseCase merchantWithdrawAtAgentUseCase,
+                             CashInByAgentUseCase cashInByAgentUseCase,
+                             AdminReceiptAgentBankDepositUseCase adminReceiptAgentBankDepositUseCase,
+                             ClientTransferUseCase clientTransferUseCase,
+                             ReversalUseCase reversalUseCase,
+                             IdempotencyRequestHasher idempotencyRequestHasher) {
         this.payByCardUseCase = payByCardUseCase;
         this.merchantWithdrawAtAgentUseCase = merchantWithdrawAtAgentUseCase;
         this.cashInByAgentUseCase = cashInByAgentUseCase;
         this.adminReceiptAgentBankDepositUseCase = adminReceiptAgentBankDepositUseCase;
+        this.clientTransferUseCase = clientTransferUseCase;
         this.reversalUseCase = reversalUseCase;
         this.idempotencyRequestHasher = idempotencyRequestHasher;
     }
@@ -147,6 +153,36 @@ public class PaymentController {
                 result.amount()
         );
     }
+
+    @PostMapping("/client-transfer")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Client P2P transfer")
+    @IdempotentOperation
+    public ClientTransferResponse clientTransfer(
+            @RequestHeader(ApiHeaders.IDEMPOTENCY_KEY) String idempotencyKey,
+            ActorContext actorContext,
+            @Valid @RequestBody ClientTransferRequest request
+    ) {
+        var result = clientTransferUseCase.execute(
+                new ClientTransferCommand(
+                        idempotencyKey,
+                        idempotencyRequestHasher.hashPayload(request),
+                        actorContext,
+                        request.recipientPhoneNumber(),
+                        request.amount()
+                )
+        );
+        return new ClientTransferResponse(
+                result.transactionId(),
+                result.senderClientCode(),
+                result.recipientClientCode(),
+                result.recipientPhoneNumber(),
+                result.amount(),
+                result.fee(),
+                result.totalDebited()
+        );
+    }
+
 
     @PostMapping("/reversals")
     @ResponseStatus(HttpStatus.CREATED)

@@ -20,6 +20,10 @@ public final class ActorTypeGuards {
         require(ctx, ActorType.TERMINAL, action);
     }
 
+    public static void onlyClientCan(ActorContext ctx, String action) {
+        require(ctx, ActorType.CLIENT, action);
+    }
+
     private static void require(ActorContext ctx, ActorType expected, String action) {
         if (ctx == null || ctx.actorType() != expected) {
             throw new ForbiddenOperationException("Only " + expected + " can " + action);

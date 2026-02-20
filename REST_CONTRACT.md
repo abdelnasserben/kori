@@ -79,6 +79,7 @@ Endpoints publics (sans JWT):
 | POST | `/payments/card` | TERMINAL | Paiement carte client -> marchand |
 | POST | `/payments/merchant-withdraw` | AGENT | Retrait marchand via agent |
 | POST | `/payments/cash-in` | AGENT | Cash-in client |
+| POST | `/payments/client-transfer` | CLIENT | Transfert P2P client |
 | POST | `/payments/agent-bank-deposits` | ADMIN | Dépôt banque agent |
 | POST | `/payments/reversals` | ADMIN | Renversement transaction |
 
@@ -328,7 +329,7 @@ Query params:
 - `403`
 - `404`
 - `409`
-- `422`
+- `500`
 
 ---
 

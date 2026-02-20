@@ -25,12 +25,21 @@ public class JpaPlatformConfigAdapter implements PlatformConfigPort {
     @Transactional(readOnly = true)
     public Optional<PlatformConfig> get() {
         return repo.findById(CONFIG_ID)
-                .map(cfg -> new PlatformConfig(cfg.getAgentCashLimitGlobal()));
+                .map(cfg -> new PlatformConfig(
+                        cfg.getAgentCashLimitGlobal(),
+                        cfg.getClientTransferMaxPerTransaction(),
+                        cfg.getClientTransferDailyMax()
+                ));
     }
 
     @Override
     @Transactional
     public void upsert(PlatformConfig config) {
-        repo.save(new PlatformConfigEntity(CONFIG_ID, config.agentCashLimitGlobal()));
+        repo.save(new PlatformConfigEntity(
+                CONFIG_ID,
+                config.agentCashLimitGlobal(),
+                config.clientTransferMaxPerTransaction(),
+                config.clientTransferDailyMax()
+        ));
     }
 }

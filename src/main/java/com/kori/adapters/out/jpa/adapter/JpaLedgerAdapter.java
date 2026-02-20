@@ -10,10 +10,13 @@ import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.ledger.LedgerEntryType;
 import com.kori.domain.model.common.Money;
 import com.kori.domain.model.transaction.TransactionId;
+import com.kori.domain.model.transaction.TransactionType;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
@@ -87,6 +90,24 @@ public class JpaLedgerAdapter implements LedgerAppendPort, LedgerQueryPort {
                 .stream()
                 .map(TransactionId::new)
                 .toList();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Money sumDebitsByTransactionTypeAndPeriod(
+            LedgerAccountRef account,
+            TransactionType transactionType,
+            Instant fromInclusive,
+            Instant toExclusive
+    ) {
+        BigDecimal debits = repo.sumDebitsByTypeAndPeriod(
+                account.type().name(),
+                account.ownerRef(),
+                transactionType.name(),
+                fromInclusive.atOffset(ZoneOffset.UTC),
+                toExclusive.atOffset(ZoneOffset.UTC)
+        );
+        return Money.of(debits);
     }
 
 

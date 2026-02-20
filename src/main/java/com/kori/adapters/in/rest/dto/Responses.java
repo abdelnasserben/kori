@@ -133,6 +133,9 @@ public final class Responses {
             BigDecimal merchantWithdrawFeeRate,
             BigDecimal merchantWithdrawFeeMin,
             BigDecimal merchantWithdrawFeeMax,
+            BigDecimal clientTransferFeeRate,
+            BigDecimal clientTransferFeeMin,
+            BigDecimal clientTransferFeeMax,
             boolean cardPaymentFeeRefundable,
             boolean merchantWithdrawFeeRefundable,
             boolean cardEnrollmentPriceRefundable
@@ -146,6 +149,18 @@ public final class Responses {
     ) {}
 
     public record UpdatePlatformConfigResponse(
-            BigDecimal agentCashLimitGlobal
+            BigDecimal agentCashLimitGlobal,
+            BigDecimal clientTransferMaxPerTransaction,
+            BigDecimal clientTransferDailyMax
+    ) {}
+
+    public record ClientTransferResponse(
+            String transactionId,
+            String senderClientCode,
+            String recipientClientCode,
+            String recipientPhoneNumber,
+            BigDecimal amount,
+            BigDecimal fee,
+            BigDecimal totalDebited
     ) {}
 }

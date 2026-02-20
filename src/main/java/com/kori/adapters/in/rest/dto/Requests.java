@@ -103,6 +103,9 @@ public final class Requests {
             @NotNull @PositiveOrZero BigDecimal merchantWithdrawFeeRate,
             @NotNull @PositiveOrZero BigDecimal merchantWithdrawFeeMin,
             @NotNull @PositiveOrZero BigDecimal merchantWithdrawFeeMax,
+            @NotNull @PositiveOrZero BigDecimal clientTransferFeeRate,
+            @NotNull @PositiveOrZero BigDecimal clientTransferFeeMin,
+            @NotNull @PositiveOrZero BigDecimal clientTransferFeeMax,
             Boolean cardPaymentFeeRefundable,
             Boolean merchantWithdrawFeeRefundable,
             Boolean cardEnrollmentPriceRefundable,
@@ -119,7 +122,16 @@ public final class Requests {
 
     public record UpdatePlatformConfigRequest(
             @NotNull @PositiveOrZero BigDecimal agentCashLimitGlobal,
+            @NotNull @PositiveOrZero BigDecimal clientTransferMaxPerTransaction,
+            @NotNull @PositiveOrZero BigDecimal clientTransferDailyMax,
             @Size(max = 255) String reason
+    ) {}
+
+    public record ClientTransferRequest(
+            @NotBlank
+            @Pattern(regexp = COMOROS_PHONE_REGEX, message = "Phone number must be (+269 + 7 digits) or 7 digits local")
+            String recipientPhoneNumber,
+            @NotNull @Positive BigDecimal amount
     ) {}
 
     public record FailPayoutRequest(@NotBlank @Size(max = 255) String reason) {}

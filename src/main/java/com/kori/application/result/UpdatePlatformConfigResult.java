@@ -3,6 +3,8 @@ package com.kori.application.result;
 import java.math.BigDecimal;
 
 public record UpdatePlatformConfigResult(
-        BigDecimal agentCashLimitGlobal
+        BigDecimal agentCashLimitGlobal,
+        BigDecimal clientTransferMaxPerTransaction,
+        BigDecimal clientTransferDailyMax
 ) {
 }
