@@ -44,10 +44,13 @@ public class UpdatePlatformConfigService implements UpdatePlatformConfigUseCase 
         Optional<PlatformConfig> previous = platformConfigPort.get();
         PlatformConfig updated = new PlatformConfig(
                 cmd.agentCashLimitGlobal(),
+                cmd.clientTransferMinPerTransaction(),
                 cmd.clientTransferMaxPerTransaction(),
                 cmd.clientTransferDailyMax(),
+                cmd.merchantTransferMinPerTransaction(),
                 cmd.merchantTransferMaxPerTransaction(),
-                cmd.merchantTransferDailyMax()
+                cmd.merchantTransferDailyMax(),
+                cmd.merchantWithdrawMinPerTransaction()
         );
         platformConfigPort.upsert(updated);
 
@@ -55,16 +58,22 @@ public class UpdatePlatformConfigService implements UpdatePlatformConfigUseCase 
         Map<String, String> metadata = new HashMap<>();
         metadata.put("reason", reason);
         metadata.put("agentCashLimitGlobal", cmd.agentCashLimitGlobal().toPlainString());
+        metadata.put("clientTransferMinPerTransaction", cmd.clientTransferMinPerTransaction().toPlainString());
         metadata.put("clientTransferMaxPerTransaction", cmd.clientTransferMaxPerTransaction().toPlainString());
         metadata.put("clientTransferDailyMax", cmd.clientTransferDailyMax().toPlainString());
+        metadata.put("merchantTransferMinPerTransaction", cmd.merchantTransferMinPerTransaction().toPlainString());
         metadata.put("merchantTransferMaxPerTransaction", cmd.merchantTransferMaxPerTransaction().toPlainString());
         metadata.put("merchantTransferDailyMax", cmd.merchantTransferDailyMax().toPlainString());
+        metadata.put("merchantWithdrawMinPerTransaction", cmd.merchantWithdrawMinPerTransaction().toPlainString());
         previous.ifPresent(cfg -> {
             metadata.put("previousAgentCashLimitGlobal", cfg.agentCashLimitGlobal().toPlainString());
+            metadata.put("previousClientTransferMinPerTransaction", cfg.clientTransferMinPerTransaction().toPlainString());
             metadata.put("previousClientTransferMaxPerTransaction", cfg.clientTransferMaxPerTransaction().toPlainString());
             metadata.put("previousClientTransferDailyMax", cfg.clientTransferDailyMax().toPlainString());
+            metadata.put("previousMerchantTransferMinPerTransaction", cfg.merchantTransferMinPerTransaction().toPlainString());
             metadata.put("previousMerchantTransferMaxPerTransaction", cfg.merchantTransferMaxPerTransaction().toPlainString());
             metadata.put("previousMerchantTransferDailyMax", cfg.merchantTransferDailyMax().toPlainString());
+            metadata.put("previousMerchantWithdrawMinPerTransaction", cfg.merchantWithdrawMinPerTransaction().toPlainString());
         });
 
         auditPort.publish(AuditBuilder.buildBasicAudit(
@@ -76,23 +85,37 @@ public class UpdatePlatformConfigService implements UpdatePlatformConfigUseCase 
 
         return new PlatformConfigResult(
                 cmd.agentCashLimitGlobal(),
+                cmd.clientTransferMinPerTransaction(),
                 cmd.clientTransferMaxPerTransaction(),
                 cmd.clientTransferDailyMax(),
+                cmd.merchantTransferMinPerTransaction(),
                 cmd.merchantTransferMaxPerTransaction(),
-                cmd.merchantTransferDailyMax()
+                cmd.merchantTransferDailyMax(),
+                cmd.merchantWithdrawMinPerTransaction()
         );
     }
 
     private void validate(UpdatePlatformConfigCommand cmd) {
         Map<String, Object> errors = new HashMap<>();
         validateNonNegative(cmd.agentCashLimitGlobal(), "agentCashLimitGlobal", errors);
+        validateNonNegative(cmd.clientTransferMinPerTransaction(), "clientTransferMinPerTransaction", errors);
         validateNonNegative(cmd.clientTransferMaxPerTransaction(), "clientTransferMaxPerTransaction", errors);
         validateNonNegative(cmd.clientTransferDailyMax(), "clientTransferDailyMax", errors);
+        validateNonNegative(cmd.merchantTransferMinPerTransaction(), "merchantTransferMinPerTransaction", errors);
         validateNonNegative(cmd.merchantTransferMaxPerTransaction(), "merchantTransferMaxPerTransaction", errors);
         validateNonNegative(cmd.merchantTransferDailyMax(), "merchantTransferDailyMax", errors);
+        validateNonNegative(cmd.merchantWithdrawMinPerTransaction(), "merchantWithdrawMinPerTransaction", errors);
+
+        if (cmd.clientTransferMinPerTransaction().compareTo(cmd.clientTransferMaxPerTransaction()) > 0) {
+            errors.put("clientTransferMinPerTransaction", "must be <= clientTransferMaxPerTransaction");
+        }
 
         if (cmd.clientTransferDailyMax().compareTo(cmd.clientTransferMaxPerTransaction()) < 0) {
             errors.put("clientTransferDailyMax", "must be >= clientTransferMaxPerTransaction");
+        }
+
+        if (cmd.merchantTransferMinPerTransaction().compareTo(cmd.merchantTransferMaxPerTransaction()) > 0) {
+            errors.put("merchantTransferMinPerTransaction", "must be <= merchantTransferMaxPerTransaction");
         }
 
         if (cmd.merchantTransferDailyMax().compareTo(cmd.merchantTransferMaxPerTransaction()) < 0) {

@@ -23,10 +23,13 @@ public class GetPlatformConfigService implements GetPlatformConfigUseCase {
         var config = platformConfigPort.get().orElseThrow(() -> new NotFoundException("Platform config not found"));
         return new PlatformConfigResult(
                 config.agentCashLimitGlobal(),
+                config.clientTransferMinPerTransaction(),
                 config.clientTransferMaxPerTransaction(),
                 config.clientTransferDailyMax(),
+                config.merchantTransferMinPerTransaction(),
                 config.merchantTransferMaxPerTransaction(),
-                config.merchantTransferDailyMax()
+                config.merchantTransferDailyMax(),
+                config.merchantWithdrawMinPerTransaction()
         );
     }
 }

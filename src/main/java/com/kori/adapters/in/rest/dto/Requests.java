@@ -125,10 +125,13 @@ public final class Requests {
 
     public record UpdatePlatformConfigRequest(
             @NotNull @PositiveOrZero BigDecimal agentCashLimitGlobal,
+            @NotNull @PositiveOrZero BigDecimal clientTransferMinPerTransaction,
             @NotNull @PositiveOrZero BigDecimal clientTransferMaxPerTransaction,
             @NotNull @PositiveOrZero BigDecimal clientTransferDailyMax,
+            @NotNull @PositiveOrZero BigDecimal merchantTransferMinPerTransaction,
             @NotNull @PositiveOrZero BigDecimal merchantTransferMaxPerTransaction,
             @NotNull @PositiveOrZero BigDecimal merchantTransferDailyMax,
+            @NotNull @PositiveOrZero BigDecimal merchantWithdrawMinPerTransaction,
             @Size(max = 255) String reason
     ) {}
 

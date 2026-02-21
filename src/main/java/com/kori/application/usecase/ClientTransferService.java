@@ -6,6 +6,7 @@ import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.exception.ValidationException;
 import com.kori.application.guard.ActorTypeGuards;
+import com.kori.application.guard.TransactionAmountLimitGuard;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.ClientTransferUseCase;
 import com.kori.application.port.out.*;
@@ -99,13 +100,11 @@ public final class ClientTransferService implements ClientTransferUseCase {
                     Money totalDebited = amount.plus(fee);
 
                     var platformConfig = platformConfigPort.get().orElseThrow(() -> new ForbiddenOperationException("Platform configuration is missing"));
+                    Money minPerTransaction = Money.of(platformConfig.clientTransferMinPerTransaction());
+                    TransactionAmountLimitGuard.ensureMinPerTransaction(amount, minPerTransaction, "CLIENT_TRANSFER");
+
                     Money maxPerTransaction = Money.of(platformConfig.clientTransferMaxPerTransaction());
-                    if (amount.isGreaterThan(maxPerTransaction)) {
-                        throw new ValidationException("Client transfer max per transaction exceeded", Map.of(
-                                "amount", amount.asBigDecimal(),
-                                "maxPerTransaction", maxPerTransaction.asBigDecimal()
-                        ));
-                    }
+                    TransactionAmountLimitGuard.ensureMaxPerTransaction(amount, maxPerTransaction, "CLIENT_TRANSFER");
 
                     Instant now = timeProviderPort.now();
                     Instant dayStart = ZonedDateTime.ofInstant(now, ZoneOffset.UTC).toLocalDate().atStartOfDay(ZoneOffset.UTC).toInstant();

@@ -153,10 +153,13 @@ public final class Responses {
 
     public record UpdatePlatformConfigResponse(
             BigDecimal agentCashLimitGlobal,
+            BigDecimal clientTransferMinPerTransaction,
             BigDecimal clientTransferMaxPerTransaction,
             BigDecimal clientTransferDailyMax,
+            BigDecimal merchantTransferMinPerTransaction,
             BigDecimal merchantTransferMaxPerTransaction,
-            BigDecimal merchantTransferDailyMax
+            BigDecimal merchantTransferDailyMax,
+            BigDecimal merchantWithdrawMinPerTransaction
     ) {}
 
     public record ClientTransferResponse(

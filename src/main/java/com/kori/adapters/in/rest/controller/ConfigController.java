@@ -153,10 +153,13 @@ public class ConfigController {
         var result = getPlatformConfigUseCase.execute(actorContext);
         return new UpdatePlatformConfigResponse(
                 result.agentCashLimitGlobal(),
+                result.clientTransferMinPerTransaction(),
                 result.clientTransferMaxPerTransaction(),
                 result.clientTransferDailyMax(),
+                result.merchantTransferMinPerTransaction(),
                 result.merchantTransferMaxPerTransaction(),
-                result.merchantTransferDailyMax()
+                result.merchantTransferDailyMax(),
+                result.merchantWithdrawMinPerTransaction()
         );
     }
 
@@ -169,18 +172,24 @@ public class ConfigController {
         var result = updatePlatformConfigUseCase.execute(new UpdatePlatformConfigCommand(
                 actorContext,
                 request.agentCashLimitGlobal(),
+                request.clientTransferMinPerTransaction(),
                 request.clientTransferMaxPerTransaction(),
                 request.clientTransferDailyMax(),
+                request.merchantTransferMinPerTransaction(),
                 request.merchantTransferMaxPerTransaction(),
                 request.merchantTransferDailyMax(),
+                request.merchantWithdrawMinPerTransaction(),
                 request.reason()
         ));
         return new UpdatePlatformConfigResponse(
                 result.agentCashLimitGlobal(),
+                result.clientTransferMinPerTransaction(),
                 result.clientTransferMaxPerTransaction(),
                 result.clientTransferDailyMax(),
+                result.merchantTransferMinPerTransaction(),
                 result.merchantTransferMaxPerTransaction(),
-                result.merchantTransferDailyMax()
+                result.merchantTransferDailyMax(),
+                result.merchantWithdrawMinPerTransaction()
         );
     }
 }

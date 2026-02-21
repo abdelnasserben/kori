@@ -6,6 +6,7 @@ import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.guard.ActorTypeGuards;
 import com.kori.application.guard.AgentCashLimitGuard;
 import com.kori.application.guard.PricingGuards;
+import com.kori.application.guard.TransactionAmountLimitGuard;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.MerchantWithdrawAtAgentUseCase;
 import com.kori.application.port.out.*;
@@ -45,6 +46,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
     private final AuditPort auditPort;
 
     private final OperationAuthorizationService operationAuthorizationService;
+    private final PlatformConfigPort platformConfigPort;
     private final AgentCashLimitGuard agentCashLimitGuard;
     private final IdempotencyExecutor idempotencyExecutor;
 
@@ -55,7 +57,8 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
                                           AgentRepositoryPort agentRepositoryPort,
                                           FeePolicyPort feePolicyPort,
                                           CommissionPolicyPort commissionPolicyPort,
-                                          LedgerQueryPort ledgerQueryPort, LedgerAccountLockPort ledgerAccountLockPort,
+                                          LedgerQueryPort ledgerQueryPort,
+                                          LedgerAccountLockPort ledgerAccountLockPort,
                                           PlatformConfigPort platformConfigPort,
                                           TransactionRepositoryPort transactionRepositoryPort,
                                           LedgerAppendPort ledgerAppendPort,
@@ -73,6 +76,7 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
         this.ledgerAppendPort = ledgerAppendPort;
         this.auditPort = auditPort;
         this.operationAuthorizationService = operationAuthorizationService;
+        this.platformConfigPort = platformConfigPort;
         this.agentCashLimitGuard = new AgentCashLimitGuard(ledgerQueryPort, platformConfigPort);
         this.idempotencyExecutor = new IdempotencyExecutor(idempotencyPort);
     }
@@ -105,6 +109,11 @@ public final class MerchantWithdrawAtAgentService implements MerchantWithdrawAtA
                     Instant now = timeProviderPort.now();
 
                     Money amount = Money.positive(command.amount());
+
+                    var platformConfig = platformConfigPort.get().orElseThrow(() -> new ForbiddenOperationException("Platform configuration is missing"));
+                    Money minPerTransaction = Money.of(platformConfig.merchantWithdrawMinPerTransaction());
+                    TransactionAmountLimitGuard.ensureMinPerTransaction(amount, minPerTransaction, "MERCHANT_WITHDRAW");
+
                     Money fee = feePolicyPort.merchantWithdrawFee(amount);
                     Money commission = commissionPolicyPort.merchantWithdrawAgentCommission(fee);
 

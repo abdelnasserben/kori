@@ -6,6 +6,7 @@ import com.kori.application.exception.InsufficientFundsException;
 import com.kori.application.exception.NotFoundException;
 import com.kori.application.exception.ValidationException;
 import com.kori.application.guard.ActorTypeGuards;
+import com.kori.application.guard.TransactionAmountLimitGuard;
 import com.kori.application.idempotency.IdempotencyExecutor;
 import com.kori.application.port.in.MerchantTransferUseCase;
 import com.kori.application.port.out.*;
@@ -98,13 +99,11 @@ public final class MerchantTransferService implements MerchantTransferUseCase {
                     Money totalDebited = amount.plus(fee);
 
                     var platformConfig = platformConfigPort.get().orElseThrow(() -> new ForbiddenOperationException("Platform configuration is missing"));
+                    Money minPerTransaction = Money.of(platformConfig.merchantTransferMinPerTransaction());
+                    TransactionAmountLimitGuard.ensureMinPerTransaction(amount, minPerTransaction, "MERCHANT_TRANSFER");
+
                     Money maxPerTransaction = Money.of(platformConfig.merchantTransferMaxPerTransaction());
-                    if (amount.isGreaterThan(maxPerTransaction)) {
-                        throw new ValidationException("Merchant transfer max per transaction exceeded", Map.of(
-                                "amount", amount.asBigDecimal(),
-                                "maxPerTransaction", maxPerTransaction.asBigDecimal()
-                        ));
-                    }
+                    TransactionAmountLimitGuard.ensureMaxPerTransaction(amount, maxPerTransaction, "MERCHANT_TRANSFER");
 
                     Instant now = timeProviderPort.now();
                     Instant dayStart = ZonedDateTime.ofInstant(now, ZoneOffset.UTC).toLocalDate().atStartOfDay(ZoneOffset.UTC).toInstant();

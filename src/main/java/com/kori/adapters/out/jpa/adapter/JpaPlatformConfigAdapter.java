@@ -27,10 +27,13 @@ public class JpaPlatformConfigAdapter implements PlatformConfigPort {
         return repo.findById(CONFIG_ID)
                 .map(cfg -> new PlatformConfig(
                         cfg.getAgentCashLimitGlobal(),
+                        cfg.getClientTransferMinPerTransaction(),
                         cfg.getClientTransferMaxPerTransaction(),
                         cfg.getClientTransferDailyMax(),
+                        cfg.getMerchantTransferMinPerTransaction(),
                         cfg.getMerchantTransferMaxPerTransaction(),
-                        cfg.getMerchantTransferDailyMax()
+                        cfg.getMerchantTransferDailyMax(),
+                        cfg.getMerchantWithdrawMinPerTransaction()
                 ));
     }
 
@@ -40,10 +43,13 @@ public class JpaPlatformConfigAdapter implements PlatformConfigPort {
         repo.save(new PlatformConfigEntity(
                 CONFIG_ID,
                 config.agentCashLimitGlobal(),
+                config.clientTransferMinPerTransaction(),
                 config.clientTransferMaxPerTransaction(),
                 config.clientTransferDailyMax(),
+                config.merchantTransferMinPerTransaction(),
                 config.merchantTransferMaxPerTransaction(),
-                config.merchantTransferDailyMax()
+                config.merchantTransferDailyMax(),
+                config.merchantWithdrawMinPerTransaction()
         ));
     }
 }
