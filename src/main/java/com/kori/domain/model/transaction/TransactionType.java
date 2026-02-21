@@ -9,7 +9,8 @@ public enum TransactionType {
     REVERSAL,
     CASH_IN_BY_AGENT,
     CLIENT_REFUND,
-    CLIENT_TRANSFER;
+    CLIENT_TRANSFER,
+    MERCHANT_TRANSFER;
 
     public boolean isCashBased() {
         return switch (this) {

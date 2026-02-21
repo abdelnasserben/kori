@@ -78,4 +78,8 @@ public record Transaction(
     public static Transaction clientTransfer(TransactionId id, Money amount, Instant createdAt) {
         return new Transaction(id, TransactionType.CLIENT_TRANSFER, amount, createdAt, null);
     }
+
+    public static Transaction merchantTransfer(TransactionId id, Money amount, Instant createdAt) {
+        return new Transaction(id, TransactionType.MERCHANT_TRANSFER, amount, createdAt, null);
+    }
 }

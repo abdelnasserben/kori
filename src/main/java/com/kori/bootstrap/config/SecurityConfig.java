@@ -105,6 +105,7 @@ public class SecurityConfig {
                         // "ME" endpoints
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/client/me/**").hasRole("CLIENT")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payments/client-transfer").hasRole("CLIENT")
+                        .requestMatchers(HttpMethod.POST, API_VERSION + "/payments/merchant-transfer").hasRole("MERCHANT")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/merchant/me/**").hasRole("MERCHANT")
 
                         // Card admin operations

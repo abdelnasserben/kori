@@ -32,6 +32,9 @@ public class GetFeeConfigService implements GetFeeConfigUseCase {
                 config.clientTransferFeeRate(),
                 config.clientTransferFeeMin(),
                 config.clientTransferFeeMax(),
+                config.merchantTransferFeeRate(),
+                config.merchantTransferFeeMin(),
+                config.merchantTransferFeeMax(),
                 config.cardPaymentFeeRefundable(),
                 config.merchantWithdrawFeeRefundable(),
                 config.cardEnrollmentPriceRefundable()

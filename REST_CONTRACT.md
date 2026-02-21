@@ -186,6 +186,7 @@ sort=-createdAt
 | POST `/payments/merchant-withdraw`   | AGENT    |
 | POST `/payments/cash-in`             | AGENT    |
 | POST `/payments/client-transfer`     | CLIENT   |
+| POST `/payments/merchant-transfer`   | MERCHANT |
 | POST `/payments/agent-bank-deposits` | ADMIN    |
 | POST `/payments/reversals`           | ADMIN    |
 
@@ -221,6 +222,37 @@ Idempotency-Key: 123e4567-e89b-12d3-a456-426614174000
   "totalDebited": 1010
 }
 ```
+
+### Exemple – Transfert M2M
+
+### Request
+
+```http
+POST /payments/merchant-transfer
+Authorization: Bearer <token>
+Idempotency-Key: 123e4567-e89b-12d3-a456-426614174001
+```
+
+```json
+{
+  "recipientMerchantCode": "M-002",
+  "amount": 5000
+}
+```
+
+### Response
+
+```json
+{
+  "transactionId": "TX-67890",
+  "senderMerchantCode": "M-001",
+  "recipientMerchantCode": "M-002",
+  "amount": 5000,
+  "fee": 25,
+  "totalDebited": 5025
+}
+```
+
 
 ---
 
@@ -381,6 +413,7 @@ GET `/backoffice/lookups`
 * `CARD_PAYMENT`
 * `CASH_IN`
 * `CLIENT_TRANSFER`
+* `MERCHANT_TRANSFER`
 * `MERCHANT_WITHDRAW`
 * `REVERSAL`
 * `AGENT_BANK_DEPOSIT`

@@ -28,7 +28,9 @@ public class JpaPlatformConfigAdapter implements PlatformConfigPort {
                 .map(cfg -> new PlatformConfig(
                         cfg.getAgentCashLimitGlobal(),
                         cfg.getClientTransferMaxPerTransaction(),
-                        cfg.getClientTransferDailyMax()
+                        cfg.getClientTransferDailyMax(),
+                        cfg.getMerchantTransferMaxPerTransaction(),
+                        cfg.getMerchantTransferDailyMax()
                 ));
     }
 
@@ -39,7 +41,9 @@ public class JpaPlatformConfigAdapter implements PlatformConfigPort {
                 CONFIG_ID,
                 config.agentCashLimitGlobal(),
                 config.clientTransferMaxPerTransaction(),
-                config.clientTransferDailyMax()
+                config.clientTransferDailyMax(),
+                config.merchantTransferMaxPerTransaction(),
+                config.merchantTransferDailyMax()
         ));
     }
 }

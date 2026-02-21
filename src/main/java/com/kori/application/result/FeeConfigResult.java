@@ -13,6 +13,9 @@ public record FeeConfigResult(
         BigDecimal clientTransferFeeRate,
         BigDecimal clientTransferFeeMin,
         BigDecimal clientTransferFeeMax,
+        BigDecimal merchantTransferFeeRate,
+        BigDecimal merchantTransferFeeMin,
+        BigDecimal merchantTransferFeeMax,
         boolean cardPaymentFeeRefundable,
         boolean merchantWithdrawFeeRefundable,
         boolean cardEnrollmentPriceRefundable

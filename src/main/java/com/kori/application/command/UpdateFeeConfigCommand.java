@@ -17,6 +17,9 @@ public record UpdateFeeConfigCommand(
         BigDecimal clientTransferFeeRate,
         BigDecimal clientTransferFeeMin,
         BigDecimal clientTransferFeeMax,
+        BigDecimal merchantTransferFeeRate,
+        BigDecimal merchantTransferFeeMin,
+        BigDecimal merchantTransferFeeMax,
         boolean cardPaymentFeeRefundable,
         boolean merchantWithdrawFeeRefundable,
         boolean cardEnrollmentPriceRefundable,
@@ -34,6 +37,9 @@ public record UpdateFeeConfigCommand(
             BigDecimal clientTransferFeeRate,
             BigDecimal clientTransferFeeMin,
             BigDecimal clientTransferFeeMax,
+            BigDecimal merchantTransferFeeRate,
+            BigDecimal merchantTransferFeeMin,
+            BigDecimal merchantTransferFeeMax,
             boolean cardPaymentFeeRefundable,
             boolean merchantWithdrawFeeRefundable,
             boolean cardEnrollmentPriceRefundable,
@@ -49,6 +55,9 @@ public record UpdateFeeConfigCommand(
         this.clientTransferFeeRate = Objects.requireNonNull(clientTransferFeeRate, "clientTransferFeeRate");
         this.clientTransferFeeMin = Objects.requireNonNull(clientTransferFeeMin, "clientTransferFeeMin");
         this.clientTransferFeeMax = Objects.requireNonNull(clientTransferFeeMax, "clientTransferFeeMax");
+        this.merchantTransferFeeRate = Objects.requireNonNull(merchantTransferFeeRate, "merchantTransferFeeRate");
+        this.merchantTransferFeeMin = Objects.requireNonNull(merchantTransferFeeMin, "merchantTransferFeeMin");
+        this.merchantTransferFeeMax = Objects.requireNonNull(merchantTransferFeeMax, "merchantTransferFeeMax");
         this.cardPaymentFeeRefundable = cardPaymentFeeRefundable;
         this.merchantWithdrawFeeRefundable = merchantWithdrawFeeRefundable;
         this.cardEnrollmentPriceRefundable = cardEnrollmentPriceRefundable;

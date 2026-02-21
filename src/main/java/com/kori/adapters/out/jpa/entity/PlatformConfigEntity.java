@@ -25,15 +25,25 @@ public class PlatformConfigEntity {
     @Column(name = "client_transfer_daily_max", nullable = false, precision = 19, scale = 2)
     private BigDecimal clientTransferDailyMax;
 
+    @Column(name = "merchant_transfer_max_per_transaction", nullable = false, precision = 19, scale = 2)
+    private BigDecimal merchantTransferMaxPerTransaction;
+
+    @Column(name = "merchant_transfer_daily_max", nullable = false, precision = 19, scale = 2)
+    private BigDecimal merchantTransferDailyMax;
+
     protected PlatformConfigEntity() { }
 
     public PlatformConfigEntity(Integer id,
                                 BigDecimal agentCashLimitGlobal,
                                 BigDecimal clientTransferMaxPerTransaction,
-                                BigDecimal clientTransferDailyMax) {
+                                BigDecimal clientTransferDailyMax,
+                                BigDecimal merchantTransferMaxPerTransaction,
+                                BigDecimal merchantTransferDailyMax) {
         this.id = Objects.requireNonNull(id, "id");
         this.agentCashLimitGlobal = Objects.requireNonNull(agentCashLimitGlobal, "agentCashLimitGlobal");
         this.clientTransferMaxPerTransaction = Objects.requireNonNull(clientTransferMaxPerTransaction, "clientTransferMaxPerTransaction");
         this.clientTransferDailyMax = Objects.requireNonNull(clientTransferDailyMax, "clientTransferDailyMax");
+        this.merchantTransferMaxPerTransaction = Objects.requireNonNull(merchantTransferMaxPerTransaction, "merchantTransferMaxPerTransaction");
+        this.merchantTransferDailyMax = Objects.requireNonNull(merchantTransferDailyMax, "merchantTransferDailyMax");
     }
 }

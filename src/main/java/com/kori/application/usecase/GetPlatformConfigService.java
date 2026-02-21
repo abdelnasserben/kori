@@ -24,7 +24,9 @@ public class GetPlatformConfigService implements GetPlatformConfigUseCase {
         return new PlatformConfigResult(
                 config.agentCashLimitGlobal(),
                 config.clientTransferMaxPerTransaction(),
-                config.clientTransferDailyMax()
+                config.clientTransferDailyMax(),
+                config.merchantTransferMaxPerTransaction(),
+                config.merchantTransferDailyMax()
         );
     }
 }

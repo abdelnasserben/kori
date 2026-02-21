@@ -58,6 +58,9 @@ public class ConfigController {
                 result.clientTransferFeeRate(),
                 result.clientTransferFeeMin(),
                 result.clientTransferFeeMax(),
+                result.merchantTransferFeeRate(),
+                result.merchantTransferFeeMin(),
+                result.merchantTransferFeeMax(),
                 result.cardPaymentFeeRefundable(),
                 result.merchantWithdrawFeeRefundable(),
                 result.cardEnrollmentPriceRefundable()
@@ -82,6 +85,9 @@ public class ConfigController {
                 request.clientTransferFeeRate(),
                 request.clientTransferFeeMin(),
                 request.clientTransferFeeMax(),
+                request.merchantTransferFeeRate(),
+                request.merchantTransferFeeMin(),
+                request.merchantTransferFeeMax(),
                 Boolean.TRUE.equals(request.cardPaymentFeeRefundable()),
                 Boolean.TRUE.equals(request.merchantWithdrawFeeRefundable()),
                 Boolean.TRUE.equals(request.cardEnrollmentPriceRefundable()),
@@ -98,6 +104,9 @@ public class ConfigController {
                 result.clientTransferFeeRate(),
                 result.clientTransferFeeMin(),
                 result.clientTransferFeeMax(),
+                result.merchantTransferFeeRate(),
+                result.merchantTransferFeeMin(),
+                result.merchantTransferFeeMax(),
                 result.cardPaymentFeeRefundable(),
                 result.merchantWithdrawFeeRefundable(),
                 result.cardEnrollmentPriceRefundable()
@@ -145,7 +154,9 @@ public class ConfigController {
         return new UpdatePlatformConfigResponse(
                 result.agentCashLimitGlobal(),
                 result.clientTransferMaxPerTransaction(),
-                result.clientTransferDailyMax()
+                result.clientTransferDailyMax(),
+                result.merchantTransferMaxPerTransaction(),
+                result.merchantTransferDailyMax()
         );
     }
 
@@ -160,12 +171,16 @@ public class ConfigController {
                 request.agentCashLimitGlobal(),
                 request.clientTransferMaxPerTransaction(),
                 request.clientTransferDailyMax(),
+                request.merchantTransferMaxPerTransaction(),
+                request.merchantTransferDailyMax(),
                 request.reason()
         ));
         return new UpdatePlatformConfigResponse(
                 result.agentCashLimitGlobal(),
                 result.clientTransferMaxPerTransaction(),
-                result.clientTransferDailyMax()
+                result.clientTransferDailyMax(),
+                result.merchantTransferMaxPerTransaction(),
+                result.merchantTransferDailyMax()
         );
     }
 }

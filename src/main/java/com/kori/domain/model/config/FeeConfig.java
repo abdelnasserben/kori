@@ -14,6 +14,9 @@ public record FeeConfig(
         BigDecimal clientTransferFeeRate,
         BigDecimal clientTransferFeeMin,
         BigDecimal clientTransferFeeMax,
+        BigDecimal merchantTransferFeeRate,
+        BigDecimal merchantTransferFeeMin,
+        BigDecimal merchantTransferFeeMax,
         boolean cardPaymentFeeRefundable,
         boolean merchantWithdrawFeeRefundable,
         boolean cardEnrollmentPriceRefundable
@@ -29,6 +32,9 @@ public record FeeConfig(
         Objects.requireNonNull(clientTransferFeeRate, "clientTransferFeeRate");
         Objects.requireNonNull(clientTransferFeeMin, "clientTransferFeeMin");
         Objects.requireNonNull(clientTransferFeeMax, "clientTransferFeeMax");
+        Objects.requireNonNull(merchantTransferFeeRate, "merchantTransferFeeRate");
+        Objects.requireNonNull(merchantTransferFeeMin, "merchantTransferFeeMin");
+        Objects.requireNonNull(merchantTransferFeeMax, "merchantTransferFeeMax");
     }
 
     public FeeConfig(
@@ -41,7 +47,10 @@ public record FeeConfig(
             BigDecimal merchantWithdrawFeeMax,
             BigDecimal clientTransferFeeRate,
             BigDecimal clientTransferFeeMin,
-            BigDecimal clientTransferFeeMax
+            BigDecimal clientTransferFeeMax,
+            BigDecimal merchantTransferFeeRate,
+            BigDecimal merchantTransferFeeMin,
+            BigDecimal merchantTransferFeeMax
     ) {
         this(
                 cardEnrollmentPrice,
@@ -54,6 +63,9 @@ public record FeeConfig(
                 clientTransferFeeRate,
                 clientTransferFeeMin,
                 clientTransferFeeMax,
+                merchantTransferFeeRate,
+                merchantTransferFeeMin,
+                merchantTransferFeeMax,
                 false,
                 false,
                 false

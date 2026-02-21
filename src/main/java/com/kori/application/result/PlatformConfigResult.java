@@ -5,6 +5,8 @@ import java.math.BigDecimal;
 public record PlatformConfigResult(
         BigDecimal agentCashLimitGlobal,
         BigDecimal clientTransferMaxPerTransaction,
-        BigDecimal clientTransferDailyMax
+        BigDecimal clientTransferDailyMax,
+        BigDecimal merchantTransferMaxPerTransaction,
+        BigDecimal merchantTransferDailyMax
 ) {
 }

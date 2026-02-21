@@ -25,6 +25,7 @@ public class PaymentController {
     private final CashInByAgentUseCase cashInByAgentUseCase;
     private final AdminReceiptAgentBankDepositUseCase adminReceiptAgentBankDepositUseCase;
     private final ClientTransferUseCase clientTransferUseCase;
+    private final MerchantTransferUseCase merchantTransferUseCase;
     private final ReversalUseCase reversalUseCase;
     private final IdempotencyRequestHasher idempotencyRequestHasher;
 
@@ -33,6 +34,7 @@ public class PaymentController {
                              CashInByAgentUseCase cashInByAgentUseCase,
                              AdminReceiptAgentBankDepositUseCase adminReceiptAgentBankDepositUseCase,
                              ClientTransferUseCase clientTransferUseCase,
+                             MerchantTransferUseCase merchantTransferUseCase,
                              ReversalUseCase reversalUseCase,
                              IdempotencyRequestHasher idempotencyRequestHasher) {
         this.payByCardUseCase = payByCardUseCase;
@@ -40,6 +42,7 @@ public class PaymentController {
         this.cashInByAgentUseCase = cashInByAgentUseCase;
         this.adminReceiptAgentBankDepositUseCase = adminReceiptAgentBankDepositUseCase;
         this.clientTransferUseCase = clientTransferUseCase;
+        this.merchantTransferUseCase = merchantTransferUseCase;
         this.reversalUseCase = reversalUseCase;
         this.idempotencyRequestHasher = idempotencyRequestHasher;
     }
@@ -183,6 +186,33 @@ public class PaymentController {
         );
     }
 
+    @PostMapping("/merchant-transfer")
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Merchant M2M transfer")
+    @IdempotentOperation
+    public MerchantTransferResponse merchantTransfer(
+            @RequestHeader(ApiHeaders.IDEMPOTENCY_KEY) String idempotencyKey,
+            ActorContext actorContext,
+            @Valid @RequestBody MerchantTransferRequest request
+    ) {
+        var result = merchantTransferUseCase.execute(
+                new MerchantTransferCommand(
+                        idempotencyKey,
+                        idempotencyRequestHasher.hashPayload(request),
+                        actorContext,
+                        request.recipientMerchantCode(),
+                        request.amount()
+                )
+        );
+        return new MerchantTransferResponse(
+                result.transactionId(),
+                result.senderMerchantCode(),
+                result.recipientMerchantCode(),
+                result.amount(),
+                result.fee(),
+                result.totalDebited()
+        );
+    }
 
     @PostMapping("/reversals")
     @ResponseStatus(HttpStatus.CREATED)

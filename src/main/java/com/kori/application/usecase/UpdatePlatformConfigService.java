@@ -45,7 +45,9 @@ public class UpdatePlatformConfigService implements UpdatePlatformConfigUseCase 
         PlatformConfig updated = new PlatformConfig(
                 cmd.agentCashLimitGlobal(),
                 cmd.clientTransferMaxPerTransaction(),
-                cmd.clientTransferDailyMax()
+                cmd.clientTransferDailyMax(),
+                cmd.merchantTransferMaxPerTransaction(),
+                cmd.merchantTransferDailyMax()
         );
         platformConfigPort.upsert(updated);
 
@@ -55,10 +57,14 @@ public class UpdatePlatformConfigService implements UpdatePlatformConfigUseCase 
         metadata.put("agentCashLimitGlobal", cmd.agentCashLimitGlobal().toPlainString());
         metadata.put("clientTransferMaxPerTransaction", cmd.clientTransferMaxPerTransaction().toPlainString());
         metadata.put("clientTransferDailyMax", cmd.clientTransferDailyMax().toPlainString());
+        metadata.put("merchantTransferMaxPerTransaction", cmd.merchantTransferMaxPerTransaction().toPlainString());
+        metadata.put("merchantTransferDailyMax", cmd.merchantTransferDailyMax().toPlainString());
         previous.ifPresent(cfg -> {
             metadata.put("previousAgentCashLimitGlobal", cfg.agentCashLimitGlobal().toPlainString());
             metadata.put("previousClientTransferMaxPerTransaction", cfg.clientTransferMaxPerTransaction().toPlainString());
             metadata.put("previousClientTransferDailyMax", cfg.clientTransferDailyMax().toPlainString());
+            metadata.put("previousMerchantTransferMaxPerTransaction", cfg.merchantTransferMaxPerTransaction().toPlainString());
+            metadata.put("previousMerchantTransferDailyMax", cfg.merchantTransferDailyMax().toPlainString());
         });
 
         auditPort.publish(AuditBuilder.buildBasicAudit(
@@ -71,7 +77,9 @@ public class UpdatePlatformConfigService implements UpdatePlatformConfigUseCase 
         return new PlatformConfigResult(
                 cmd.agentCashLimitGlobal(),
                 cmd.clientTransferMaxPerTransaction(),
-                cmd.clientTransferDailyMax()
+                cmd.clientTransferDailyMax(),
+                cmd.merchantTransferMaxPerTransaction(),
+                cmd.merchantTransferDailyMax()
         );
     }
 
@@ -80,9 +88,17 @@ public class UpdatePlatformConfigService implements UpdatePlatformConfigUseCase 
         validateNonNegative(cmd.agentCashLimitGlobal(), "agentCashLimitGlobal", errors);
         validateNonNegative(cmd.clientTransferMaxPerTransaction(), "clientTransferMaxPerTransaction", errors);
         validateNonNegative(cmd.clientTransferDailyMax(), "clientTransferDailyMax", errors);
+        validateNonNegative(cmd.merchantTransferMaxPerTransaction(), "merchantTransferMaxPerTransaction", errors);
+        validateNonNegative(cmd.merchantTransferDailyMax(), "merchantTransferDailyMax", errors);
+
         if (cmd.clientTransferDailyMax().compareTo(cmd.clientTransferMaxPerTransaction()) < 0) {
             errors.put("clientTransferDailyMax", "must be >= clientTransferMaxPerTransaction");
         }
+
+        if (cmd.merchantTransferDailyMax().compareTo(cmd.merchantTransferMaxPerTransaction()) < 0) {
+            errors.put("merchantTransferDailyMax", "must be >= merchantTransferMaxPerTransaction");
+        }
+
         if (!errors.isEmpty()) {
             throw new ValidationException("Invalid platform configuration", errors);
         }

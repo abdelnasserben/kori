@@ -136,6 +136,9 @@ public final class Responses {
             BigDecimal clientTransferFeeRate,
             BigDecimal clientTransferFeeMin,
             BigDecimal clientTransferFeeMax,
+            BigDecimal merchantTransferFeeRate,
+            BigDecimal merchantTransferFeeMin,
+            BigDecimal merchantTransferFeeMax,
             boolean cardPaymentFeeRefundable,
             boolean merchantWithdrawFeeRefundable,
             boolean cardEnrollmentPriceRefundable
@@ -151,7 +154,9 @@ public final class Responses {
     public record UpdatePlatformConfigResponse(
             BigDecimal agentCashLimitGlobal,
             BigDecimal clientTransferMaxPerTransaction,
-            BigDecimal clientTransferDailyMax
+            BigDecimal clientTransferDailyMax,
+            BigDecimal merchantTransferMaxPerTransaction,
+            BigDecimal merchantTransferDailyMax
     ) {}
 
     public record ClientTransferResponse(
@@ -159,6 +164,15 @@ public final class Responses {
             String senderClientCode,
             String recipientClientCode,
             String recipientPhoneNumber,
+            BigDecimal amount,
+            BigDecimal fee,
+            BigDecimal totalDebited
+    ) {}
+
+    public record MerchantTransferResponse(
+            String transactionId,
+            String senderMerchantCode,
+            String recipientMerchantCode,
             BigDecimal amount,
             BigDecimal fee,
             BigDecimal totalDebited

@@ -280,7 +280,42 @@ public class ApplicationWiringConfig {
     }
 
     @Bean
-    public AdminReceiptAgentBankDepositUseCase agentBankDepositReceiptUseCase(
+    public MerchantTransferUseCase merchantTransferUseCase(
+            PlatformTransactionManager transactionManager,
+            TimeProviderPort timeProviderPort,
+            IdempotencyPort idempotencyPort,
+            IdGeneratorPort idGeneratorPort,
+            MerchantRepositoryPort merchantRepositoryPort,
+            TransactionRepositoryPort transactionRepositoryPort,
+            FeePolicyPort feePolicyPort,
+            PlatformConfigPort platformConfigPort,
+            LedgerAppendPort ledgerAppendPort,
+            LedgerQueryPort ledgerQueryPort,
+            LedgerAccountLockPort ledgerAccountLockPort,
+            AuditPort auditPort,
+            OperationAuthorizationService operationAuthorizationService
+    ) {
+        var useCase = new MerchantTransferService(
+                timeProviderPort,
+                idempotencyPort,
+                idGeneratorPort,
+                merchantRepositoryPort,
+                transactionRepositoryPort,
+                feePolicyPort,
+                platformConfigPort,
+                ledgerAppendPort,
+                ledgerQueryPort,
+                ledgerAccountLockPort,
+                auditPort,
+                operationAuthorizationService
+        );
+
+        var transactionTemplate = new TransactionTemplate(transactionManager);
+        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
+    }
+
+    @Bean
+    public AdminReceiptAgentBankDepositUseCase adminReceiptAgentBankDepositUseCase(
             PlatformTransactionManager transactionManager,
             AdminAccessService adminAccessService,
             TimeProviderPort timeProviderPort,

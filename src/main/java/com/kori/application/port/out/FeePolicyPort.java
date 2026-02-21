@@ -10,4 +10,6 @@ public interface FeePolicyPort {
     Money merchantWithdrawFee(Money amount);
 
     Money clientTransferFee(Money amount);
+
+    Money merchantTransferFee(Money amount);
 }
