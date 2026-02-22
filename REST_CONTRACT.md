@@ -392,6 +392,8 @@ GET :
 * `/backoffice/agents`
 * `/backoffice/clients`
 * `/backoffice/merchants`
+* `/backoffice/terminals`
+* `/backoffice/admins`
 * `/backoffice/actors/{actorType}/{actorRef}`
 
 ---

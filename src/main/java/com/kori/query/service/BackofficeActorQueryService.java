@@ -30,4 +30,14 @@ public class BackofficeActorQueryService implements BackofficeActorQueryUseCase 
     public QueryPage<BackofficeActorItem> listMerchants(BackofficeActorQuery query) {
         return readPort.listMerchants(query);
     }
+
+    @Override
+    public QueryPage<BackofficeActorItem> listTerminals(BackofficeActorQuery query) {
+        return readPort.listTerminals(query);
+    }
+
+    @Override
+    public QueryPage<BackofficeActorItem> listAdmins(BackofficeActorQuery query) {
+        return readPort.listAdmins(query);
+    }
 }

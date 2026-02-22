@@ -38,6 +38,16 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
         return list(query, "merchants", "code");
     }
 
+    @Override
+    public QueryPage<BackofficeActorItem> listTerminals(BackofficeActorQuery query) {
+        return list(query, "terminals", "uid");
+    }
+
+    @Override
+    public QueryPage<BackofficeActorItem> listAdmins(BackofficeActorQuery query) {
+        return list(query, "admins", "username");
+    }
+
     private QueryPage<BackofficeActorItem> list(BackofficeActorQuery query, String table, String actorRefField) {
         int limit = QueryInputValidator.normalizeLimit(query.limit(), 20, 100);
         var cursor = codec.decode(query.cursor());

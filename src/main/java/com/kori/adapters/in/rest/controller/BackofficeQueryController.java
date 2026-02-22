@@ -180,6 +180,32 @@ public class BackofficeQueryController {
         return toActorResponse(actorQueryUseCase.listMerchants(new BackofficeActorQuery(query, status, createdFrom, createdTo, limit, cursor, sort)));
     }
 
+    @GetMapping("/terminals")
+    public BackofficeResponses.ListResponse<BackofficeResponses.ActorItem> listTerminals(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant createdFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant createdTo,
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) String sort
+    ) {
+        return toActorResponse(actorQueryUseCase.listTerminals(new BackofficeActorQuery(query, status, createdFrom, createdTo, limit, cursor, sort)));
+    }
+
+    @GetMapping("/admins")
+    public BackofficeResponses.ListResponse<BackofficeResponses.ActorItem> listAdmins(
+            @RequestParam(required = false) String query,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant createdFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant createdTo,
+            @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false) String cursor,
+            @RequestParam(required = false) String sort
+    ) {
+        return toActorResponse(actorQueryUseCase.listAdmins(new BackofficeActorQuery(query, status, createdFrom, createdTo, limit, cursor, sort)));
+    }
+
     @GetMapping("/actors/{actorType}/{actorRef}")
     public BackofficeResponses.ActorDetails getActor(@PathVariable String actorType, @PathVariable String actorRef) {
         var d = switch (actorType.toUpperCase()) {

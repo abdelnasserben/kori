@@ -117,6 +117,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/agents").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/clients").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/merchants").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/terminals").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/admins").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/actors/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/lookups").hasRole("ADMIN")
 
