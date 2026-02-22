@@ -14,7 +14,7 @@ Ce document décrit l’ensemble des endpoints exposés par l’API `v1`, les r�
 
 Endpoints publics :
 
-* `/v3/api-docs/**`
+* `/api-docs/**`
 * `/swagger-ui/**`
 * `/actuator/health/**`
 

@@ -40,7 +40,7 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
 
     @Override
     public QueryPage<BackofficeActorItem> listTerminals(BackofficeActorQuery query) {
-        return list(query, "terminals", "uid");
+        return list(query, "terminals", "terminal_uid");
     }
 
     @Override
