@@ -1,4 +1,4 @@
-package com.kori.bootstrap.config;
+package com.kori.bootstrap;
 
 import com.kori.application.handler.OnAgentStatusChangedHandler;
 import com.kori.application.handler.OnClientStatusChangedHandler;

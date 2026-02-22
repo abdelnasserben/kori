@@ -1,4 +1,4 @@
-package com.kori.bootstrap.config;
+package com.kori.bootstrap;
 
 import com.kori.adapters.in.rest.ActorContextArgumentResolver;
 import com.kori.application.security.ActorContextClaimsExtractor;

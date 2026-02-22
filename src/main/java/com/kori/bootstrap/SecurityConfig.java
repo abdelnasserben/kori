@@ -1,8 +1,9 @@
-package com.kori.bootstrap.config;
+package com.kori.bootstrap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.kori.adapters.in.rest.error.SecurityAccessDeniedHandler;
 import com.kori.adapters.in.rest.error.SecurityAuthenticationEntryPoint;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -12,7 +13,14 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.jwt.JwtDecoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 
@@ -25,6 +33,7 @@ import java.util.stream.Stream;
 public class SecurityConfig {
 
     private static final String API_VERSION = "/api/v1";
+    private static final String API_AUDIENCE = "kori-api";
 
     @Bean
     SecurityFilterChain securityFilterChain(
@@ -45,7 +54,6 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(
                                 "/api-docs/**",
-                                "/v3/api-docs/**",
                                 "/swagger-ui/**",
                                 "/swagger-ui.html",
                                 "/actuator/health/**"
@@ -54,25 +62,39 @@ public class SecurityConfig {
                         // Admin endpoints
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/admins").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/admins/*/status").hasRole("ADMIN")
+
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/agents").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/agents/*/status").hasRole("ADMIN")
+
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/merchants").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/merchants/*/status").hasRole("ADMIN")
+
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/terminals").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/terminals/*/status").hasRole("ADMIN")
+
                         .requestMatchers(HttpMethod.PATCH, API_VERSION + "/clients/*/status").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, API_VERSION + "/account-profiles/status").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, API_VERSION + "/config/fees").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, API_VERSION + "/config/commissions").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.PATCH, API_VERSION + "/config/platform").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/client-refunds/requests").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/client-refunds/*/complete").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/client-refunds/*/fail").hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.PATCH, API_VERSION + "/account-profiles/status").hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/config/fees").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, API_VERSION + "/config/fees").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/config/commissions").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, API_VERSION + "/config/commissions").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/config/platform").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.PATCH, API_VERSION + "/config/platform").hasRole("ADMIN")
+
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payments/agent-bank-deposits").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payments/reversals").hasRole("ADMIN")
+
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payouts/requests").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payouts/*/complete").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payouts/*/fail").hasRole("ADMIN")
+
+                        .requestMatchers(HttpMethod.PATCH, API_VERSION + "/cards/*/status/admin").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.POST, API_VERSION + "/cards/*/unblock").hasRole("ADMIN")
 
                         // Agent endpoints
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/cards/enroll").hasRole("AGENT")
@@ -98,7 +120,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/actors/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/lookups").hasRole("ADMIN")
 
-                        // Agent endpoints
+                        // Agent "me" endpoints
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/agent/me/**").hasRole("AGENT")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/agent/search").hasRole("AGENT")
 
@@ -108,14 +130,25 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, API_VERSION + "/payments/merchant-transfer").hasRole("MERCHANT")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/merchant/me/**").hasRole("MERCHANT")
 
-                        // Card admin operations
-                        .requestMatchers(HttpMethod.PATCH, API_VERSION + "/cards/*/status/admin").hasRole("ADMIN")
-                        .requestMatchers(HttpMethod.POST, API_VERSION + "/cards/*/unblock").hasRole("ADMIN")
-
                         .anyRequest().denyAll()
                 )
                 .oauth2ResourceServer(oauth2 -> oauth2.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())))
                 .build();
+    }
+
+    @Bean
+    JwtDecoder jwtDecoder(@Value("${spring.security.oauth2.resourceserver.jwt.issuer-uri}") String issuerUri) {
+        NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withIssuerLocation(issuerUri).build();
+        OAuth2TokenValidator<Jwt> audienceValidator = jwt -> {
+            List<String> audiences = jwt.getAudience();
+            if (audiences != null && audiences.contains(API_AUDIENCE)) {
+                return OAuth2TokenValidatorResult.success();
+            }
+            return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "The required audience is missing", null));
+        };
+        OAuth2TokenValidator<Jwt> withIssuer = JwtValidators.createDefaultWithIssuer(issuerUri);
+        jwtDecoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(withIssuer, audienceValidator));
+        return jwtDecoder;
     }
 
     @Bean
@@ -132,7 +165,8 @@ public class SecurityConfig {
         var authenticationConverter = new JwtAuthenticationConverter();
         authenticationConverter.setJwtGrantedAuthoritiesConverter(jwt -> {
             Set<GrantedAuthority> merged = new LinkedHashSet<>();
-            merged.addAll(extractRealmRoles(jwt)); // <-- Keycloak realm roles: realm_access.roles
+            merged.addAll(extractRealmRoles(jwt));
+            merged.addAll(extractClientRoles(jwt));
             return merged;
         });
         return authenticationConverter;
@@ -141,6 +175,22 @@ public class SecurityConfig {
     private Collection<? extends GrantedAuthority> extractRealmRoles(Jwt jwt) {
         Map<String, Object> realmAccess = jwt.getClaim("realm_access");
         return toAuthorities(extractRolesFromAccessMap(realmAccess));
+    }
+
+    private Collection<? extends GrantedAuthority> extractClientRoles(Jwt jwt) {
+        Map<String, Object> resourceAccess = jwt.getClaim("resource_access");
+        if (resourceAccess == null) {
+            return List.of();
+        }
+
+        Object clientAccess = resourceAccess.get(API_AUDIENCE);
+        if (!(clientAccess instanceof Map<?, ?> clientAccessMap)) {
+            return List.of();
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> typedAccessMap = (Map<String, Object>) clientAccessMap;
+        return toAuthorities(extractRolesFromAccessMap(typedAccessMap));
     }
 
     private Collection<String> extractRolesFromAccessMap(Map<String, Object> accessMap) {

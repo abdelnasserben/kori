@@ -1,4 +1,4 @@
-package com.kori.bootstrap.config;
+package com.kori.bootstrap;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
