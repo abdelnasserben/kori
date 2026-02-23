@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -76,7 +77,7 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
             sql.append(desc
                     ? " AND (occurred_at < :cursorCreatedAt OR (occurred_at = :cursorCreatedAt AND id::text < :cursorRef))"
                     : " AND (occurred_at > :cursorCreatedAt OR (occurred_at = :cursorCreatedAt AND id::text > :cursorRef))");
-            params.addValue("cursorCreatedAt", cursor.createdAt());
+            params.addValue("cursorCreatedAt", Timestamp.from(cursor.createdAt()));
             params.addValue("cursorRef", cursor.ref());
         }
         sql.append(" ORDER BY occurred_at ").append(desc ? "DESC" : "ASC").append(", id ").append(desc ? "DESC" : "ASC").append(" LIMIT :limit");
