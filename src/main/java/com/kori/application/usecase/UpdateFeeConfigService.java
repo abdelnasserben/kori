@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 
 public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
+    private static final BigDecimal HUNDRED = new BigDecimal("100");
 
     private final AdminAccessService adminAccessService;
     private final FeeConfigPort feeConfigPort;
@@ -166,8 +167,8 @@ public class UpdateFeeConfigService implements UpdateFeeConfigUseCase {
     }
 
     private void validateRate(BigDecimal rate, String field, Map<String, Object> errors) {
-        if (rate.compareTo(BigDecimal.ZERO) < 0 || rate.compareTo(BigDecimal.ONE) > 0) {
-            errors.put(field, "must be between 0 and 1");
+        if (rate.compareTo(BigDecimal.ZERO) < 0 || rate.compareTo(HUNDRED) > 0) {
+            errors.put(field, "must be between 0 and 100");
         }
     }
 

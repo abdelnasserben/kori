@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Optional;
 
 public class UpdateCommissionConfigService implements UpdateCommissionConfigUseCase {
+    private static final BigDecimal HUNDRED = new BigDecimal("100");
 
     private final AdminAccessService adminAccessService;
     private final CommissionConfigPort commissionConfigPort;
@@ -117,8 +118,8 @@ public class UpdateCommissionConfigService implements UpdateCommissionConfigUseC
     }
 
     private void validateRate(BigDecimal rate, Map<String, Object> errors) {
-        if (rate.compareTo(BigDecimal.ZERO) < 0 || rate.compareTo(BigDecimal.ONE) > 0) {
-            errors.put("merchantWithdrawCommissionRate", "must be between 0 and 1");
+        if (rate.compareTo(BigDecimal.ZERO) < 0 || rate.compareTo(HUNDRED) > 0) {
+            errors.put("merchantWithdrawCommissionRate", "must be between 0 and 100");
         }
     }
 
