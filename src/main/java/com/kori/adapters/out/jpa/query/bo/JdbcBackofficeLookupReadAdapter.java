@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.sql.Types;
 import java.util.List;
 
 @Component
@@ -102,7 +103,11 @@ public class JdbcBackofficeLookupReadAdapter implements BackofficeLookupReadPort
                 """;
 
         var params = new MapSqlParameterSource()
-                .addValue("type", query.type() == null || query.type().isBlank() ? null : query.type())
+                .addValue(
+                        "type",
+                        query.type() == null || query.type().isBlank() ? null : query.type(),
+                        Types.VARCHAR
+                )
                 .addValue("exactQ", query.q())
                 .addValue("containsQ", "%" + query.q() + "%")
                 .addValue("limit", query.limit());
