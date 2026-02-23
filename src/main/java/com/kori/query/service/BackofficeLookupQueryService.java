@@ -16,7 +16,15 @@ public class BackofficeLookupQueryService implements BackofficeLookupQueryUseCas
     private static final int DEFAULT_LIMIT = 10;
     private static final int MAX_LIMIT = 50;
     private static final int MIN_Q_LENGTH = 2;
-    private static final Set<String> SUPPORTED_TYPES = Set.of("CLIENT_PHONE", "CARD_UID", "TERMINAL_ID", "TRANSACTION_ID", "MERCHANT_CODE", "AGENT_CODE");
+    private static final Set<String> SUPPORTED_TYPES = Set.of(
+            "CLIENT_CODE",
+            "CARD_UID",
+            "TERMINAL_UID",
+            "TRANSACTION_REF",
+            "MERCHANT_CODE",
+            "AGENT_CODE",
+            "ADMIN_USERNAME"
+    );
 
     private final BackofficeLookupReadPort readPort;
 
@@ -31,12 +39,15 @@ public class BackofficeLookupQueryService implements BackofficeLookupQueryUseCas
             throw new ValidationException("q must be at least 2 characters", Map.of("field", "q"));
         }
 
-        Integer limit = query.limit() == null ? DEFAULT_LIMIT : query.limit();
+        int limit = query.limit() == null ? DEFAULT_LIMIT : query.limit();
         if (limit < 1 || limit > MAX_LIMIT) {
             throw new ValidationException("limit must be between 1 and " + MAX_LIMIT, Map.of("field", "limit", "maxLimit", MAX_LIMIT));
         }
 
         String type = query.type();
+        if (type != null) {
+            type = type.trim().toUpperCase();
+        }
         if (type != null && !type.isBlank() && !SUPPORTED_TYPES.contains(type)) {
             throw new ValidationException("Unsupported lookup type", Map.of("field", "type"));
         }
