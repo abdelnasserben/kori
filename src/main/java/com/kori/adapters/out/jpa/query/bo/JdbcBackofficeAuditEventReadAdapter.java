@@ -67,11 +67,11 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
         }
         if (query.from() != null) {
             sql.append(" AND occurred_at >= :from");
-            params.addValue("from", query.from());
+            params.addValue("from", Timestamp.from(query.from()));
         }
         if (query.to() != null) {
             sql.append(" AND occurred_at <= :to");
-            params.addValue("to", query.to());
+            params.addValue("to", Timestamp.from(query.to()));
         }
         if (cursor != null) {
             sql.append(desc

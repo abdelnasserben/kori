@@ -147,11 +147,11 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
         }
         if (q.from() != null) {
             sql.append(" AND t.created_at >= :from");
-            p.addValue("from", q.from());
+            p.addValue("from", Timestamp.from(q.from()));
         }
         if (q.to() != null) {
             sql.append(" AND t.created_at <= :to");
-            p.addValue("to", q.to());
+            p.addValue("to", Timestamp.from(q.to()));
         }
         if (q.min() != null) {
             sql.append(" AND t.amount >= :min");

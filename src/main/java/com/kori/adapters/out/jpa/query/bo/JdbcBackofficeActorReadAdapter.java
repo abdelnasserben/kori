@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -65,17 +66,17 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
         }
         if (query.createdFrom() != null) {
             sql.append(" AND created_at >= :from");
-            params.addValue("from", query.createdFrom());
+            params.addValue("from", Timestamp.from(query.createdFrom()));
         }
         if (query.createdTo() != null) {
             sql.append(" AND created_at <= :to");
-            params.addValue("to", query.createdTo());
+            params.addValue("to", Timestamp.from(query.createdTo()));
         }
         if (cursor != null) {
             sql.append(desc
                     ? " AND (created_at < :cursorCreatedAt OR (created_at = :cursorCreatedAt AND " + actorRefField + " < :cursorRef))"
                     : " AND (created_at > :cursorCreatedAt OR (created_at = :cursorCreatedAt AND " + actorRefField + " > :cursorRef))");
-            params.addValue("cursorCreatedAt", cursor.createdAt());
+            params.addValue("cursorCreatedAt", Timestamp.from(cursor.createdAt()));
             params.addValue("cursorRef", cursor.ref());
         }
         sql.append(" ORDER BY created_at ").append(desc ? "DESC" : "ASC").append(", ").append(actorRefField).append(desc ? " DESC" : " ASC");
