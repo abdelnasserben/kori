@@ -84,6 +84,7 @@ public final class BackofficeResponses {
 
     public record ActorItem(
             String actorRef,
+            String displayName,
             String status,
             Instant createdAt
     ) {}

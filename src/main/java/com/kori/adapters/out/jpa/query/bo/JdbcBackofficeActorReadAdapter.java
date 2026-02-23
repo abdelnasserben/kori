@@ -53,7 +53,7 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
         var cursor = codec.decode(query.cursor());
         boolean desc = QueryInputValidator.resolveSort(query.sort(), "createdAt");
 
-        StringBuilder sql = new StringBuilder("SELECT " + actorRefField + " AS actor_ref, status, created_at FROM " + table + " WHERE 1=1");
+        StringBuilder sql = new StringBuilder("SELECT " + actorRefField + " AS actor_ref, display_name, status, created_at FROM " + table + " WHERE 1=1");
         var params = new MapSqlParameterSource();
         if (query.query() != null && !query.query().isBlank()) {
             sql.append(" AND ").append(actorRefField).append(" ILIKE :q");
@@ -84,6 +84,7 @@ public class JdbcBackofficeActorReadAdapter implements BackofficeActorReadPort {
 
         List<BackofficeActorItem> rows = jdbcTemplate.query(sql.toString(), params, (rs, i) -> new BackofficeActorItem(
                 rs.getString("actor_ref"),
+                rs.getString("display_name"),
                 rs.getString("status"),
                 rs.getTimestamp("created_at").toInstant()
         ));

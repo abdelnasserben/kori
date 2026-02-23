@@ -248,7 +248,7 @@ public class BackofficeQueryController {
     private BackofficeResponses.ListResponse<BackofficeResponses.ActorItem> toActorResponse(QueryPage<BackofficeActorItem> result) {
         return new BackofficeResponses.ListResponse<>(
                 result.items().stream().map(i ->
-                        new BackofficeResponses.ActorItem(i.actorRef(), i.status(), i.createdAt())).toList(),
+                        new BackofficeResponses.ActorItem(i.actorRef(), i.displayName(), i.status(), i.createdAt())).toList(),
                 new BackofficeResponses.CursorPage(result.nextCursor(), result.hasMore())
         );
     }
