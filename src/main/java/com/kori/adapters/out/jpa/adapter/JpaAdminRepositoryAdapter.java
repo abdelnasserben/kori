@@ -6,6 +6,7 @@ import com.kori.application.port.out.AdminRepositoryPort;
 import com.kori.domain.model.admin.Admin;
 import com.kori.domain.model.admin.AdminId;
 import com.kori.domain.model.admin.AdminUsername;
+import com.kori.domain.model.common.DisplayName;
 import com.kori.domain.model.common.Status;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,6 +30,7 @@ public class JpaAdminRepositoryAdapter implements AdminRepositoryPort {
                 .map(entity -> new Admin(
                         new AdminId(entity.getId()),
                         AdminUsername.of(entity.getUsername()),
+                        DisplayName.ofNullable(entity.getDisplayName()),
                         Status.valueOf(entity.getStatus()),
                         entity.getCreatedAt()
                 ));
@@ -39,6 +41,7 @@ public class JpaAdminRepositoryAdapter implements AdminRepositoryPort {
         repo.save(new AdminEntity(
                 admin.id().value(),
                 admin.username().value(),
+                admin.displayName() == null ? null : admin.displayName().value(),
                 admin.status().name(),
                 admin.createdAt()
         ));
@@ -51,6 +54,7 @@ public class JpaAdminRepositoryAdapter implements AdminRepositoryPort {
                 .map(entity -> new Admin(
                         new AdminId(entity.getId()),
                         AdminUsername.of(entity.getUsername()),
+                        DisplayName.ofNullable(entity.getDisplayName()),
                         Status.valueOf(entity.getStatus()),
                         entity.getCreatedAt()
                 ));

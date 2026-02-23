@@ -11,6 +11,7 @@ import com.kori.application.port.in.CreateTerminalUseCase;
 import com.kori.application.port.out.*;
 import com.kori.application.result.CreateTerminalResult;
 import com.kori.application.utils.AuditBuilder;
+import com.kori.domain.model.common.DisplayName;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
@@ -57,16 +58,16 @@ public class CreateTerminalService implements CreateTerminalUseCase {
                     var actorContext = command.actorContext();
                     adminAccessService.requireActiveAdmin(actorContext, "create a terminal.");
 
-                    // Merchant
                     Merchant merchant = merchantRepositoryPort.findByCode(MerchantCode.of(command.merchantCode()))
                             .orElseThrow(() -> new NotFoundException("Merchant not found"));
                     ActorStatusGuards.requireActiveMerchant(merchant);
 
                     Instant now = timeProviderPort.now();
 
+                    DisplayName displayName = DisplayName.ofNullable(command.displayName());
                     TerminalId terminalId = new TerminalId(idGeneratorPort.newUuid());
                     TerminalUid terminalUid = generateUniqueTerminalUid();
-                    Terminal terminal = new Terminal(terminalId, terminalUid, merchant.id(), Status.ACTIVE, now);
+                    Terminal terminal = new Terminal(terminalId, terminalUid, merchant.id(), displayName, Status.ACTIVE, now);
                     terminalRepositoryPort.save(terminal);
 
                     Map<String, String> metadata = new HashMap<>();
@@ -80,7 +81,7 @@ public class CreateTerminalService implements CreateTerminalUseCase {
                             metadata
                     ));
 
-                    return new CreateTerminalResult(terminalUid.value(), command.merchantCode());
+                    return new CreateTerminalResult(terminalUid.value(), command.merchantCode(), terminal.display());
                 }
         );
     }
@@ -89,8 +90,7 @@ public class CreateTerminalService implements CreateTerminalUseCase {
         for (int i = 0; i < MAX_CODE_GENERATION_ATTEMPTS; i++) {
             Random random = new Random();
             String suffix = new BigInteger(50, random).toString(36).toUpperCase();
-            TerminalUid.of("T-" + suffix);
-            TerminalUid candidate = TerminalUid.of("T-" + suffix);;
+            TerminalUid candidate = TerminalUid.of("T-" + suffix);
             if (!terminalRepositoryPort.existsByUid(candidate)) {
                 return candidate;
             }

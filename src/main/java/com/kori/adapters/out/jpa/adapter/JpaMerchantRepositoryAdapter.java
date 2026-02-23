@@ -3,6 +3,7 @@ package com.kori.adapters.out.jpa.adapter;
 import com.kori.adapters.out.jpa.entity.MerchantEntity;
 import com.kori.adapters.out.jpa.repo.MerchantJpaRepository;
 import com.kori.application.port.out.MerchantRepositoryPort;
+import com.kori.domain.model.common.DisplayName;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
@@ -34,6 +35,7 @@ public class JpaMerchantRepositoryAdapter implements MerchantRepositoryPort {
         repo.save(new MerchantEntity(
                 merchant.id().value(),
                 merchant.code().value(),
+                merchant.displayName() == null ? null : merchant.displayName().value(),
                 merchant.status().name(),
                 merchant.createdAt()
         ));
@@ -55,6 +57,7 @@ public class JpaMerchantRepositoryAdapter implements MerchantRepositoryPort {
         return new Merchant(
                 new MerchantId(e.getId()),
                 MerchantCode.of(e.getCode()),
+                DisplayName.ofNullable(e.getDisplayName()),
                 Status.valueOf(e.getStatus()),
                 e.getCreatedAt()
         );

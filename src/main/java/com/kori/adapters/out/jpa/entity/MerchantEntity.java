@@ -25,6 +25,9 @@ public class MerchantEntity {
     @Column(nullable = false, updatable = false, length = 16, unique = true)
     private String code;
 
+    @Column(name = "display_name", length = 120)
+    private String displayName;
+
     @Column(nullable = false, length = 16)
     private String status;
 
@@ -33,9 +36,10 @@ public class MerchantEntity {
 
     protected MerchantEntity() {}
 
-    public MerchantEntity(UUID id, String code, String status, Instant createdAt) {
+    public MerchantEntity(UUID id, String code, String displayName, String status, Instant createdAt) {
         this.id = id;
         this.code = code;
+        this.displayName = displayName;
         this.status = status;
         this.createdAt = createdAt;
     }

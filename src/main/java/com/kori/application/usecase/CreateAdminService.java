@@ -9,6 +9,7 @@ import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.model.admin.Admin;
 import com.kori.domain.model.admin.AdminId;
 import com.kori.domain.model.admin.AdminUsername;
+import com.kori.domain.model.common.DisplayName;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -48,7 +49,8 @@ public final class CreateAdminService implements CreateAdminUseCase {
 
                     AdminId adminId = new AdminId(idGeneratorPort.newUuid());
                     AdminUsername username = AdminUsername.of(command.username());
-                    Admin newAdmin = Admin.activeNew(adminId, username, now);
+                    DisplayName displayName = DisplayName.ofNullable(command.displayName());
+                    Admin newAdmin = Admin.activeNew(adminId, username, displayName, now);
                     adminRepositoryPort.save(newAdmin);
 
                     Map<String, String> metadata = new HashMap<>();
@@ -61,7 +63,7 @@ public final class CreateAdminService implements CreateAdminUseCase {
                             metadata
                     ));
 
-                    return new CreateAdminResult(adminId.value().toString(), username.value());
+                    return new CreateAdminResult(adminId.value().toString(), username.value(), newAdmin.display());
                 }
         );
     }

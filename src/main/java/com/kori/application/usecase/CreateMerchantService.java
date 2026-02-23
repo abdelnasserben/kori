@@ -12,6 +12,7 @@ import com.kori.application.result.CreateMerchantResult;
 import com.kori.application.utils.AuditBuilder;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.model.account.AccountProfile;
+import com.kori.domain.model.common.DisplayName;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.Merchant;
 import com.kori.domain.model.merchant.MerchantCode;
@@ -59,11 +60,11 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
                     MerchantCode code = generateUniqueMerchantCode();
                     MerchantId id = new MerchantId(idGeneratorPort.newUuid());
                     Instant now = timeProviderPort.now();
+                    DisplayName displayName = DisplayName.ofNullable(command.displayName());
 
-                    Merchant merchant = new Merchant(id, code, Status.ACTIVE, now);
+                    Merchant merchant = new Merchant(id, code, displayName, Status.ACTIVE, now);
                     merchantRepository.save(merchant);
 
-                    // Create ledger accountRef ref + profile
                     LedgerAccountRef merchantAccount = LedgerAccountRef.merchant(id.value().toString());
 
                     accountProfilePort.findByAccount(merchantAccount).ifPresent(existing -> {
@@ -83,7 +84,7 @@ public final class CreateMerchantService implements CreateMerchantUseCase {
                             metadata
                     ));
 
-                    return new CreateMerchantResult(id.value().toString(), code.value());
+                    return new CreateMerchantResult(id.value().toString(), code.value(), merchant.display());
                 }
         );
     }

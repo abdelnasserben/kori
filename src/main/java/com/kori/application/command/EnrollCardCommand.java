@@ -9,6 +9,7 @@ public record EnrollCardCommand(
         String idempotencyRequestHash,
         ActorContext actorContext,
         String phoneNumber,
+        String displayName,
         String cardUid,
         String pin) {
     public EnrollCardCommand(
@@ -16,12 +17,14 @@ public record EnrollCardCommand(
             String idempotencyRequestHash,
             ActorContext actorContext,
             String phoneNumber,
+            String displayName,
             String cardUid,
             String pin) {
         this.idempotencyKey = Objects.requireNonNull(idempotencyKey);
         this.idempotencyRequestHash = Objects.requireNonNull(idempotencyRequestHash, "idempotencyRequestHash");
         this.actorContext = Objects.requireNonNull(actorContext);
         this.phoneNumber = Objects.requireNonNull(phoneNumber);
+        this.displayName = displayName;
         this.cardUid = Objects.requireNonNull(cardUid);
         this.pin = Objects.requireNonNull(pin);
     }

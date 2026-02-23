@@ -218,6 +218,7 @@ public class BackofficeQueryController {
         };
         return new BackofficeResponses.ActorDetails(
                 d.actorRef(),
+                d.displayName(),
                 d.display(),
                 d.status(),
                 d.createdAt(),

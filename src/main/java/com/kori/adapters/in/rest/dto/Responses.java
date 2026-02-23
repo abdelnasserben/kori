@@ -7,13 +7,13 @@ import java.util.List;
 public final class Responses {
     private Responses() {}
 
-    public record CreateAdminResponse(String adminId) {}
+    public record CreateAdminResponse(String adminId, String adminUsername, String displayName) {}
 
-    public record CreateAgentResponse(String agentId, String agentCode) {}
+    public record CreateAgentResponse(String agentId, String agentCode, String displayName) {}
 
-    public record CreateMerchantResponse(String merchantId, String code) {}
+    public record CreateMerchantResponse(String merchantId, String code, String displayName) {}
 
-    public record CreateTerminalResponse(String terminalUid, String merchantCode) {}
+    public record CreateTerminalResponse(String terminalUid, String merchantCode, String displayName) {}
 
     public record EnrollCardResponse(
             String transactionId,

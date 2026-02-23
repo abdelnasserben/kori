@@ -49,10 +49,11 @@ public class TerminalController {
                         idempotencyKey,
                         idempotencyRequestHasher.hashPayload(request),
                         actorContext,
-                        request.merchantCode()
+                        request.merchantCode(),
+                        request.displayName()
                 )
         );
-        return new CreateTerminalResponse(result.terminalUid(), result.merchantCode());
+        return new CreateTerminalResponse(result.terminalUid(), result.merchantCode(), result.displayName());
     }
 
     @PatchMapping("/{terminalUid}/status")

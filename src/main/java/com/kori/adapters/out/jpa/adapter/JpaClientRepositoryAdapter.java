@@ -7,6 +7,7 @@ import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientCode;
 import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.client.PhoneNumber;
+import com.kori.domain.model.common.DisplayName;
 import com.kori.domain.model.common.Status;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -55,6 +56,7 @@ public class JpaClientRepositoryAdapter implements ClientRepositoryPort {
                 client.id().value(),
                 client.phoneNumber().value(),
                 client.code().value(),
+                client.displayName() == null ? null : client.displayName().value(),
                 client.status().name(),
                 client.createdAt().atOffset(ZoneOffset.UTC)
         );
@@ -67,6 +69,7 @@ public class JpaClientRepositoryAdapter implements ClientRepositoryPort {
                 new ClientId(e.getId()),
                 ClientCode.of(e.getCode()),
                 PhoneNumber.of(e.getPhoneNumber()),
+                DisplayName.ofNullable(e.getDisplayName()),
                 Status.valueOf(e.getStatus()),
                 e.getCreatedAt().toInstant()
         );

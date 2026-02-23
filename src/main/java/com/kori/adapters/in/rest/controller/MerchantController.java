@@ -4,6 +4,7 @@ import com.kori.adapters.in.rest.ApiHeaders;
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.doc.IdempotencyRequestHasher;
 import com.kori.adapters.in.rest.doc.IdempotentOperation;
+import com.kori.adapters.in.rest.dto.Requests.CreateMerchantRequest;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.dto.Responses.CreateMerchantResponse;
 import com.kori.adapters.in.rest.dto.Responses.UpdateStatusResponse;
@@ -40,12 +41,17 @@ public class MerchantController {
     @IdempotentOperation
     public CreateMerchantResponse createMerchant(
             @RequestHeader(ApiHeaders.IDEMPOTENCY_KEY) String idempotencyKey,
-            ActorContext actorContext
+            ActorContext actorContext,
+            @Valid @RequestBody(required = false) CreateMerchantRequest request
     ) {
         var result = createMerchantUseCase.execute(
-                new CreateMerchantCommand(idempotencyKey, idempotencyRequestHasher.hashPayload(null), actorContext)
+                new CreateMerchantCommand(
+                        idempotencyKey,
+                        idempotencyRequestHasher.hashPayload(request),
+                        actorContext,
+                        request == null ? null : request.displayName())
         );
-        return new CreateMerchantResponse(result.merchantId(), result.code());
+        return new CreateMerchantResponse(result.merchantId(), result.code(), result.displayName());
     }
 
     @PatchMapping("/{merchantCode}/status")

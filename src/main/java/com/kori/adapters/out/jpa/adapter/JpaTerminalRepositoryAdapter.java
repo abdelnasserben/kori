@@ -3,6 +3,7 @@ package com.kori.adapters.out.jpa.adapter;
 import com.kori.adapters.out.jpa.entity.TerminalEntity;
 import com.kori.adapters.out.jpa.repo.TerminalJpaRepository;
 import com.kori.application.port.out.TerminalRepositoryPort;
+import com.kori.domain.model.common.DisplayName;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.merchant.MerchantId;
 import com.kori.domain.model.terminal.Terminal;
@@ -38,6 +39,7 @@ public class JpaTerminalRepositoryAdapter implements TerminalRepositoryPort {
                 terminal.id().value(),
                 terminal.terminalUid().value(),
                 terminal.merchantId().value(),
+                terminal.displayName() == null ? null : terminal.displayName().value(),
                 terminal.status().name(),
                 terminal.createdAt()
         ));
@@ -68,6 +70,7 @@ public class JpaTerminalRepositoryAdapter implements TerminalRepositoryPort {
                 new TerminalId(entity.getId()),
                 TerminalUid.of(entity.getTerminalUid()),
                 new MerchantId(entity.getMerchantId()),
+                DisplayName.ofNullable(entity.getDisplayName()),
                 Status.valueOf(entity.getStatus()),
                 entity.getCreatedAt()
         );

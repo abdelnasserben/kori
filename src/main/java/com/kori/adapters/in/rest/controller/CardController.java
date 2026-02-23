@@ -59,6 +59,7 @@ public class CardController {
                         idempotencyRequestHasher.hashPayload(request),
                         actorContext,
                         request.phoneNumber(),
+                        request.displayName(),
                         request.cardUid(),
                         request.pin()
                 )

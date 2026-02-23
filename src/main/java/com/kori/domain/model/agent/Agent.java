@@ -1,6 +1,7 @@
 package com.kori.domain.model.agent;
 
 import com.kori.domain.common.InvalidStatusTransitionException;
+import com.kori.domain.model.common.DisplayName;
 import com.kori.domain.model.common.Status;
 
 import java.time.Instant;
@@ -11,18 +12,24 @@ public final class Agent {
     private final AgentId id;
     private final AgentCode code;
     private final Instant createdAt;
+    private final DisplayName displayName;
 
     private Status status;
 
-    public Agent(AgentId id, AgentCode code, Instant createdAt, Status status) {
+    public Agent(AgentId id, AgentCode code, DisplayName displayName, Instant createdAt, Status status) {
         this.id = Objects.requireNonNull(id, "id");
         this.code = Objects.requireNonNull(code, "code");
         this.createdAt = Objects.requireNonNull(createdAt, "createdAt");
+        this.displayName = displayName;
         this.status = Objects.requireNonNull(status, "status");
     }
 
-    public static Agent activeNew(AgentId id, AgentCode code, Instant createdAt) {
-        return new Agent(id, code, createdAt, Status.ACTIVE);
+    public Agent(AgentId id, AgentCode code, Instant createdAt, Status status) {
+        this(id, code, null, createdAt, status);
+    }
+
+    public static Agent activeNew(AgentId id, AgentCode code, DisplayName displayName, Instant createdAt) {
+        return new Agent(id, code, displayName, createdAt, Status.ACTIVE);
     }
 
     public AgentId id() {
@@ -33,6 +40,14 @@ public final class Agent {
         return code;
     }
 
+    public DisplayName displayName() {
+        return displayName;
+    }
+
+    public String display() {
+        return displayName != null ? displayName.value() : code.value();
+    }
+
     public Instant createdAt() {
         return createdAt;
     }
@@ -41,24 +56,20 @@ public final class Agent {
         return status;
     }
 
-    // -----------------
-    // Explicit status actions (admin-only at application layer)
-    // -----------------
-
     public void suspend() {
         ensureNotClosed("suspend");
-        if (status == Status.SUSPENDED) return; // idempotent
+        if (status == Status.SUSPENDED) return;
         status = Status.SUSPENDED;
     }
 
     public void activate() {
         ensureNotClosed("activate");
-        if (status == Status.ACTIVE) return; // idempotent
+        if (status == Status.ACTIVE) return;
         status = Status.ACTIVE;
     }
 
     public void close() {
-        if (status == Status.CLOSED) return; // idempotent
+        if (status == Status.CLOSED) return;
         status = Status.CLOSED;
     }
 

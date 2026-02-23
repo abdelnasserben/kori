@@ -22,11 +22,14 @@ public class TerminalEntity {
     @Column(nullable = false, updatable = false, length = 36)
     private UUID id;
 
-    @Column(nullable = false, updatable = false, length = 36, unique = true)
+    @Column(name = "terminal_uid", nullable = false, updatable = false, length = 36, unique = true)
     private String terminalUid;
 
     @Column(name = "merchant_id", nullable = false, updatable = false, length = 36)
     private UUID merchantId;
+
+    @Column(name = "display_name", length = 120)
+    private String displayName;
 
     @Column(nullable = false, length = 16)
     private String status;
@@ -36,10 +39,11 @@ public class TerminalEntity {
 
     protected TerminalEntity() {}
 
-    public TerminalEntity(UUID id, String terminalUid, UUID merchantId, String status, Instant createdAt) {
+    public TerminalEntity(UUID id, String terminalUid, UUID merchantId, String displayName, String status, Instant createdAt) {
         this.id = id;
         this.terminalUid = terminalUid;
         this.merchantId = merchantId;
+        this.displayName = displayName;
         this.status = status;
         this.createdAt = createdAt;
     }

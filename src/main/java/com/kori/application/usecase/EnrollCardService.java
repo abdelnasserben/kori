@@ -17,6 +17,7 @@ import com.kori.domain.model.client.Client;
 import com.kori.domain.model.client.ClientCode;
 import com.kori.domain.model.client.ClientId;
 import com.kori.domain.model.client.PhoneNumber;
+import com.kori.domain.model.common.DisplayName;
 import com.kori.domain.model.common.Status;
 
 import java.time.Instant;
@@ -120,6 +121,7 @@ public final class EnrollCardService implements EnrollCardUseCase {
                                 new ClientId(idGeneratorPort.newUuid()),
                                 generateUniqueClientCode(),
                                 PhoneNumber.of(command.phoneNumber()),
+                                DisplayName.ofNullable(command.displayName()),
                                 now
                         );
                         client = clientRepositoryPort.save(client);

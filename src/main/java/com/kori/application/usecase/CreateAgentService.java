@@ -15,6 +15,7 @@ import com.kori.domain.model.account.AccountProfile;
 import com.kori.domain.model.agent.Agent;
 import com.kori.domain.model.agent.AgentCode;
 import com.kori.domain.model.agent.AgentId;
+import com.kori.domain.model.common.DisplayName;
 
 import java.time.Instant;
 import java.util.HashMap;
@@ -58,11 +59,11 @@ public final class CreateAgentService implements CreateAgentUseCase {
                     AgentCode code = generateUniqueAgentCode();
                     AgentId id = new AgentId(idGeneratorPort.newUuid());
                     Instant now = timeProviderPort.now();
+                    DisplayName displayName = DisplayName.ofNullable(command.displayName());
 
-                    Agent agent = Agent.activeNew(id, code, now);
+                    Agent agent = Agent.activeNew(id, code, displayName, now);
                     agentRepositoryPort.save(agent);
 
-                    // Active model: create both AGENT_WALLET and AGENT_CASH_CLEARING profiles.
                     LedgerAccountRef walletAccount = LedgerAccountRef.agentWallet(id.value().toString());
                     LedgerAccountRef clearingAccount = LedgerAccountRef.agentCashClearing(id.value().toString());
 
@@ -82,7 +83,7 @@ public final class CreateAgentService implements CreateAgentUseCase {
                             metadata
                     ));
 
-                    return new CreateAgentResult(id.value().toString(), code.value());
+                    return new CreateAgentResult(id.value().toString(), code.value(), agent.display());
                 }
         );
     }

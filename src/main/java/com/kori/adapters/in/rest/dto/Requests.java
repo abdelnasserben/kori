@@ -24,19 +24,29 @@ public final class Requests {
 
     public static final String ADMIN_USERNAME_FORMAT = "^[A-Za-z0-9._@-]{3,64}$";
 
+    public static final int DISPLAY_NAME_LENGTH = 120;
+
     private Requests() {}
 
+    public record CreateAgentRequest(
+            @NotBlank @Size(max = DISPLAY_NAME_LENGTH) String displayName
+    ) {}
+
+    public record CreateMerchantRequest(
+            @NotBlank @Size(max = DISPLAY_NAME_LENGTH) String displayName
+    ) {}
+
     public record CreateTerminalRequest(
-            @NotBlank @Size(max = 16) String merchantCode
+            @NotBlank @Size(max = 16) String merchantCode,
+            @NotBlank @Size(max = DISPLAY_NAME_LENGTH) String displayName
     ) {}
 
     public record EnrollCardRequest(
             @Pattern(regexp = COMOROS_PHONE_REGEX, message = "Phone number must be (+269 + 7 digits) or 7 digits local")
             String phoneNumber,
-            @NotBlank @Size(max = 64)
-            String cardUid,
-            @Pattern(regexp = PIN_REGEX_4_DIGITS, message = "PIN must be exactly 4 digits")
-            String pin
+            @NotBlank @Size(max = DISPLAY_NAME_LENGTH) String displayName,
+            @NotBlank @Size(max = 64) String cardUid,
+            @Pattern(regexp = PIN_REGEX_4_DIGITS, message = "PIN must be exactly 4 digits") String pin
     ) {}
 
     public record AddCardToExistingClientRequest(
@@ -155,7 +165,8 @@ public final class Requests {
 
     public record CreateAdminRequest(
             @Pattern(regexp = ADMIN_USERNAME_FORMAT, message = "Invalid username format")
-            String username
+            String username,
+            @NotBlank @Size(max = DISPLAY_NAME_LENGTH) String displayName
     ) {}
 
     /**

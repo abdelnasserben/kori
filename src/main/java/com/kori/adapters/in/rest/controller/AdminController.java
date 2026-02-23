@@ -48,9 +48,10 @@ public class AdminController {
                         idempotencyKey,
                         idempotencyRequestHasher.hashPayload(request),
                         actorContext,
-                        request.username())
+                        request.username(),
+                        request.displayName())
         );
-        return new CreateAdminResponse(result.adminUsername());
+        return new CreateAdminResponse(result.adminId(), result.adminUsername(), result.displayName());
     }
 
     @PatchMapping("/{adminUsername}/status")

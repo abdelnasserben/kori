@@ -4,6 +4,7 @@ import com.kori.adapters.in.rest.ApiHeaders;
 import com.kori.adapters.in.rest.ApiPaths;
 import com.kori.adapters.in.rest.doc.IdempotencyRequestHasher;
 import com.kori.adapters.in.rest.doc.IdempotentOperation;
+import com.kori.adapters.in.rest.dto.Requests.CreateAgentRequest;
 import com.kori.adapters.in.rest.dto.Requests.UpdateStatusRequest;
 import com.kori.adapters.in.rest.dto.Responses.CreateAgentResponse;
 import com.kori.adapters.in.rest.dto.Responses.UpdateStatusResponse;
@@ -39,12 +40,17 @@ public class AgentController {
     @IdempotentOperation
     public CreateAgentResponse createAgent(
             @RequestHeader(ApiHeaders.IDEMPOTENCY_KEY) String idempotencyKey,
-            ActorContext actorContext
+            ActorContext actorContext,
+            @Valid @RequestBody(required = false) CreateAgentRequest request
     ) {
         var result = createAgentUseCase.execute(
-                new CreateAgentCommand(idempotencyKey, idempotencyRequestHasher.hashPayload(null), actorContext)
+                new CreateAgentCommand(
+                        idempotencyKey,
+                        idempotencyRequestHasher.hashPayload(request),
+                        actorContext,
+                        request == null ? null : request.displayName())
         );
-        return new CreateAgentResponse(result.agentId(), result.agentCode());
+        return new CreateAgentResponse(result.agentId(), result.agentCode(), result.displayName());
     }
 
     @PatchMapping("/{agentCode}/status")

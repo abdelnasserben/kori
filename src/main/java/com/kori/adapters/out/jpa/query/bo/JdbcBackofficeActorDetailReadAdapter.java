@@ -45,7 +45,8 @@ public class JdbcBackofficeActorDetailReadAdapter implements BackofficeActorDeta
     private Optional<BackofficeActorDetails> findByCode(String actorRef, String table, String codeField, String actorType) {
         String sql = """
                 SELECT t.%s AS actor_ref,
-                       t.%s AS display,
+                       t.display_name,
+                       COALESCE(t.display_name, t.%s) AS display,
                        t.status,
                        t.created_at,
                        (SELECT MAX(ae.occurred_at)
@@ -59,6 +60,7 @@ public class JdbcBackofficeActorDetailReadAdapter implements BackofficeActorDeta
         var params = new MapSqlParameterSource().addValue("actorRef", actorRef).addValue("actorType", actorType);
         var rows = jdbcTemplate.query(sql, params, (rs, i) -> new BackofficeActorDetails(
                 rs.getString("actor_ref"),
+                rs.getString("display_name"),
                 rs.getString("display"),
                 rs.getString("status"),
                 rs.getTimestamp("created_at").toInstant(),
