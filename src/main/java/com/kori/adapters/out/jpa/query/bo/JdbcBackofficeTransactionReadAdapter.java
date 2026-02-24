@@ -43,7 +43,7 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
             sql.append(desc
                     ? " AND (t.created_at < :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.id::text < :cursorRef))"
                     : " AND (t.created_at > :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.id::text > :cursorRef))");
-            params.addValue("cursorCreatedAt", cursor.createdAt());
+            params.addValue("cursorCreatedAt", Timestamp.from(cursor.createdAt()));
             params.addValue("cursorRef", cursor.ref());
         }
         sql.append(" ORDER BY t.created_at ").append(desc ? "DESC" : "ASC").append(", t.id ").append(desc ? "DESC" : "ASC");
