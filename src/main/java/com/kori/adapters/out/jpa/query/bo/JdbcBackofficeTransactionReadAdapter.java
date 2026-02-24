@@ -199,6 +199,19 @@ public class JdbcBackofficeTransactionReadAdapter implements BackofficeTransacti
                     sql.append(" AND c.code = :actorRef");
                     p.addValue("actorRef", q.actorRef());
                 }
+                case "ADMIN" -> {
+                    sql.append("""
+                        AND EXISTS (
+                            SELECT 1
+                            FROM audit_events ae
+                            WHERE ae.metadata_json::jsonb ->> 'transactionRef' = t.id::text
+                              AND ae.metadata_json::jsonb ->> 'actorType' = :actorType
+                              AND ae.metadata_json::jsonb ->> 'actorRef'  = :actorRef
+                        )
+                    """);
+                    p.addValue("actorType", "ADMIN");
+                    p.addValue("actorRef", q.actorRef().trim());
+                }
                 default -> throw new ValidationException("Unsupported actorType", Map.of("field", "actorType"));
             }
         }
