@@ -1,8 +1,10 @@
 package com.kori.adapters.in.rest.doc;
 
 import com.kori.adapters.in.rest.ApiHeaders;
+import com.kori.adapters.in.rest.error.ApiErrorResponse;
 import com.kori.adapters.in.rest.filter.CorrelationIdFilter;
 import com.kori.application.security.ActorContext;
+import io.swagger.v3.core.converter.ModelConverters;
 import io.swagger.v3.oas.annotations.OpenAPIDefinition;
 import io.swagger.v3.oas.annotations.info.Info;
 import io.swagger.v3.oas.annotations.info.License;
@@ -52,6 +54,10 @@ public class ApiDocumentationConfig {
                     .scheme("bearer")
                     .bearerFormat("JWT")
                     .description("JWT Bearer token for API access."));
+
+            components.addSchemas("ApiErrorResponse", ModelConverters.getInstance()
+                    .read(ApiErrorResponse.class)
+                    .get("ApiErrorResponse"));
 
             Content errorContent = new Content()
                     .addMediaType("application/json",

@@ -132,6 +132,43 @@ sort=-createdAt
 
 ---
 
+## 3.7 Enum de filtres (Read side)
+
+### TransactionType
+`ENROLL_CARD`, `PAY_BY_CARD`, `MERCHANT_WITHDRAW_AT_AGENT`, `AGENT_PAYOUT`, `AGENT_BANK_DEPOSIT_RECEIPT`, `REVERSAL`, `CASH_IN_BY_AGENT`, `CLIENT_REFUND`, `CLIENT_TRANSFER`, `MERCHANT_TRANSFER`
+
+### Transaction status
+`COMPLETED`, `REQUESTED`, `FAILED`
+
+### ActorType
+`ADMIN`, `AGENT`, `TERMINAL`, `CLIENT`, `MERCHANT`
+
+### Actor Status
+`ACTIVE`, `SUSPENDED`, `CLOSED`
+
+### LedgerAccountType
+`CLIENT`, `MERCHANT`, `AGENT_WALLET`, `AGENT_CASH_CLEARING`, `PLATFORM_FEE_REVENUE`, `PLATFORM_CLEARING`, `PLATFORM_CLIENT_REFUND_CLEARING`, `PLATFORM_BANK`
+
+### TransactionHistoryView
+`SUMMARY`, `PAY_BY_CARD_VIEW`, `COMMISSION_VIEW`
+
+### LookupType
+`CLIENT_CODE`, `CARD_UID`, `TERMINAL_UID`, `TRANSACTION_REF`, `MERCHANT_CODE`, `AGENT_CODE`, `ADMIN_USERNAME`
+
+## 3.8 ApiErrorResponse
+
+```json
+{
+  "timestamp": "2026-02-20T10:15:30Z",
+  "correlationId": "uuid-or-empty",
+  "errorId": "uuid",
+  "code": "INVALID_INPUT",
+  "message": "Validation failed",
+  "details": {},
+  "path": "/api/v1/..."
+}
+```
+
 # 4) Écriture (Write Side)
 
 ---

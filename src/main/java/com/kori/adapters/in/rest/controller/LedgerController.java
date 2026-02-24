@@ -8,8 +8,6 @@ import com.kori.adapters.in.rest.dto.Responses.TransactionHistoryItemResponse;
 import com.kori.adapters.in.rest.dto.Responses.TransactionHistoryResponse;
 import com.kori.application.command.GetBalanceCommand;
 import com.kori.application.command.SearchTransactionHistoryCommand;
-import com.kori.application.command.TransactionHistoryView;
-import com.kori.application.exception.ValidationException;
 import com.kori.application.port.in.GetBalanceUseCase;
 import com.kori.application.port.in.SearchTransactionHistoryUseCase;
 import com.kori.application.security.ActorContext;
@@ -21,7 +19,6 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Locale;
 import java.util.stream.Collectors;
 
 @RestController
@@ -42,10 +39,10 @@ public class LedgerController {
     @Operation(summary = "Get account balance")
     public BalanceResponse getBalance(
             ActorContext actorContext,
-            @RequestParam @NotBlank String accountType,
+            @RequestParam LedgerAccountType accountType,
             @RequestParam @NotBlank String ownerRef
     ) {
-        var result = getBalanceUseCase.execute(new GetBalanceCommand(actorContext, accountType, ownerRef));
+        var result = getBalanceUseCase.execute(new GetBalanceCommand(actorContext, accountType.name(), ownerRef));
         return new BalanceResponse(result.accountType(), result.ownerRef(), result.balance());
     }
 
@@ -55,22 +52,7 @@ public class LedgerController {
             ActorContext actorContext,
             @Valid @RequestBody SearchLedgerRequest request
     ) {
-        LedgerAccountType type;
-        try {
-            type = LedgerAccountType.valueOf(request.accountType().toUpperCase(Locale.ROOT));
-        } catch (IllegalArgumentException ex) {
-            throw new ValidationException("Invalid accountType: " + request.accountType());
-        }
-        LedgerAccountRef scope = new LedgerAccountRef(type, request.ownerRef());
-
-        TransactionHistoryView view = null;
-        if (request.view() != null) {
-            try {
-                view = TransactionHistoryView.valueOf(request.view().toUpperCase(Locale.ROOT));
-            } catch (IllegalArgumentException ex) {
-                throw new ValidationException("Invalid view: " + request.view());
-            }
-        }
+        LedgerAccountRef scope = new LedgerAccountRef(request.accountType(), request.ownerRef());
 
         int limit = request.limit() == null ? 0 : request.limit();
 
@@ -78,14 +60,14 @@ public class LedgerController {
                 new SearchTransactionHistoryCommand(
                         actorContext,
                         scope,
-                        request.transactionType(),
+                        request.transactionType() == null ? null : request.transactionType().name(),
                         request.from(),
                         request.to(),
                         request.beforeCreatedAt(),
                         request.beforeTransactionId(),
                         request.minAmount(),
                         request.maxAmount(),
-                        view,
+                        request.view(),
                         limit
                 )
         );

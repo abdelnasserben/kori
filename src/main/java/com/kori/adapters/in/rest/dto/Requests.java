@@ -1,5 +1,8 @@
 package com.kori.adapters.in.rest.dto;
 
+import com.kori.application.command.TransactionHistoryView;
+import com.kori.domain.ledger.LedgerAccountType;
+import com.kori.domain.model.transaction.TransactionType;
 import jakarta.validation.constraints.*;
 
 import java.math.BigDecimal;
@@ -180,16 +183,16 @@ public final class Requests {
     ) {}
 
     public record SearchLedgerRequest(
-            @NotBlank String accountType,
+            @NotNull LedgerAccountType accountType,
             @NotBlank String ownerRef,
-            String transactionType,
+            TransactionType transactionType,
             Instant from,
             Instant to,
             Instant beforeCreatedAt,
             String beforeTransactionId,
             BigDecimal minAmount,
             BigDecimal maxAmount,
-            String view,
+            TransactionHistoryView view,
             @PositiveOrZero Integer limit
     ) {}
 }
