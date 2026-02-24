@@ -1,11 +1,14 @@
 package com.kori.bootstrap;
 
+import com.kori.application.exception.NotFoundException;
 import com.kori.application.handler.OnAgentStatusChangedHandler;
 import com.kori.application.handler.OnClientStatusChangedHandler;
 import com.kori.application.handler.OnMerchantStatusChangedHandler;
 import com.kori.application.port.in.*;
 import com.kori.application.port.out.*;
 import com.kori.application.usecase.*;
+import com.kori.application.utils.PinFailureRecorder;
+import com.kori.domain.model.card.Card;
 import com.kori.query.port.in.*;
 import com.kori.query.port.out.*;
 import com.kori.query.service.*;
@@ -147,6 +150,20 @@ public class ApplicationWiringConfig {
             AuditPort auditPort,
             PinHasherPort pinHasherPort,
             OperationAuthorizationService operationAuthorizationService) {
+
+        var txTemplate = new TransactionTemplate(transactionManager);
+
+        txTemplate.setPropagationBehaviorName("PROPAGATION_REQUIRES_NEW");
+
+        PinFailureRecorder recorder = (cardUid, maxAttempts) ->
+                txTemplate.execute(__ -> {
+                    Card cardToUpdate = cardRepositoryPort.findByCardUid(cardUid)
+                            .orElseThrow(() -> new NotFoundException("Card not found"));
+                    cardToUpdate.onPinFailure(maxAttempts);
+                    cardRepositoryPort.save(cardToUpdate);
+                    return null;
+                });
+
         var useCase = new PayByCardService(
                 timeProviderPort,
                 idempotencyPort,
@@ -163,12 +180,12 @@ public class ApplicationWiringConfig {
                 ledgerAccountLockPort,
                 auditPort,
                 pinHasherPort,
-                operationAuthorizationService
+                operationAuthorizationService,
+                recorder
         );
 
         // Make this @Transactional
-        var transactionTemplate = new TransactionTemplate(transactionManager);
-        return command -> transactionTemplate.execute(__ -> useCase.execute(command));
+        return command -> txTemplate.execute(__ -> useCase.execute(command));
     }
 
     @Bean

@@ -13,6 +13,7 @@ import com.kori.application.port.out.*;
 import com.kori.application.result.PayByCardResult;
 import com.kori.application.security.PinFormatValidator;
 import com.kori.application.utils.AuditBuilder;
+import com.kori.application.utils.PinFailureRecorder;
 import com.kori.domain.ledger.LedgerAccountRef;
 import com.kori.domain.ledger.LedgerEntry;
 import com.kori.domain.model.card.Card;
@@ -53,6 +54,7 @@ public final class PayByCardService implements PayByCardUseCase {
     private final PinHasherPort pinHasherPort;
     private final OperationAuthorizationService operationAuthorizationService;
     private final IdempotencyExecutor idempotencyExecutor;
+    private final PinFailureRecorder pinFailureRecorder;
 
     public PayByCardService(TimeProviderPort timeProviderPort,
                             IdempotencyPort idempotencyPort,
@@ -68,7 +70,8 @@ public final class PayByCardService implements PayByCardUseCase {
                             LedgerQueryPort ledgerQueryPort, LedgerAccountLockPort ledgerAccountLockPort,
                             AuditPort auditPort,
                             PinHasherPort pinHasherPort,
-                            OperationAuthorizationService operationAuthorizationService) {
+                            OperationAuthorizationService operationAuthorizationService,
+                            PinFailureRecorder pinFailureRecorder) {
         this.timeProviderPort = timeProviderPort;
         this.idGeneratorPort = idGeneratorPort;
         this.terminalRepositoryPort = terminalRepositoryPort;
@@ -85,6 +88,7 @@ public final class PayByCardService implements PayByCardUseCase {
         this.pinHasherPort = pinHasherPort;
         this.operationAuthorizationService = operationAuthorizationService;
         this.idempotencyExecutor = new IdempotencyExecutor(idempotencyPort);
+        this.pinFailureRecorder = pinFailureRecorder;
     }
 
     @Override
@@ -131,8 +135,7 @@ public final class PayByCardService implements PayByCardUseCase {
                     PinFormatValidator.validate(command.pin());
 
                     if (!pinHasherPort.matches(command.pin(), card.hashedPin())) {
-                        card.onPinFailure(maxAttempts);
-                        cardRepositoryPort.save(card);
+                        pinFailureRecorder.record(command.cardUid(), maxAttempts);
                         throw new ForbiddenOperationException("Invalid PIN");
                     }
 
