@@ -156,7 +156,7 @@ public class BackofficeQueryController {
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) String sort
     ) {
-        return toActorResponse(actorQueryUseCase.listAgents(new BackofficeActorQuery(query, status == null ? null : status.name(), createdFrom, createdTo, limit, cursor, sort)));
+        return toActorResponse(actorQueryUseCase.listAgents(new BackofficeActorQuery(query, getStatus(status), createdFrom, createdTo, limit, cursor, sort)));
     }
 
     @GetMapping("/clients")
@@ -169,7 +169,7 @@ public class BackofficeQueryController {
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) String sort
     ) {
-        return toActorResponse(actorQueryUseCase.listClients(new BackofficeActorQuery(query, status == null ? null : status.name(), createdFrom, createdTo, limit, cursor, sort)));
+        return toActorResponse(actorQueryUseCase.listClients(new BackofficeActorQuery(query, getStatus(status), createdFrom, createdTo, limit, cursor, sort)));
     }
 
     @GetMapping("/merchants")
@@ -182,7 +182,7 @@ public class BackofficeQueryController {
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) String sort
     ) {
-        return toActorResponse(actorQueryUseCase.listMerchants(new BackofficeActorQuery(query, status == null ? null : status.name(), createdFrom, createdTo, limit, cursor, sort)));
+        return toActorResponse(actorQueryUseCase.listMerchants(new BackofficeActorQuery(query, getStatus(status), createdFrom, createdTo, limit, cursor, sort)));
     }
 
     @GetMapping("/terminals")
@@ -195,7 +195,7 @@ public class BackofficeQueryController {
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) String sort
     ) {
-        return toActorResponse(actorQueryUseCase.listTerminals(new BackofficeActorQuery(query, status == null ? null : status.name(), createdFrom, createdTo, limit, cursor, sort)));
+        return toActorResponse(actorQueryUseCase.listTerminals(new BackofficeActorQuery(query, getStatus(status), createdFrom, createdTo, limit, cursor, sort)));
     }
 
     @GetMapping("/admins")
@@ -208,7 +208,11 @@ public class BackofficeQueryController {
             @RequestParam(required = false) String cursor,
             @RequestParam(required = false) String sort
     ) {
-        return toActorResponse(actorQueryUseCase.listAdmins(new BackofficeActorQuery(query, status == null ? null : status.name(), createdFrom, createdTo, limit, cursor, sort)));
+        return toActorResponse(actorQueryUseCase.listAdmins(new BackofficeActorQuery(query, getStatus(status), createdFrom, createdTo, limit, cursor, sort)));
+    }
+
+    private static String getStatus(Status status) {
+        return status == null ? null : status.name();
     }
 
     @GetMapping("/actors/{actorType}/{actorRef}")
