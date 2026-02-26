@@ -33,10 +33,10 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
     }
 
     @Override
-    public Optional<MeQueryModels.MeProfile> findProfile(String clientCode) {
+    public Optional<MeQueryModels.ClientProfile> findProfile(String clientCode) {
         String sql = "SELECT c.code AS actor_ref, c.phone_number AS phone, c.status, c.created_at FROM clients c WHERE c.code = :clientCode LIMIT 1";
         var rows = jdbcTemplate.query(sql, new MapSqlParameterSource("clientCode", clientCode), (rs, n) ->
-                new MeQueryModels.MeProfile(
+                new MeQueryModels.ClientProfile(
                         rs.getString("actor_ref"),
                         rs.getString("phone"),
                         rs.getString("status"),
@@ -45,7 +45,7 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
     }
 
     @Override
-    public MeQueryModels.MeBalance getBalance(String clientCode) {
+    public MeQueryModels.ActorBalance getBalance(String clientCode) {
         String resolvedIdText = referenceResolver.resolveClientIdTextByCode(clientCode);
         String sql = """
                 SELECT COALESCE(SUM(CASE WHEN entry_type = 'CREDIT' THEN amount ELSE -amount END), 0) AS balance
@@ -53,7 +53,7 @@ public class JdbcClientMeReadAdapter implements ClientMeReadPort {
                 WHERE account_type = 'CLIENT' AND owner_ref = :resolvedIdText
                 """;
         var balance = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource("resolvedIdText", resolvedIdText), BigDecimal.class);
-        return new MeQueryModels.MeBalance("CLIENT", clientCode, balance, "KMF");
+        return new MeQueryModels.ActorBalance(clientCode, "KMF", java.util.List.of(new MeQueryModels.BalanceItem("MAIN", balance)));
     }
 
     @Override

@@ -22,14 +22,14 @@ public class ClientMeQueryService implements ClientMeQueryUseCase {
     }
 
     @Override
-    public MeQueryModels.MeProfile getProfile(ActorContext actorContext) {
+    public MeQueryModels.ClientProfile getProfile(ActorContext actorContext) {
         requireClient(actorContext);
         return readPort.findProfile(actorContext.actorRef())
                 .orElseThrow(() -> new NotFoundException("Client not found"));
     }
 
     @Override
-    public MeQueryModels.MeBalance getBalance(ActorContext actorContext) {
+    public MeQueryModels.ActorBalance getBalance(ActorContext actorContext) {
         requireClient(actorContext);
         return readPort.getBalance(actorContext.actorRef());
     }

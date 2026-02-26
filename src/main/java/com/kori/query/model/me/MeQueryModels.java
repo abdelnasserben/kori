@@ -6,17 +6,30 @@ import java.time.Instant;
 public final class MeQueryModels {
     private MeQueryModels() {}
 
-    public record MeProfile(
+    public record ClientProfile(
             String code,
             String phone,
             String status,
             Instant createdAt) {}
 
-    public record MeBalance(
-            String accountType,
+    public record MerchantProfile(
+            String code,
+            String status,
+            Instant createdAt) {}
+
+    public record AgentProfile(
+            String code,
+            String status,
+            Instant createdAt) {}
+
+    public record ActorBalance(
             String ownerRef,
-            BigDecimal balance,
-            String currency) {}
+            String currency,
+            java.util.List<BalanceItem> balances) {}
+
+    public record BalanceItem(
+            String kind,
+            BigDecimal amount) {}
 
     public record MeCardItem(
             String cardUid,
@@ -53,6 +66,20 @@ public final class MeQueryModels {
             String currency,
             String agentCode,
             String clientCode,
+            String originalTransactionRef,
+            Instant createdAt) {}
+
+    public record AgentTransactionDetails(
+            String transactionRef,
+            String type,
+            String status,
+            BigDecimal amount,
+            BigDecimal fee,
+            BigDecimal totalDebited,
+            String currency,
+            String clientCode,
+            String merchantCode,
+            String terminalUid,
             String originalTransactionRef,
             Instant createdAt) {}
 

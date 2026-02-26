@@ -8,14 +8,6 @@ public final class AgentQueryModels {
     private AgentQueryModels() {
     }
 
-    public record AgentSummary(
-            String code,
-            String status,
-            BigDecimal cashBalance,
-            BigDecimal commissionBalance,
-            Long txCount7d) {
-    }
-
     public record AgentTransactionFilter(
             String type,
             String status,

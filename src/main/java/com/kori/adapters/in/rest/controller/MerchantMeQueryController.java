@@ -6,11 +6,15 @@ import com.kori.application.security.ActorContext;
 import com.kori.query.model.me.MeQueryModels;
 import com.kori.query.port.in.MerchantMeQueryUseCase;
 import com.kori.query.port.in.MerchantMeTxDetailQueryUseCase;
+import com.kori.query.service.DashboardQueryService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping(ApiPaths.MERCHANT_ME)
@@ -19,22 +23,23 @@ public class MerchantMeQueryController {
 
     private final MerchantMeQueryUseCase merchantMeQueryUseCase;
     private final MerchantMeTxDetailQueryUseCase merchantMeTxDetailQueryUseCase;
+    private final DashboardQueryService dashboardQueryService;
 
-    public MerchantMeQueryController(MerchantMeQueryUseCase merchantMeQueryUseCase, MerchantMeTxDetailQueryUseCase merchantMeTxDetailQueryUseCase) {
+    public MerchantMeQueryController(MerchantMeQueryUseCase merchantMeQueryUseCase, MerchantMeTxDetailQueryUseCase merchantMeTxDetailQueryUseCase, DashboardQueryService dashboardQueryService) {
         this.merchantMeQueryUseCase = merchantMeQueryUseCase;
         this.merchantMeTxDetailQueryUseCase = merchantMeTxDetailQueryUseCase;
+        this.dashboardQueryService = dashboardQueryService;
     }
 
     @GetMapping("/profile")
-    public MeResponses.ProfileResponse profile(ActorContext actorContext) {
+    public MeResponses.MerchantProfileResponse profile(ActorContext actorContext) {
         var item = merchantMeQueryUseCase.getProfile(actorContext);
-        return new MeResponses.ProfileResponse(item.code(), item.phone(), item.status(), item.createdAt());
+        return new MeResponses.MerchantProfileResponse(item.code(), item.status(), item.createdAt());
     }
 
     @GetMapping("/balance")
-    public MeResponses.BalanceResponse balance(ActorContext actorContext) {
-        var item = merchantMeQueryUseCase.getBalance(actorContext);
-        return new MeResponses.BalanceResponse(item.accountType(), item.ownerRef(), item.balance(), item.currency());
+    public MeResponses.ActorBalanceResponse balance(ActorContext actorContext) {
+        return toBalanceResponse(merchantMeQueryUseCase.getBalance(actorContext));
     }
 
     @GetMapping("/transactions")
@@ -58,22 +63,11 @@ public class MerchantMeQueryController {
     }
 
     @GetMapping("/transactions/{transactionRef}")
-    public MeResponses.MerchantTransactionDetailsResponse transactionDetails(
-            ActorContext actorContext,
-            @PathVariable String transactionRef) {
+    public MeResponses.TransactionDetailsResponse transactionDetails(ActorContext actorContext, @PathVariable String transactionRef) {
         var d = merchantMeTxDetailQueryUseCase.getByRef(actorContext, transactionRef);
-        return new MeResponses.MerchantTransactionDetailsResponse(
-                d.transactionRef(),
-                d.type(),
-                d.status(),
-                d.amount(),
-                d.fee(),
-                d.totalDebited(),
-                d.currency(),
-                d.agentCode(),
-                d.clientCode(),
-                d.originalTransactionRef(),
-                d.createdAt()
+        return new MeResponses.TransactionDetailsResponse(
+                d.transactionRef(), d.type(), d.status(), d.amount(), d.fee(), d.totalDebited(), d.currency(),
+                d.clientCode(), null, d.agentCode(), null, d.originalTransactionRef(), d.createdAt()
         );
     }
 
@@ -97,5 +91,31 @@ public class MerchantMeQueryController {
     public MeResponses.TerminalItem terminalDetails(ActorContext actorContext, @PathVariable String terminalUid) {
         var item = merchantMeQueryUseCase.getTerminalDetails(actorContext, terminalUid);
         return new MeResponses.TerminalItem(item.terminalUid(), item.status(), item.createdAt(), item.lastSeen(), item.merchantCode());
+    }
+
+    @GetMapping("/dashboard")
+    public MeResponses.MerchantDashboardResponse dashboard(ActorContext actorContext) {
+        var recentTx = merchantMeQueryUseCase.listTransactions(actorContext, new MeQueryModels.MeTransactionsFilter(null, null, null, null, null, null, DEFAULT_PAGE_SIZE, null, "createdAt:desc")).items();
+        var tx7d = merchantMeQueryUseCase.listTransactions(actorContext, new MeQueryModels.MeTransactionsFilter(null, null, Instant.now().minus(7, ChronoUnit.DAYS), Instant.now(), null, null, DEFAULT_PAGE_SIZE, null, "createdAt:desc")).items();
+        var terminals = merchantMeQueryUseCase.listTerminals(actorContext, new MeQueryModels.MeTerminalsFilter(null, null, DEFAULT_PAGE_SIZE, null, "createdAt:desc")).items();
+        Map<String, Long> byStatus = terminals.stream().collect(Collectors.groupingBy(MeQueryModels.MeTerminalItem::status, Collectors.counting()));
+        long stale = terminals.stream().filter(t -> t.lastSeen() != null && t.lastSeen().isBefore(Instant.now().minus(30, ChronoUnit.DAYS))).count();
+
+        var kpis = dashboardQueryService.computeKpis7dFromTransactions(tx7d);
+        return new MeResponses.MerchantDashboardResponse(
+                profile(actorContext),
+                balance(actorContext),
+                new MeResponses.Kpis7dResponse(kpis.txCount(), kpis.txVolume(), kpis.failedCount()),
+                recentTx.stream().map(i -> new MeResponses.TransactionItem(i.transactionRef(), i.type(), i.status(), i.amount(), i.currency(), i.createdAt())).toList(),
+                new MeResponses.TerminalsSummaryResponse((long) terminals.size(), byStatus, stale)
+        );
+    }
+
+    private MeResponses.ActorBalanceResponse toBalanceResponse(MeQueryModels.ActorBalance balance) {
+        return new MeResponses.ActorBalanceResponse(
+                balance.ownerRef(),
+                balance.currency(),
+                balance.balances().stream().map(i -> new MeResponses.BalanceItemResponse(i.kind(), i.amount())).toList()
+        );
     }
 }

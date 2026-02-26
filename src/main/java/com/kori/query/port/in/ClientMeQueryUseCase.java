@@ -7,9 +7,9 @@ import com.kori.query.model.me.MeQueryModels;
 import java.util.List;
 
 public interface ClientMeQueryUseCase {
-    MeQueryModels.MeProfile getProfile(ActorContext actorContext);
+    MeQueryModels.ClientProfile getProfile(ActorContext actorContext);
 
-    MeQueryModels.MeBalance getBalance(ActorContext actorContext);
+    MeQueryModels.ActorBalance getBalance(ActorContext actorContext);
 
     List<MeQueryModels.MeCardItem> listCards(ActorContext actorContext);
 

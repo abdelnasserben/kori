@@ -20,14 +20,14 @@ public class MerchantMeQueryService implements MerchantMeQueryUseCase {
     }
 
     @Override
-    public MeQueryModels.MeProfile getProfile(ActorContext actorContext) {
+    public MeQueryModels.MerchantProfile getProfile(ActorContext actorContext) {
         requireMerchant(actorContext);
         return readPort.findProfile(actorContext.actorRef())
                 .orElseThrow(() -> new NotFoundException("Merchant not found"));
     }
 
     @Override
-    public MeQueryModels.MeBalance getBalance(ActorContext actorContext) {
+    public MeQueryModels.ActorBalance getBalance(ActorContext actorContext) {
         requireMerchant(actorContext);
         return readPort.getBalance(actorContext.actorRef());
     }

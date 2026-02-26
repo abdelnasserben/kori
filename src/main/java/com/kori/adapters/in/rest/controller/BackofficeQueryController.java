@@ -5,10 +5,12 @@ import com.kori.adapters.in.rest.dto.BackofficeResponses;
 import com.kori.adapters.in.rest.dto.QueryFiltersEnums.BackofficeActorTypeFilter;
 import com.kori.adapters.in.rest.dto.QueryFiltersEnums.LookupType;
 import com.kori.adapters.in.rest.dto.QueryFiltersEnums.TransactionStatusFilter;
+import com.kori.application.security.ActorContext;
 import com.kori.domain.model.common.Status;
 import com.kori.domain.model.transaction.TransactionType;
 import com.kori.query.model.*;
 import com.kori.query.port.in.*;
+import com.kori.query.service.DashboardQueryService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,15 +26,17 @@ public class BackofficeQueryController {
     private final BackofficeActorQueryUseCase actorQueryUseCase;
     private final BackofficeActorDetailQueryUseCase actorDetailQueryUseCase;
     private final BackofficeLookupQueryUseCase lookupQueryUseCase;
+    private final DashboardQueryService dashboardQueryService;
 
     public BackofficeQueryController(BackofficeTransactionQueryUseCase transactionQueryUseCase,
                                      BackofficeAuditEventQueryUseCase auditEventQueryUseCase,
-                                     BackofficeActorQueryUseCase actorQueryUseCase, BackofficeActorDetailQueryUseCase actorDetailQueryUseCase, BackofficeLookupQueryUseCase lookupQueryUseCase) {
+                                     BackofficeActorQueryUseCase actorQueryUseCase, BackofficeActorDetailQueryUseCase actorDetailQueryUseCase, BackofficeLookupQueryUseCase lookupQueryUseCase, DashboardQueryService dashboardQueryService) {
         this.transactionQueryUseCase = transactionQueryUseCase;
         this.auditEventQueryUseCase = auditEventQueryUseCase;
         this.actorQueryUseCase = actorQueryUseCase;
         this.actorDetailQueryUseCase = actorDetailQueryUseCase;
         this.lookupQueryUseCase = lookupQueryUseCase;
+        this.dashboardQueryService = dashboardQueryService;
     }
 
     @GetMapping("/transactions")
@@ -232,6 +236,18 @@ public class BackofficeQueryController {
                 d.status(),
                 d.createdAt(),
                 d.lastActivityAt()
+        );
+    }
+
+    @GetMapping("/dashboard")
+    public BackofficeResponses.BackofficeDashboardResponse dashboard(ActorContext actorContext) {
+        var d = dashboardQueryService.buildBackofficeDashboard(actorContext);
+        return new BackofficeResponses.BackofficeDashboardResponse(
+                new BackofficeResponses.BackofficeStatusKpis(d.kpisToday().txCount(), d.kpisToday().txVolume(), d.kpisToday().byStatus()),
+                new BackofficeResponses.BackofficeStatusKpis(d.kpis7d().txCount(), d.kpis7d().txVolume(), d.kpis7d().byStatus()),
+                new BackofficeResponses.QueueCounters(d.agentPayoutRequestedCount(), d.clientRefundRequestedCount()),
+                d.recentAuditEvents().stream().map(i -> new BackofficeResponses.AuditEventItem(i.eventRef(), i.occurredAt(), i.actorType(), i.actorRef(), i.action(), i.resourceType(), i.resourceRef(), i.metadata())).toList(),
+                new BackofficeResponses.PlatformFunds(d.platformFunds().currency(), d.platformFunds().accounts().stream().map(a -> new BackofficeResponses.PlatformFundAccount(a.accountType(), a.balance())).toList(), d.platformFunds().netPosition())
         );
     }
 

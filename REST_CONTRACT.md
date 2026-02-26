@@ -321,12 +321,12 @@ Filtres principaux :
 
 | Endpoint                                       |
 | ---------------------------------------------- |
-| GET `/client/me/home`                          |
 | GET `/client/me/profile`                       |
 | GET `/client/me/balance`                       |
 | GET `/client/me/cards`                         |
 | GET `/client/me/transactions`                  |
 | GET `/client/me/transactions/{transactionRef}` |
+| GET `/client/me/dashboard`                 |
 
 Filtres transactions :
 
@@ -352,6 +352,7 @@ Filtres transactions :
 | GET `/merchant/me/transactions/{transactionRef}` |
 | GET `/merchant/me/terminals`                     |
 | GET `/merchant/me/terminals/{terminalUid}`       |
+| GET `/merchant/me/dashboard`                   |
 
 ---
 
@@ -359,9 +360,12 @@ Filtres transactions :
 
 | Endpoint                     |
 | ---------------------------- |
-| GET `/agent/me/summary`      |
+| GET `/agent/me/profile`      |
+| GET `/agent/me/balance`      |
 | GET `/agent/me/transactions` |
 | GET `/agent/me/activities`   |
+| GET `/agent/me/transactions/{transactionRef}` |
+| GET `/agent/me/dashboard`    |
 | GET `/agent/search`          |
 
 ---
@@ -439,6 +443,10 @@ GET :
 
 GET `/backoffice/lookups`
 
+## Dashboard
+
+GET `/backoffice/dashboard`
+
 * `q`
 * `type`
 * `limit`
@@ -509,3 +517,47 @@ Ce document est la référence fonctionnelle destinée aux équipes :
 * Backoffice
 * QA
 * Intégration
+
+
+---
+
+# 11) DTO clés (me + dashboards)
+
+## Profiles
+
+- `ClientProfileResponse` = `{ code, phone, status, createdAt }`
+- `MerchantProfileResponse` = `{ code, status, createdAt }`
+- `AgentProfileResponse` = `{ code, status, createdAt }`
+
+## ActorBalanceResponse
+
+```json
+{
+  "ownerRef": "string",
+  "currency": "KMF",
+  "balances": [
+    { "kind": "MAIN", "amount": 1000 },
+    { "kind": "CASH", "amount": 0 },
+    { "kind": "COMMISSION", "amount": 0 }
+  ]
+}
+```
+
+Mapping:
+- client/merchant: `MAIN`
+- agent: `CASH` + `COMMISSION`
+
+## Dashboards
+
+- `/client/me/dashboard`: profile + balance + cards (max 5) + recentTransactions (max 10) + alerts.
+- `/merchant/me/dashboard`: profile + balance + kpis7d + recentTransactions (max 10) + terminalsSummary.
+- `/agent/me/dashboard`: profile + balance + kpis7d + recentTransactions (max 10) + recentActivities (max 10) + alerts.
+- `/backoffice/dashboard`: kpisToday + kpis7d + queues + recentAuditEvents + platformFunds.
+
+`platformFunds.accounts` contient:
+- `PLATFORM_FEE_REVENUE`
+- `PLATFORM_CLEARING`
+- `PLATFORM_CLIENT_REFUND_CLEARING`
+- `PLATFORM_BANK`
+
+et expose `netPosition`.

@@ -105,4 +105,21 @@ public final class BackofficeResponses {
             String status,
             String detailUrl
     ) {}
+
+    public record BackofficeStatusKpis(Long txCount, BigDecimal txVolume, Map<String, Long> byStatus) {}
+
+    public record QueueCounters(Long agentPayoutRequestedCount, Long clientRefundRequestedCount) {}
+
+    public record PlatformFundAccount(String accountType, BigDecimal balance) {}
+
+    public record PlatformFunds(String currency, List<PlatformFundAccount> accounts, BigDecimal netPosition) {}
+
+    public record BackofficeDashboardResponse(
+            BackofficeStatusKpis kpisToday,
+            BackofficeStatusKpis kpis7d,
+            QueueCounters queues,
+            List<AuditEventItem> recentAuditEvents,
+            PlatformFunds platformFunds
+    ) {}
+
 }

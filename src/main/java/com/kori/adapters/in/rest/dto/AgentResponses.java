@@ -1,6 +1,5 @@
 package com.kori.adapters.in.rest.dto;
 
-import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -9,19 +8,11 @@ public final class AgentResponses {
     private AgentResponses() {
     }
 
-    public record SummaryResponse(
-            String code,
-            String status,
-            BigDecimal cashBalance,
-            BigDecimal commissionBalance,
-            Long txCount7d) {
-    }
-
     public record TransactionItem(
             String transactionRef,
             String type,
             String status,
-            BigDecimal amount,
+            java.math.BigDecimal amount,
             String currency,
             Instant createdAt) {
     }

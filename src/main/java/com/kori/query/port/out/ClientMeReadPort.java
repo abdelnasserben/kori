@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ClientMeReadPort {
-    Optional<MeQueryModels.MeProfile> findProfile(String clientCode);
+    Optional<MeQueryModels.ClientProfile> findProfile(String clientCode);
 
-    MeQueryModels.MeBalance getBalance(String clientCode);
+    MeQueryModels.ActorBalance getBalance(String clientCode);
 
     List<MeQueryModels.MeCardItem> listCards(String clientCode);
 

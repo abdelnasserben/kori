@@ -6,9 +6,9 @@ import com.kori.query.model.me.MeQueryModels;
 import java.util.Optional;
 
 public interface MerchantMeReadPort {
-    Optional<MeQueryModels.MeProfile> findProfile(String merchantCode);
+    Optional<MeQueryModels.MerchantProfile> findProfile(String merchantCode);
 
-    MeQueryModels.MeBalance getBalance(String merchantCode);
+    MeQueryModels.ActorBalance getBalance(String merchantCode);
 
     QueryPage<MeQueryModels.MeTransactionItem> listTransactions(String merchantCode, MeQueryModels.MeTransactionsFilter filter);
 

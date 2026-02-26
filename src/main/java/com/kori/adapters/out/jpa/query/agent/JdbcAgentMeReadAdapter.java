@@ -8,6 +8,7 @@ import com.kori.adapters.out.jpa.query.common.QueryInputValidator;
 import com.kori.adapters.out.jpa.query.common.ReferenceResolver;
 import com.kori.query.model.QueryPage;
 import com.kori.query.model.me.AgentQueryModels;
+import com.kori.query.model.me.MeQueryModels;
 import com.kori.query.port.out.AgentMeReadPort;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -32,44 +33,34 @@ public class JdbcAgentMeReadAdapter implements AgentMeReadPort {
     }
 
     @Override
-    public Optional<AgentQueryModels.AgentSummary> findSummary(String agentCode) {
-        String resolvedIdText = referenceResolver.resolveAgentIdTextByCode(agentCode);
-        String sql = """
-                SELECT a.code AS actor_ref,
-                       a.status,
-                       COALESCE((
-                           SELECT SUM(CASE WHEN le.entry_type = 'CREDIT' THEN le.amount ELSE -le.amount END)
-                           FROM ledger_entries le
-                           WHERE le.account_type = 'AGENT_CASH_CLEARING' AND le.owner_ref = :resolvedIdText
-                       ), 0) AS cash_balance,
-                       COALESCE((
-                           SELECT SUM(CASE WHEN le.entry_type = 'CREDIT' THEN le.amount ELSE -le.amount END)
-                           FROM ledger_entries le
-                           WHERE le.account_type = 'AGENT_WALLET' AND le.owner_ref = :resolvedIdText
-                       ), 0) AS commission_balance,
-                       (
-                           SELECT COUNT(DISTINCT t.id)
-                           FROM transactions t
-                           JOIN ledger_entries le ON le.transaction_id = t.id
-                           WHERE le.account_type IN ('AGENT_CASH_CLEARING', 'AGENT_WALLET')
-                             AND le.owner_ref = :resolvedIdText
-                             AND t.created_at >= NOW() - INTERVAL '7 days'
-                       ) AS tx_count_7d
-                FROM agents a
-                WHERE a.code = :agentCode
-                LIMIT 1
-                """;
-        var rows = jdbcTemplate.query(
-                sql,
-                new MapSqlParameterSource()
-                        .addValue("agentCode", agentCode)
-                        .addValue("resolvedIdText", resolvedIdText), (rs, n) -> new AgentQueryModels.AgentSummary(
+    public Optional<MeQueryModels.AgentProfile> findProfile(String agentCode) {
+        String sql = "SELECT code AS actor_ref, status, created_at FROM agents WHERE code = :agentCode LIMIT 1";
+        var rows = jdbcTemplate.query(sql, new MapSqlParameterSource("agentCode", agentCode), (rs, n) ->
+                new MeQueryModels.AgentProfile(
                         rs.getString("actor_ref"),
                         rs.getString("status"),
-                        rs.getBigDecimal("cash_balance"),
-                        rs.getBigDecimal("commission_balance"),
-                        rs.getLong("tx_count_7d")));
+                        rs.getTimestamp("created_at").toInstant()));
         return rows.stream().findFirst();
+    }
+
+    @Override
+    public MeQueryModels.ActorBalance getBalance(String agentCode) {
+        String resolvedIdText = referenceResolver.resolveAgentIdTextByCode(agentCode);
+        String sql = """
+                SELECT
+                  COALESCE(SUM(CASE WHEN account_type = 'AGENT_CASH_CLEARING' AND entry_type = 'CREDIT' THEN amount
+                                    WHEN account_type = 'AGENT_CASH_CLEARING' AND entry_type = 'DEBIT' THEN -amount ELSE 0 END), 0) AS cash_balance,
+                  COALESCE(SUM(CASE WHEN account_type = 'AGENT_WALLET' AND entry_type = 'CREDIT' THEN amount
+                                    WHEN account_type = 'AGENT_WALLET' AND entry_type = 'DEBIT' THEN -amount ELSE 0 END), 0) AS commission_balance
+                FROM ledger_entries
+                WHERE owner_ref = :resolvedIdText
+                  AND account_type IN ('AGENT_CASH_CLEARING', 'AGENT_WALLET')
+                """;
+        var row = jdbcTemplate.queryForMap(sql, new MapSqlParameterSource("resolvedIdText", resolvedIdText));
+        return new MeQueryModels.ActorBalance(agentCode, "KMF", List.of(
+                new MeQueryModels.BalanceItem("CASH", (java.math.BigDecimal) row.get("cash_balance")),
+                new MeQueryModels.BalanceItem("COMMISSION", (java.math.BigDecimal) row.get("commission_balance"))
+        ));
     }
 
     @Override
@@ -153,6 +144,69 @@ public class JdbcAgentMeReadAdapter implements AgentMeReadPort {
                 : null;
 
         return new QueryPage<>(rows, nextCursor, hasMore);
+    }
+
+    @Override
+    public Optional<MeQueryModels.AgentTransactionDetails> findTransactionDetailsOwnedByAgent(String agentCode, String transactionRef) {
+        String resolvedIdText = referenceResolver.resolveAgentIdTextByCode(agentCode);
+        String sql = """
+                SELECT t.id::text AS transaction_ref,
+                       t.type,
+                       COALESCE(p.status, cr.status, 'COMPLETED') AS status,
+                       t.amount,
+                       owned.total_debited,
+                       GREATEST((owned.total_debited - t.amount), 0) AS fee,
+                       'KMF' AS currency,
+                       c.code AS client_code,
+                       m.code AS merchant_code,
+                       te.owner_ref AS terminal_uid,
+                       t.original_transaction_id::text AS original_transaction_ref,
+                       t.created_at
+                FROM transactions t
+                JOIN (
+                      SELECT le.transaction_id,
+                        COALESCE(SUM(CASE WHEN le.entry_type = 'DEBIT' THEN le.amount ELSE 0 END), 0) AS total_debited
+                      FROM ledger_entries le
+                      WHERE le.transaction_id::text = :transactionRef
+                        AND le.account_type IN ('AGENT_CASH_CLEARING', 'AGENT_WALLET')
+                        AND le.owner_ref = :resolvedIdText
+                      GROUP BY le.transaction_id
+                ) owned ON owned.transaction_id = t.id
+                LEFT JOIN payouts p ON p.transaction_id = t.id
+                LEFT JOIN client_refunds cr ON cr.transaction_id = t.id
+                LEFT JOIN ledger_entries client_entry ON client_entry.transaction_id = t.id AND client_entry.account_type = 'CLIENT'
+                LEFT JOIN clients c ON c.id::text = client_entry.owner_ref
+                LEFT JOIN ledger_entries merchant_entry ON merchant_entry.transaction_id = t.id AND merchant_entry.account_type = 'MERCHANT'
+                LEFT JOIN merchants m ON m.id::text = merchant_entry.owner_ref
+                LEFT JOIN ledger_entries te ON te.transaction_id = t.id AND te.account_type = 'TERMINAL'
+                WHERE t.id::text = :transactionRef
+                LIMIT 1
+                """;
+        var params = new MapSqlParameterSource()
+                .addValue("resolvedIdText", resolvedIdText)
+                .addValue("transactionRef", transactionRef);
+        var rows = jdbcTemplate.query(sql, params, (rs, i) -> new MeQueryModels.AgentTransactionDetails(
+                rs.getString("transaction_ref"),
+                rs.getString("type"),
+                rs.getString("status"),
+                rs.getBigDecimal("amount"),
+                rs.getBigDecimal("fee"),
+                rs.getBigDecimal("total_debited"),
+                rs.getString("currency"),
+                rs.getString("client_code"),
+                rs.getString("merchant_code"),
+                rs.getString("terminal_uid"),
+                rs.getString("original_transaction_ref"),
+                rs.getTimestamp("created_at").toInstant()
+        ));
+        return rows.stream().findFirst();
+    }
+
+    @Override
+    public boolean existsTransaction(String transactionRef) {
+        String sql = "SELECT COUNT(1) FROM transactions WHERE id::text = :transactionRef";
+        Integer count = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource("transactionRef", transactionRef), Integer.class);
+        return count != null && count > 0;
     }
 
     @Override

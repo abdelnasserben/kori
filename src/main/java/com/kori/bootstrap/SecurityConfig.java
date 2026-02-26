@@ -121,6 +121,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/admins").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/actors/**").hasRole("ADMIN")
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/lookups").hasRole("ADMIN")
+                        .requestMatchers(HttpMethod.GET, API_VERSION + "/backoffice/dashboard").hasRole("ADMIN")
 
                         // Agent "me" endpoints
                         .requestMatchers(HttpMethod.GET, API_VERSION + "/agent/me/**").hasRole("AGENT")

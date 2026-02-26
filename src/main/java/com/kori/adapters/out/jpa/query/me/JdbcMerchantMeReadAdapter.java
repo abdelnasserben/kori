@@ -32,12 +32,11 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
     }
 
     @Override
-    public Optional<MeQueryModels.MeProfile> findProfile(String merchantCode) {
+    public Optional<MeQueryModels.MerchantProfile> findProfile(String merchantCode) {
         String sql = "SELECT code AS actor_ref, code, status, created_at FROM merchants WHERE code = :merchantCode LIMIT 1";
         var rows = jdbcTemplate.query(sql, new MapSqlParameterSource("merchantCode", merchantCode), (rs, n) ->
-                new MeQueryModels.MeProfile(
+                new MeQueryModels.MerchantProfile(
                         rs.getString("actor_ref"),
-                        rs.getString("code"),
                         rs.getString("status"),
                         rs.getTimestamp("created_at").toInstant()
                 ));
@@ -45,7 +44,7 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
     }
 
     @Override
-    public MeQueryModels.MeBalance getBalance(String merchantCode) {
+    public MeQueryModels.ActorBalance getBalance(String merchantCode) {
         String sql = """
                 SELECT COALESCE(SUM(CASE WHEN le.entry_type = 'CREDIT' THEN le.amount ELSE -le.amount END), 0) AS balance
                 FROM ledger_entries le
@@ -54,7 +53,7 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
                 """;
         String resolvedIdText = referenceResolver.resolveMerchantIdTextByCode(merchantCode);
         var balance = jdbcTemplate.queryForObject(sql, new MapSqlParameterSource("resolvedIdText", resolvedIdText), BigDecimal.class);
-        return new MeQueryModels.MeBalance("MERCHANT", merchantCode, balance, "KMF");
+        return new MeQueryModels.ActorBalance(merchantCode, "KMF", java.util.List.of(new MeQueryModels.BalanceItem("MAIN", balance)));
     }
 
     @Override
