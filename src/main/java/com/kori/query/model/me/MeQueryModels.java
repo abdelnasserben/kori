@@ -8,17 +8,20 @@ public final class MeQueryModels {
 
     public record ClientProfile(
             String code,
+            String displayName,
             String phone,
             String status,
             Instant createdAt) {}
 
     public record MerchantProfile(
             String code,
+            String displayName,
             String status,
             Instant createdAt) {}
 
     public record AgentProfile(
             String code,
+            String displayName,
             String status,
             Instant createdAt) {}
 

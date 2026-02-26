@@ -33,10 +33,11 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
 
     @Override
     public Optional<MeQueryModels.MerchantProfile> findProfile(String merchantCode) {
-        String sql = "SELECT code AS actor_ref, code, status, created_at FROM merchants WHERE code = :merchantCode LIMIT 1";
+        String sql = "SELECT code AS actor_ref, code, display_name, status, created_at FROM merchants WHERE code = :merchantCode LIMIT 1";
         var rows = jdbcTemplate.query(sql, new MapSqlParameterSource("merchantCode", merchantCode), (rs, n) ->
                 new MeQueryModels.MerchantProfile(
                         rs.getString("actor_ref"),
+                        rs.getString("display_name"),
                         rs.getString("status"),
                         rs.getTimestamp("created_at").toInstant()
                 ));

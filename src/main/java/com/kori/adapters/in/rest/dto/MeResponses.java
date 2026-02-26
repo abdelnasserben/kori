@@ -16,17 +16,20 @@ public final class MeResponses {
 
     public record ClientProfileResponse(
             String code,
+            String displayName,
             String phone,
             String status,
             Instant createdAt) {}
 
     public record MerchantProfileResponse(
             String code,
+            String displayName,
             String status,
             Instant createdAt) {}
 
     public record AgentProfileResponse(
             String code,
+            String displayName,
             String status,
             Instant createdAt) {}
 

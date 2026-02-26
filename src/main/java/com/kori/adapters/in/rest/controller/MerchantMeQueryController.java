@@ -34,7 +34,7 @@ public class MerchantMeQueryController {
     @GetMapping("/profile")
     public MeResponses.MerchantProfileResponse profile(ActorContext actorContext) {
         var item = merchantMeQueryUseCase.getProfile(actorContext);
-        return new MeResponses.MerchantProfileResponse(item.code(), item.status(), item.createdAt());
+        return new MeResponses.MerchantProfileResponse(item.code(), item.displayName(), item.status(), item.createdAt());
     }
 
     @GetMapping("/balance")

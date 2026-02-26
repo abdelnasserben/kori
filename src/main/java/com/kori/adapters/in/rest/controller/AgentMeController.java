@@ -33,7 +33,7 @@ public class AgentMeController {
     @GetMapping("/profile")
     public MeResponses.AgentProfileResponse profile(ActorContext actorContext) {
         var item = queryUseCase.getProfile(actorContext);
-        return new MeResponses.AgentProfileResponse(item.code(), item.status(), item.createdAt());
+        return new MeResponses.AgentProfileResponse(item.code(), item.displayName(), item.status(), item.createdAt());
     }
 
     @GetMapping("/balance")

@@ -34,10 +34,11 @@ public class JdbcAgentMeReadAdapter implements AgentMeReadPort {
 
     @Override
     public Optional<MeQueryModels.AgentProfile> findProfile(String agentCode) {
-        String sql = "SELECT code AS actor_ref, status, created_at FROM agents WHERE code = :agentCode LIMIT 1";
+        String sql = "SELECT code AS actor_ref, display_name, status, created_at FROM agents WHERE code = :agentCode LIMIT 1";
         var rows = jdbcTemplate.query(sql, new MapSqlParameterSource("agentCode", agentCode), (rs, n) ->
                 new MeQueryModels.AgentProfile(
                         rs.getString("actor_ref"),
+                        rs.getString("display_name"),
                         rs.getString("status"),
                         rs.getTimestamp("created_at").toInstant()));
         return rows.stream().findFirst();

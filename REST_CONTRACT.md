@@ -525,9 +525,9 @@ Ce document est la référence fonctionnelle destinée aux équipes :
 
 ## Profiles
 
-- `ClientProfileResponse` = `{ code, phone, status, createdAt }`
-- `MerchantProfileResponse` = `{ code, status, createdAt }`
-- `AgentProfileResponse` = `{ code, status, createdAt }`
+- `ClientProfileResponse` = `{ code, displayName, phone, status, createdAt }`
+- `MerchantProfileResponse` = `{ code, displayName, status, createdAt }`
+- `AgentProfileResponse` = `{ code, displayName, status, createdAt }`
 
 ## ActorBalanceResponse
 
