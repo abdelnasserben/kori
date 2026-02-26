@@ -6,7 +6,6 @@ import com.kori.application.security.ActorContext;
 import com.kori.domain.ledger.LedgerAccountType;
 import com.kori.query.model.BackofficeAuditEventQuery;
 import com.kori.query.model.BackofficeTransactionQuery;
-import com.kori.query.model.me.AgentQueryModels;
 import com.kori.query.model.me.DashboardQueryModels;
 import com.kori.query.model.me.MeQueryModels;
 import com.kori.query.port.in.*;
@@ -22,6 +21,7 @@ import java.util.stream.Collectors;
 @Service
 public class DashboardQueryService {
     private static final int DEFAULT_PAGE_SIZE = 10;
+    private static final String PLATFORM_OWNER_REF = "SYSTEM";
 
     private final ClientMeQueryUseCase clientMeQueryUseCase;
     private final MerchantMeQueryUseCase merchantMeQueryUseCase;
@@ -60,10 +60,10 @@ public class DashboardQueryService {
         var payouts = backofficeTransactionQueryUseCase.list(new BackofficeTransactionQuery(null, "AGENT_PAYOUT", "REQUESTED", null, null, null, null, null, null, null, null, null, null, null, DEFAULT_PAGE_SIZE, null, "createdAt:desc")).items();
         var refunds = backofficeTransactionQueryUseCase.list(new BackofficeTransactionQuery(null, "CLIENT_REFUND", "REQUESTED", null, null, null, null, null, null, null, null, null, null, null, DEFAULT_PAGE_SIZE, null, "createdAt:desc")).items();
 
-        var feeRevenue = getBalanceUseCase.execute(new GetBalanceCommand(actorContext, LedgerAccountType.PLATFORM_FEE_REVENUE.name(), "PLATFORM"));
-        var clearing = getBalanceUseCase.execute(new GetBalanceCommand(actorContext, LedgerAccountType.PLATFORM_CLEARING.name(), "PLATFORM"));
-        var refundClearing = getBalanceUseCase.execute(new GetBalanceCommand(actorContext, LedgerAccountType.PLATFORM_CLIENT_REFUND_CLEARING.name(), "PLATFORM"));
-        var bank = getBalanceUseCase.execute(new GetBalanceCommand(actorContext, LedgerAccountType.PLATFORM_BANK.name(), "PLATFORM"));
+        var feeRevenue = getBalanceUseCase.execute(new GetBalanceCommand(actorContext, LedgerAccountType.PLATFORM_FEE_REVENUE.name(), PLATFORM_OWNER_REF));
+        var clearing = getBalanceUseCase.execute(new GetBalanceCommand(actorContext, LedgerAccountType.PLATFORM_CLEARING.name(), PLATFORM_OWNER_REF));
+        var refundClearing = getBalanceUseCase.execute(new GetBalanceCommand(actorContext, LedgerAccountType.PLATFORM_CLIENT_REFUND_CLEARING.name(), PLATFORM_OWNER_REF));
+        var bank = getBalanceUseCase.execute(new GetBalanceCommand(actorContext, LedgerAccountType.PLATFORM_BANK.name(), PLATFORM_OWNER_REF));
 
         BigDecimal netPosition = bank.balance().subtract(clearing.balance()).subtract(refundClearing.balance());
 
