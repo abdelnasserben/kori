@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -129,7 +130,7 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
             sql.append(desc
                     ? " AND (t.created_at < :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.terminal_uid < :cursorRef))"
                     : " AND (t.created_at > :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.terminal_uid > :cursorRef))");
-            params.addValue("cursorCreatedAt", cursor.createdAt());
+            params.addValue("cursorCreatedAt", Timestamp.from(cursor.createdAt()));
             params.addValue("cursorRef", cursor.ref());
         }
         sql.append(" ORDER BY t.created_at ").append(desc ? "DESC" : "ASC").append(", t.terminal_uid ").append(desc ? "DESC" : "ASC");
@@ -188,11 +189,11 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
         }
         if (filter.from() != null) {
             sql.append(" AND t.created_at >= :from");
-            params.addValue("from", filter.from());
+            params.addValue("from", Timestamp.from(filter.from()));
         }
         if (filter.to() != null) {
             sql.append(" AND t.created_at <= :to");
-            params.addValue("to", filter.to());
+            params.addValue("to", Timestamp.from(filter.to()));
         }
         if (filter.min() != null) {
             sql.append(" AND t.amount >= :min");
@@ -209,7 +210,7 @@ public class JdbcMerchantMeReadAdapter implements MerchantMeReadPort {
         sql.append(desc
                 ? " AND (t.created_at < :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.id::text < :cursorRef))"
                 : " AND (t.created_at > :cursorCreatedAt OR (t.created_at = :cursorCreatedAt AND t.id::text > :cursorRef))");
-        params.addValue("cursorCreatedAt", cursor.createdAt());
+        params.addValue("cursorCreatedAt", Timestamp.from(cursor.createdAt()));
         params.addValue("cursorRef", cursor.ref());
     }
 }

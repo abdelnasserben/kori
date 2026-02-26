@@ -15,6 +15,7 @@ import java.time.Instant;
 @RestController
 @RequestMapping(ApiPaths.MERCHANT_ME)
 public class MerchantMeQueryController {
+    private static final int DEFAULT_PAGE_SIZE = 10;
 
     private final MerchantMeQueryUseCase merchantMeQueryUseCase;
     private final MerchantMeTxDetailQueryUseCase merchantMeTxDetailQueryUseCase;

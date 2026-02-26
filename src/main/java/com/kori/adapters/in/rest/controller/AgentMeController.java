@@ -18,6 +18,8 @@ import java.time.Instant;
 @RequestMapping(ApiPaths.AGENT_ME)
 public class AgentMeController {
 
+    private static final int DEFAULT_PAGE_SIZE = 10;
+
     private final AgentMeQueryUseCase queryUseCase;
 
     public AgentMeController(AgentMeQueryUseCase queryUseCase) {
