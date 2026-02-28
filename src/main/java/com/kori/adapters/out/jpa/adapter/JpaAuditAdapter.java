@@ -9,7 +9,6 @@ import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
@@ -30,7 +29,7 @@ public class JpaAuditAdapter implements AuditPort {
     public void publish(AuditEvent event) {
         try {
             String correlationId = MDC.get("correlationId");
-            Map<String, String> metadata = new HashMap<>(event.metadata());
+            Map<String, String> metadata = AuditResourceMetadataHelper.enrich(event.action(), event.metadata());
             if (correlationId != null && !correlationId.isBlank() && !metadata.containsKey("correlationId")) {
                 metadata.put("correlationId", correlationId);
             }

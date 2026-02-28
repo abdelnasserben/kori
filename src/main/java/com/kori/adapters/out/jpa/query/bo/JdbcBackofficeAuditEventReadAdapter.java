@@ -23,6 +23,31 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
     private static final int DEFAULT_LIMIT = 20;
     private static final int MAX_LIMIT = 100;
 
+    private static final String RESOURCE_TYPE_EXPR = """
+            COALESCE(
+                metadata_json::jsonb ->> 'resourceType',
+                CASE
+                    WHEN action = 'ADMIN_UPDATE_PLATFORM_CONFIG' THEN 'PLATFORM_CONFIG'
+                    WHEN metadata_json::jsonb ->> 'merchantCode' IS NOT NULL THEN 'MERCHANT'
+                    WHEN metadata_json::jsonb ->> 'agentCode' IS NOT NULL THEN 'AGENT'
+                    WHEN metadata_json::jsonb ->> 'clientCode' IS NOT NULL THEN 'CLIENT'
+                    WHEN metadata_json::jsonb ->> 'terminalUid' IS NOT NULL THEN 'TERMINAL'
+                    ELSE NULL
+                END
+            )
+            """;
+
+    private static final String RESOURCE_REF_EXPR = """
+            COALESCE(
+                metadata_json::jsonb ->> 'resourceRef',
+                metadata_json::jsonb ->> 'merchantCode',
+                metadata_json::jsonb ->> 'agentCode',
+                metadata_json::jsonb ->> 'clientCode',
+                metadata_json::jsonb ->> 'terminalUid',
+                CASE WHEN action = 'ADMIN_UPDATE_PLATFORM_CONFIG' THEN 'SYSTEM' ELSE NULL END
+            )
+            """;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final OpaqueCursorCodec codec = new OpaqueCursorCodec();
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -38,12 +63,12 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
         var cursor = codec.decode(query.cursor());
         StringBuilder sql = new StringBuilder("""
            SELECT id::text AS event_ref, occurred_at, actor_type, actor_id AS actor_ref, action,
-               metadata_json::jsonb ->> 'resourceType' AS resource_type,
-               metadata_json::jsonb ->> 'resourceRef' AS resource_ref,
-               metadata_json
-          FROM audit_events
-          WHERE 1=1
         """);
+        sql.append(RESOURCE_TYPE_EXPR).append(" AS resource_type,")
+                .append(RESOURCE_REF_EXPR).append(" AS resource_ref,")
+                .append(" metadata_json")
+                .append(" FROM audit_events WHERE 1=1");
+
         var params = new MapSqlParameterSource();
         if (query.action() != null && !query.action().isBlank()) {
             sql.append(" AND action = :action");
@@ -58,11 +83,11 @@ public class JdbcBackofficeAuditEventReadAdapter implements BackofficeAuditEvent
             params.addValue("actorRef", query.actorRef());
         }
         if (query.resourceType() != null && !query.resourceType().isBlank()) {
-            sql.append(" AND metadata_json::jsonb ->> 'resourceType' = :resourceType");
+            sql.append(" AND ").append(RESOURCE_TYPE_EXPR).append(" = :resourceType");
             params.addValue("resourceType", query.resourceType());
         }
         if (query.resourceRef() != null && !query.resourceRef().isBlank()) {
-            sql.append(" AND metadata_json::jsonb ->> 'resourceRef' = :resourceRef");
+            sql.append(" AND ").append(RESOURCE_REF_EXPR).append(" = :resourceRef");
             params.addValue("resourceRef", query.resourceRef());
         }
         if (query.from() != null) {
