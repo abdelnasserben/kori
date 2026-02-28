@@ -44,6 +44,9 @@ final class AuditResourceMetadataHelper {
         if ("ADMIN_UPDATE_PLATFORM_CONFIG".equals(action)) {
             return new ResourceInfo("PLATFORM_CONFIG", "SYSTEM");
         }
+        if ("ADMIN_UPDATE_COMMISSION_CONFIG".equals(action)) {
+            return new ResourceInfo("COMMISSION_CONFIG", "SYSTEM");
+        }
         String merchantCode = blankToNull(metadata.get("merchantCode"));
         if (merchantCode != null) {
             return new ResourceInfo("MERCHANT", merchantCode);
@@ -59,6 +62,11 @@ final class AuditResourceMetadataHelper {
         String terminalUid = blankToNull(metadata.get("terminalUid"));
         if (terminalUid != null) {
             return new ResourceInfo("TERMINAL", terminalUid);
+        }
+
+        String adminUsername = blankToNull(metadata.get("adminUsername"));
+        if (adminUsername != null) {
+            return new ResourceInfo("ADMIN", adminUsername);
         }
         return new ResourceInfo(null, null);
     }
