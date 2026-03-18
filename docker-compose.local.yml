@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-kori}
+      POSTGRES_USER: ${POSTGRES_USER:-kori}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      KEYCLOAK_DB_NAME: ${KEYCLOAK_DB_NAME:-keycloak}
+      KEYCLOAK_DB_USERNAME: ${KEYCLOAK_DB_USERNAME:-keycloak}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-change-me}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kori} -d ${POSTGRES_DB:-kori}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: start-dev --http-port=8080 --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KC_BOOTSTRAP_ADMIN_USERNAME:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KC_BOOTSTRAP_ADMIN_PASSWORD:-change-me}
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${KEYCLOAK_DB_NAME:-keycloak}
+      KC_DB_USERNAME: ${KEYCLOAK_DB_USERNAME:-keycloak}
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD:-change-me}
+      KC_HEALTH_ENABLED: "true"
+      KC_HTTP_ENABLED: "true"
+      KC_HOSTNAME_STRICT: "false"
+    ports:
+      - "${KEYCLOAK_BIND_PORT:-8080}:8080"
+    volumes:
+      - ./docker/keycloak/import:/opt/keycloak/data/import:ro
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080'"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 40s
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      KORI_SERVER_PORT: 8081
+      KORI_DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-kori}
+      KORI_DB_USERNAME: ${POSTGRES_USER:-kori}
+      KORI_DB_PASSWORD: ${POSTGRES_PASSWORD:-change-me}
+      KORI_JWT_ISSUER_URI: http://keycloak:8080/realms/${KEYCLOAK_REALM:-kori}
+      KORI_JWT_AUDIENCE: ${KORI_JWT_AUDIENCE:-kori-api}
+    ports:
+      - "8081:8081"
+
+volumes:
+  postgres_data:

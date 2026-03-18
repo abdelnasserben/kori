@@ -33,7 +33,12 @@ import java.util.stream.Stream;
 public class SecurityConfig {
 
     private static final String API_VERSION = "/api/v1";
-    private static final String API_AUDIENCE = "kori-api";
+
+    private final String apiAudience;
+
+    public SecurityConfig(@Value("${kori.security.jwt.audience:kori-api}") String apiAudience) {
+        this.apiAudience = apiAudience;
+    }
 
     @Bean
     SecurityFilterChain securityFilterChain(
@@ -144,7 +149,7 @@ public class SecurityConfig {
         NimbusJwtDecoder jwtDecoder = NimbusJwtDecoder.withIssuerLocation(issuerUri).build();
         OAuth2TokenValidator<Jwt> audienceValidator = jwt -> {
             List<String> audiences = jwt.getAudience();
-            if (audiences != null && audiences.contains(API_AUDIENCE)) {
+            if (audiences != null && audiences.contains(apiAudience)) {
                 return OAuth2TokenValidatorResult.success();
             }
             return OAuth2TokenValidatorResult.failure(new OAuth2Error("invalid_token", "The required audience is missing", null));
@@ -186,7 +191,7 @@ public class SecurityConfig {
             return List.of();
         }
 
-        Object clientAccess = resourceAccess.get(API_AUDIENCE);
+        Object clientAccess = resourceAccess.get(apiAudience);
         if (!(clientAccess instanceof Map<?, ?> clientAccessMap)) {
             return List.of();
         }
